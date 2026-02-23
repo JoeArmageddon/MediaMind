@@ -1,0 +1,26 @@
+{
+  "name": "MediaMind - Personal Media Intelligence",
+  "short_name": "MediaMind",
+  "description": "AI-powered media tracking and analytics",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["entertainment", "productivity"],
+  "prefer_related_applications": false
+}

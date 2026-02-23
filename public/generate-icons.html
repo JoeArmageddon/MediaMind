@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Icons</title>
+  <style>
+    body {
+      background: #1a1a1a;
+      color: white;
+      font-family: system-ui, sans-serif;
+      padding: 40px;
+      text-align: center;
+    }
+    canvas {
+      margin: 20px;
+      border: 2px solid #333;
+      border-radius: 20px;
+    }
+    button {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <h1>📱 MediaMind Icon Generator</h1>
+  <p>Click the buttons below to download your icons</p>
+  
+  <div>
+    <canvas id="c192" width="192" height="192"></canvas>
+    <canvas id="c180" width="180" height="180"></canvas>
+    <canvas id="c512" width="512" height="512"></canvas>
+  </div>
+  
+  <div>
+    <button onclick="download('c192', 'icon-192x192.png')">Download 192x192 (PWA)</button>
+    <button onclick="download('c180', 'apple-touch-icon.png')">Download 180x180 (iPhone)</button>
+    <button onclick="download('c512', 'icon-512x512.png')">Download 512x512 (PWA Large)</button>
+  </div>
+
+  <script>
+    const svgData = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+      <defs>
+        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#6366f1"/>
+          <stop offset="50%" stop-color="#8b5cf6"/>
+          <stop offset="100%" stop-color="#a855f7"/>
+        </linearGradient>
+      </defs>
+      <rect width="192" height="192" rx="44" fill="#0a0a0f"/>
+      <circle cx="96" cy="96" r="72" fill="url(#g)"/>
+      <circle cx="96" cy="96" r="56" fill="#0a0a0f"/>
+      <path d="M64 64 L64 128 L84 108 L96 128 L108 108 L128 128 L128 64 L108 84 L96 64 L84 84 Z" 
+            fill="url(#g)" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+      <circle cx="70" cy="76" r="4" fill="white"/>
+      <circle cx="122" cy="76" r="4" fill="white"/>
+      <circle cx="70" cy="116" r="4" fill="white"/>
+      <circle cx="122" cy="116" r="4" fill="white"/>
+    </svg>`;
+
+    const img = new Image();
+    const svgBlob = new Blob([svgData], {type: 'image/svg+xml'});
+    const url = URL.createObjectURL(svgBlob);
+    
+    img.onload = function() {
+      ['c192', 'c180', 'c512'].forEach(id => {
+        const canvas = document.getElementById(id);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      });
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+
+    function download(canvasId, filename) {
+      const canvas = document.getElementById(canvasId);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaMind Deployment Guide - Complete Step-by-Step</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0B0B0F;
+            --bg-secondary: #111118;
+            --bg-tertiary: #15151D;
+            --accent: #7C5CFF;
+            --accent-light: #9C81FF;
+            --text-primary: #FAFAFA;
+            --text-secondary: #A1A1AA;
+            --text-muted: #71717A;
+            --border: rgba(124, 92, 255, 0.2);
+            --success: #22C55E;
+            --warning: #F59E0B;
+            --error: #EF4444;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            font-size: 16px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 16px;
+        }
+        
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .difficulty-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(124, 92, 255, 0.1);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+        
+        .difficulty-badge span {
+            color: var(--accent);
+        }
+        
+        /* Table of Contents */
+        .toc {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 40px;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+        
+        .toc h2 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: var(--accent);
+        }
+        
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+        }
+        
+        .toc-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .toc-item:hover {
+            border-color: var(--border);
+            color: var(--text-primary);
+            transform: translateX(4px);
+        }
+        
+        .toc-number {
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        
+        /* Sections */
+        .section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .section-number {
+            width: 48px;
+            height: 48px;
+            background: var(--accent);
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .section h2 {
+            font-size: 1.8rem;
+            color: var(--text-primary);
+        }
+        
+        .section h3 {
+            font-size: 1.3rem;
+            color: var(--accent-light);
+            margin: 30px 0 15px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .section h3:first-of-type {
+            border-top: none;
+            padding-top: 0;
+        }
+        
+        /* Step Cards */
+        .step {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 20px 0;
+            border-left: 4px solid var(--accent);
+        }
+        
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .step-number {
+            background: var(--accent);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .step h4 {
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+        
+        /* Code Blocks */
+        .code-block {
+            background: #0d0d12;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            position: relative;
+        }
+        
+        .code-block::before {
+            content: attr(data-lang);
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
+        .code-block code {
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .code-comment {
+            color: var(--text-muted);
+        }
+        
+        .code-keyword {
+            color: #ff79c6;
+        }
+        
+        .code-string {
+            color: #f1fa8c;
+        }
+        
+        /* Inline Code */
+        code {
+            background: var(--bg-tertiary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+            color: var(--accent-light);
+        }
+        
+        /* Info Boxes */
+        .info-box {
+            background: rgba(124, 92, 255, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .info-box-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+        
+        .warning-box .info-box-title {
+            color: var(--warning);
+        }
+        
+        .success-box {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        
+        .success-box .info-box-title {
+            color: var(--success);
+        }
+        
+        /* Lists */
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+        
+        li {
+            margin: 10px 0;
+            color: var(--text-secondary);
+        }
+        
+        li strong {
+            color: var(--text-primary);
+        }
+        
+        /* Links */
+        a {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+        
+        a:hover {
+            border-bottom-color: var(--accent);
+        }
+        
+        /* Checklist */
+        .checklist {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .checklist li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .checklist li::before {
+            content: "☐";
+            color: var(--accent);
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        
+        /* Screenshot placeholder */
+        .screenshot {
+            background: var(--bg-tertiary);
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 60px 20px;
+            text-align: center;
+            margin: 20px 0;
+            color: var(--text-muted);
+        }
+        
+        .screenshot svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        /* Progress indicator */
+        .progress-bar {
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            margin: 40px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 100%);
+            width: 0%;
+            transition: width 0.5s;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            margin-top: 60px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .section {
+                padding: 24px;
+            }
+            
+            .toc-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .toc {
+                position: static;
+            }
+        }
+        
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Print styles */
+        @media print {
+            .toc, .header {
+                display: none;
+            }
+            
+            .section {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>📺 MediaMind Deployment Guide</h1>
+        <p>The complete step-by-step guide to deploy your own Personal Media Intelligence PWA from zero to live on the internet.</p>
+        <div class="difficulty-badge">
+            <span>★</span>
+            Difficulty: Beginner Friendly
+            <span>|</span>
+            ⏱️ Time: ~45 minutes
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Table of Contents -->
+        <nav class="toc">
+            <h2>📋 What We'll Do</h2>
+            <div class="toc-grid">
+                <a href="#prerequisites" class="toc-item">
+                    <span class="toc-number">1</span>
+                    Install Required Software
+                </a>
+                <a href="#accounts" class="toc-item">
+                    <span class="toc-number">2</span>
+                    Create Free Accounts
+                </a>
+                <a href="#download" class="toc-item">
+                    <span class="toc-number">3</span>
+                    Download the Code
+                </a>
+                <a href="#database" class="toc-item">
+                    <span class="toc-number">4</span>
+                    Set Up Database
+                </a>
+                <a href="#env" class="toc-item">
+                    <span class="toc-number">5</span>
+                    Configure API Keys
+                </a>
+                <a href="#local" class="toc-item">
+                    <span class="toc-number">6</span>
+                    Test Locally
+                </a>
+                <a href="#deploy" class="toc-item">
+                    <span class="toc-number">7</span>
+                    Deploy to Internet
+                </a>
+                <a href="#pwa" class="toc-item">
+                    <span class="toc-number">8</span>
+                    Install as App
+                </a>
+            </div>
+        </nav>
+
+        <!-- Section 1: Prerequisites -->
+        <section class="section" id="prerequisites">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <h2>Install Required Software</h2>
+            </div>
+
+            <p>Before we start, you need to install three free tools on your computer. These are what developers use to build websites.</p>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1.1</span>
+                    <h4>Install Node.js (JavaScript Runtime)</h4>
+                </div>
+                <p>Node.js lets your computer run the code. Think of it like installing a video player to watch movies.</p>
+                
+                <ol>
+                    <li>Go to <a href="https://nodejs.org" target="_blank">nodejs.org</a></li>
+                    <li>Click the big green <strong>"LTS"</strong> button (LTS means "Long Term Support" - it's the stable version)</li>
+                    <li>Download and run the installer</li>
+                    <li>Click "Next" through all the prompts (default settings are fine)</li>
+                    <li>Restart your computer after installation</li>
+                </ol>
+
+                <div class="info-box">
+                    <div class="info-box-title">💡 How to Verify</div>
+                    <p>Open your terminal/command prompt and type:</p>
+                    <div class="code-block" data-lang="bash"><code>node --version</code></div>
+                    <p>If you see a version number like <code>v20.x.x</code>, it's working!</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1.2</span>
+                    <h4>Install Git (Version Control)</h4>
+                </div>
+                <p>Git helps download and manage the code. It's like a download manager for code.</p>
+                
+                <p><strong>For Windows:</strong></p>
+                <ol>
+                    <li>Go to <a href="https://git-scm.com/download/win" target="_blank">git-scm.com/download/win</a></li>
+                    <li>Download and run the installer</li>
+                    <li>Keep all default settings (click "Next" many times)</li>
+                </ol>
+
+                <p><strong>For Mac:</strong></p>
+                <ol>
+                    <li>Open Terminal (press <code>Cmd + Space</code>, type "Terminal")</li>
+                    <li>Type <code>git --version</code> and press Enter</li>
+                    <li>If not installed, it will prompt you to install</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">1.3</span>
+                    <h4>Install a Code Editor (VS Code)</h4>
+                </div>
+                <p>VS Code is where you'll edit files. It's like Microsoft Word but for code.</p>
+                
+                <ol>
+                    <li>Go to <a href="https://code.visualstudio.com" target="_blank">code.visualstudio.com</a></li>
+                    <li>Download for your operating system</li>
+                    <li>Install with default settings</li>
+                </ol>
+            </div>
+
+            <div class="success-box info-box">
+                <div class="info-box-title">✅ Section 1 Complete!</div>
+                <p>You now have all the tools needed. Let's create some free accounts.</p>
+            </div>
+        </section>
+
+        <!-- Section 2: Accounts -->
+        <section class="section" id="accounts">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <h2>Create Free Accounts</h2>
+            </div>
+
+            <p>You'll need accounts on these platforms. All have generous free tiers.</p>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2.1</span>
+                    <h4>GitHub (Code Storage)</h4>
+                </div>
+                <ol>
+                    <li>Go to <a href="https://github.com/signup" target="_blank">github.com/signup</a></li>
+                    <li>Enter your email and create a password</li>
+                    <li>Choose a username (this will be visible)</li>
+                    <li>Verify your email</li>
+                    <li>Select "Skip personalization" when asked</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2.2</span>
+                    <h4>Vercel (Hosting - Where Your Site Lives)</h4>
+                </div>
+                <ol>
+                    <li>Go to <a href="https://vercel.com/signup" target="_blank">vercel.com/signup</a></li>
+                    <li>Click "Continue with GitHub"</li>
+                    <li>Authorize Vercel to access your GitHub</li>
+                    <li>That's it! Your account is ready</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2.3</span>
+                    <h4>Supabase (Database)</h4>
+                </div>
+                <ol>
+                    <li>Go to <a href="https://supabase.com" target="_blank">supabase.com</a></li>
+                    <li>Click "Start your project"</li>
+                    <li>Sign up with your GitHub account</li>
+                    <li>Keep this tab open - we'll come back to it</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2.4</span>
+                    <h4>TMDB (Movie/TV Data)</h4>
+                </div>
+                <ol>
+                    <li>Go to <a href="https://www.themoviedb.org/signup" target="_blank">themoviedb.org/signup</a></li>
+                    <li>Create an account</li>
+                    <li>Go to Settings → API</li>
+                    <li>Request an API key (select "Developer")</li>
+                    <li>Fill out the form (any reasonable answers work)</li>
+                    <li>Copy your API key somewhere safe</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2.5</span>
+                    <h4>RAWG (Game Data)</h4>
+                </div>
+                <ol>
+                    <li>Go to <a href="https://rawg.io/apidocs" target="_blank">rawg.io/apidocs</a></li>
+                    <li>Sign up for an account</li>
+                    <li>Go to your profile settings</li>
+                    <li>Find your API key</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">2.6</span>
+                    <h4>Google AI Studio (Gemini AI)</h4>
+                </div>
+                <p><em>Optional - for AI recommendations</em></p>
+                <ol>
+                    <li>Go to <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a></li>
+                    <li>Sign in with your Google account</li>
+                    <li>Click "Get API key"</li>
+                    <li>Create a new key and copy it</li>
+                </ol>
+            </div>
+
+            <div class="info-box">
+                <div class="info-box-title">📝 Keep These Safe</div>
+                <p>Create a temporary text file with all your API keys. You'll need them in Step 5. Never share these publicly!</p>
+            </div>
+        </section>
+
+        <!-- Section 3: Download -->
+        <section class="section" id="download">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <h2>Download the Code</h2>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">3.1</span>
+                    <h4>Create a New Folder</h4>
+                </div>
+                <ol>
+                    <li>On your Desktop, create a new folder called <code>mediamind</code></li>
+                    <li>This is where all the code will live</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">3.2</span>
+                    <h4>Open VS Code</h4>
+                </div>
+                <ol>
+                    <li>Launch VS Code</li>
+                    <li>Click "Open Folder"</li>
+                    <li>Select your <code>mediamind</code> folder</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">3.3</span>
+                    <h4>Open Terminal in VS Code</h4>
+                </div>
+                <ol>
+                    <li>In VS Code, click the menu: <code>Terminal → New Terminal</code></li>
+                    <li>A terminal panel will open at the bottom</li>
+                    <li>You should see your <code>mediamind</code> folder path</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">3.4</span>
+                    <h4>Download the Project</h4>
+                </div>
+                <p>In the terminal, copy and paste these commands one by one:</p>
+                
+                <div class="code-block" data-lang="bash"><code><span class="code-comment"># Clone the repository (replace with your actual repo URL)</span>
+git clone https://github.com/YOUR_USERNAME/media-intelligence.git .
+
+<span class="code-comment"># If you don't have it in GitHub yet, create the files manually</span>
+<span class="code-comment"># See the "Manual Setup" section below</span></code></div>
+            </div>
+
+            <h3>Manual Setup (If No Git Repository)</h3>
+            
+            <p>If you have the files locally (from this project):</p>
+            <ol>
+                <li>Copy all the files from this project</li>
+                <li>Paste them into your <code>mediamind</code> folder</li>
+                <li>Make sure you see <code>package.json</code> in the file explorer</li>
+            </ol>
+
+            <div class="screenshot">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M9 3v18"/>
+                    <path d="M9 8h6"/>
+                    <path d="M9 12h6"/>
+                    <path d="M9 16h6"/>
+                </svg>
+                <p>Your VS Code should show all the files in the sidebar</p>
+            </div>
+        </section>
+
+        <!-- Section 4: Database -->
+        <section class="section" id="database">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <h2>Set Up the Database</h2>
+            </div>
+
+            <p>The database stores all your media data. We'll use Supabase (free PostgreSQL).</p>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">4.1</span>
+                    <h4>Create a New Project</h4>
+                </div>
+                <ol>
+                    <li>Go back to your Supabase dashboard</li>
+                    <li>Click "New Project"</li>
+                    <li>Name it <code>mediamind</code></li>
+                    <li>Set a database password (save this somewhere safe!)</li>
+                    <li>Choose a region closest to you</li>
+                    <li>Click "Create new project"</li>
+                    <li>Wait 1-2 minutes for it to be ready</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">4.2</span>
+                    <h4>Run the Database Schema</h4>
+                </div>
+                <ol>
+                    <li>In your Supabase project, click "SQL Editor" (left sidebar)</li>
+                    <li>Click "New query"</li>
+                    <li>Copy the entire contents of <code>supabase/schema.sql</code> from your project</li>
+                    <li>Paste it into the SQL Editor</li>
+                    <li>Click "Run" (the play button)</li>
+                </ol>
+
+                <div class="success-box info-box">
+                    <div class="info-box-title">✅ Success Check</div>
+                    <p>You should see a green "Success" message. If you see red errors, make sure you copied the entire file.</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">4.3</span>
+                    <h4>Get Your Connection Details</h4>
+                </div>
+                <ol>
+                    <li>Click "Project Settings" (gear icon at bottom left)</li>
+                    <li>Click "API" in the sidebar</li>
+                    <li>Find these values:
+                        <ul>
+                            <li><strong>Project URL</strong> - starts with <code>https://</code></li>
+                            <li><strong>anon public</strong> - a long string of random characters</li>
+                        </ul>
+                    </li>
+                    <li>Copy both to your temporary text file</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Section 5: Environment Variables -->
+        <section class="section" id="env">
+            <div class="section-header">
+                <div class="section-number">5</div>
+                <h2>Configure API Keys</h2>
+            </div>
+
+            <p>Environment variables are secret configuration values that the app needs to connect to services.</p>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">5.1</span>
+                    <h4>Create the Environment File</h4>
+                </div>
+                <ol>
+                    <li>In VS Code, right-click in the file explorer (left sidebar)</li>
+                    <li>Select "New File"</li>
+                    <li>Name it <code>.env.local</code> (including the dot at the start)</li>
+                    <li>Open the file by clicking it</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">5.2</span>
+                    <h4>Add Your Configuration</h4>
+                </div>
+                <p>Copy this template and fill in YOUR values:</p>
+                
+                <div class="code-block" data-lang="env"><code><span class="code-comment"># Supabase Configuration</span>
+NEXT_PUBLIC_SUPABASE_URL=your_project_url_from_supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_from_supabase
+
+<span class="code-comment"># AI APIs (optional but recommended)</span>
+GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_key_if_you_have_one
+
+<span class="code-comment"># Media APIs</span>
+NEXT_PUBLIC_TMDB_API_KEY=your_tmdb_api_key
+NEXT_PUBLIC_RAWG_API_KEY=your_rawg_api_key
+
+<span class="code-comment"># Google Books (optional)</span>
+NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY=your_google_books_key_or_leave_blank
+
+<span class="code-comment"># App Configuration</span>
+NEXT_PUBLIC_APP_URL=http://localhost:3000</code></div>
+
+                <div class="warning-box info-box">
+                    <div class="info-box-title">⚠️ Important Security Note</div>
+                    <p>Never commit this file to GitHub! The <code>.env.local</code> filename is already set to be ignored by git for your protection.</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">5.3</span>
+                    <h4>Save the File</h4>
+                </div>
+                <ol>
+                    <li>Press <code>Ctrl+S</code> (or <code>Cmd+S</code> on Mac)</li>
+                    <li>The dot after the filename should disappear</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Section 6: Local Test -->
+        <section class="section" id="local">
+            <div class="section-header">
+                <div class="section-number">6</div>
+                <h2>Test Locally</h2>
+            </div>
+
+            <p>Let's make sure everything works on your computer before deploying.</p>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">6.1</span>
+                    <h4>Install Dependencies</h4>
+                </div>
+                <p>In the VS Code terminal, run:</p>
+                
+                <div class="code-block" data-lang="bash"><code>npm install --legacy-peer-deps</code></div>
+                
+                <p>This downloads all the required packages. It may take 2-5 minutes. You'll see progress bars.</p>
+                
+                <div class="success-box info-box">
+                    <div class="info-box-title">✅ Success Signs</div>
+                    <p>You should see something like "added 843 packages" at the end. Some warnings are normal.</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">6.2</span>
+                    <h4>Start the Development Server</h4>
+                </div>
+                <p>Run this command:</p>
+                
+                <div class="code-block" data-lang="bash"><code>npm run dev</code></div>
+                
+                <p>You should see:</p>
+                <ul>
+                    <li>"Next.js 14.2.23"</li>
+                    <li>"Local: http://localhost:3000"</li>
+                    <li>"Ready in X.Xs"</li>
+                </ul>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">6.3</span>
+                    <h4>Open in Browser</h4>
+                </div>
+                <ol>
+                    <li>Open Chrome, Firefox, or Edge</li>
+                    <li>Go to: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></li>
+                    <li>You should see the MediaMind dashboard!</li>
+                </ol>
+
+                <div class="screenshot">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                    <p>You should see the MediaMind interface loading</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">6.4</span>
+                    <h4>Test Basic Features</h4>
+                </div>
+                <ol>
+                    <li>Click around the sidebar navigation</li>
+                    <li>Try adding a media item (Search page)</li>
+                    <li>Check if the Analytics page loads charts</li>
+                </ol>
+
+                <div class="warning-box info-box">
+                    <div class="info-box-title">⚠️ Expected Limitations</div>
+                    <ul>
+                        <li>AI features won't work without API keys</li>
+                        <li>Media search may fail without TMDB/RAWG keys</li>
+                        <li>Cloud sync won't work without real Supabase credentials</li>
+                    </ul>
+                    <p>This is normal! The app works offline with local storage.</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">6.5</span>
+                    <h4>Stop the Server</h4>
+                </div>
+                <p>Press <code>Ctrl+C</code> in the terminal to stop the server before deploying.</p>
+            </div>
+        </section>
+
+        <!-- Section 7: Deploy -->
+        <section class="section" id="deploy">
+            <div class="section-header">
+                <div class="section-number">7</div>
+                <h2>Deploy to the Internet</h2>
+            </div>
+
+            <p>This is the exciting part - putting your app live for anyone to use!</p>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">7.1</span>
+                    <h4>Upload to GitHub</h4>
+                </div>
+                <p>First, we need to put the code on GitHub:</p>
+                
+                <div class="code-block" data-lang="bash"><code><span class="code-comment"># Initialize git repository</span>
+git init
+
+<span class="code-comment"># Add all files</span>
+git add .
+
+<span class="code-comment"># Create first commit</span>
+git commit -m "Initial commit"
+
+<span class="code-comment"># Create repository on GitHub and link it</span>
+<span class="code-comment"># (Replace YOUR_USERNAME with your actual GitHub username)</span>
+git remote add origin https://github.com/YOUR_USERNAME/mediamind.git
+
+<span class="code-comment"># Upload to GitHub</span>
+git push -u origin main</code></div>
+
+                <p>If it's your first time, it may ask for login. Use your GitHub credentials.</p>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">7.2</span>
+                    <h4>Connect to Vercel</h4>
+                </div>
+                <ol>
+                    <li>Go to <a href="https://vercel.com" target="_blank">vercel.com</a></li>
+                    <li>Click "Add New..." → "Project"</li>
+                    <li>Find your <code>mediamind</code> repository and click "Import"</li>
+                </ol>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">7.3</span>
+                    <h4>Configure Environment Variables on Vercel</h4>
+                </div>
+                <ol>
+                    <li>On the project configuration page, look for "Environment Variables"</li>
+                    <li>Add each variable from your <code>.env.local</code> file:
+                        <ul>
+                            <li>Copy the name (left side of =)</li>
+                            <li>Copy the value (right side of =)</li>
+                            <li>Click "Add"</li>
+                        </ul>
+                    </li>
+                    <li>Repeat for all variables</li>
+                </ol>
+
+                <div class="screenshot">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20h9"/>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                    </svg>
+                    <p>Add all your API keys in the Environment Variables section</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">7.4</span>
+                    <h4>Deploy!</h4>
+                </div>
+                <ol>
+                    <li>Click "Deploy" button</li>
+                    <li>Wait 2-3 minutes for the build to complete</li>
+                    <li>You'll get a URL like <code>https://mediamind-xyz123.vercel.app</code></li>
+                </ol>
+
+                <div class="success-box info-box">
+                    <div class="info-box-title">🎉 You're Live!</div>
+                    <p>Your MediaMind app is now on the internet! Click the URL to see it. Share this URL with friends!</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-header">
+                    <span class="step-number">7.5</span>
+                    <h4>Set Up a Custom Domain (Optional)</h4>
+                </div>
+                <ol>
+                    <li>In your Vercel project, go to "Settings" → "Domains"</li>
+                    <li>Enter your domain (e.g., <code>yourname.com</code>)</li>
+                    <li>Follow the DNS instructions Vercel provides</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Section 8: PWA -->
+        <section class="section" id="pwa">
+            <div class="section-header">
+                <div class="section-number">8</div>
+                <h2>Install as Mobile/Desktop App</h2>
+            </div>
+
+            <p>One of the best features - install MediaMind like a native app on your phone or computer!</p>
+
+            <h3>On iPhone/iPad (Safari)</h3>
+            <ol>
+                <li>Open your deployed URL in Safari</li>
+                <li>Tap the share button (square with arrow up)</li>
+                <li>Scroll down and tap "Add to Home Screen"</li>
+                <li>Tap "Add"</li>
+                <li>Find the MediaMind icon on your home screen!</li>
+            </ol>
+
+            <h3>On Android (Chrome)</h3>
+            <ol>
+                <li>Open your deployed URL in Chrome</li>
+                <li>Tap the three dots menu</li>
+                <li>Tap "Add to Home screen"</li>
+                <li>Tap "Add"</li>
+            </ol>
+
+            <h3>On Desktop (Chrome/Edge)</h3>
+            <ol>
+                <li>Open your deployed URL</li>
+                <li>Look for an install icon in the address bar (looks like a computer with a down arrow)</li>
+                <li>Click "Install"</li>
+                <li>MediaMind will open in its own window like a desktop app!</li>
+            </ol>
+
+            <div class="success-box info-box">
+                <div class="info-box-title">✨ PWA Benefits</div>
+                <ul>
+                    <li>Works offline after first visit</li>
+                    <li>No browser address bar - feels like a native app</li>
+                    <li>Syncs automatically when online</li>
+                    <li>Push notifications (coming soon)</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Troubleshooting -->
+        <section class="section" id="troubleshooting">
+            <div class="section-header">
+                <div class="section-number">💡</div>
+                <h2>Troubleshooting Common Issues</h2>
+            </div>
+
+            <h3>"npm install" fails</h3>
+            <ul>
+                <li>Make sure Node.js is installed: <code>node --version</code></li>
+                <li>Try deleting the <code>node_modules</code> folder and run again</li>
+                <li>Use <code>npm install --legacy-peer-deps</code></li>
+            </ul>
+
+            <h3>"Cannot find module" errors</h3>
+            <ul>
+                <li>You missed the <code>npm install</code> step</li>
+                <li>Or installation was incomplete - run it again</li>
+            </ul>
+
+            <h3>Environment variables not working</h3>
+            <ul>
+                <li>Make sure file is named exactly <code>.env.local</code> (with the dot)</li>
+                <li>Restart the server after changing it</li>
+                <li>No spaces around the <code>=</code> sign</li>
+            </ul>
+
+            <h3>Database connection fails</h3>
+            <ul>
+                <li>Double-check your Supabase URL and anon key</li>
+                <li>Make sure you ran the SQL schema</li>
+                <li>Check that Row Level Security policies are set (in schema)</li>
+            </ul>
+
+            <h3>Changes not showing on deployed site</h3>
+            <ul>
+                <li>Push changes to GitHub: <code>git push</code></li>
+                <li>Vercel automatically redeploys on every push</li>
+                <li>Check the "Deployments" tab on Vercel for status</li>
+            </ul>
+        </section>
+
+        <!-- Final Notes -->
+        <section class="section">
+            <div class="section-header">
+                <div class="section-number">🎉</div>
+                <h2>You're Done!</h2>
+            </div>
+
+            <p>You now have your own personal media tracking app deployed on the internet! Here's what you've built:</p>
+
+            <ul class="checklist">
+                <li><strong>AI-Powered Media Intelligence</strong> - with smart recommendations and burnout detection</li>
+                <li><strong>Universal Tracking</strong> - for movies, TV, anime, games, books, and more</li>
+                <li><strong>Offline-First PWA</strong> - works without internet, syncs when online</li>
+                <li><strong>Cinematic Dark UI</strong> - premium glassmorphism design</li>
+                <li><strong>Cloud Sync</strong> - backed by PostgreSQL database</li>
+                <li><strong>Analytics Dashboard</strong> - insights into your watching habits</li>
+            </ul>
+
+            <div class="info-box">
+                <div class="info-box-title">🚀 Next Steps</div>
+                <ul>
+                    <li>Add your API keys to enable search and AI features</li>
+                    <li>Import your existing media collection</li>
+                    <li>Set up daily/weekly usage habits</li>
+                    <li>Share with friends who love media tracking!</li>
+                </ul>
+            </div>
+
+            <p style="margin-top: 30px; text-align: center; color: var(--text-muted);">
+                Built with ❤️ using Next.js, Supabase, and AI
+            </p>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>MediaMind Deployment Guide • Last Updated: February 2026</p>
+            <p style="margin-top: 10px; font-size: 0.9rem;">
+                <a href="#prerequisites">Back to Top</a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Update progress bar based on scroll
+        window.addEventListener('scroll', () => {
+            const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (scrollTop / scrollHeight) * 100;
+            document.querySelector('.progress-fill').style.width = scrolled + '%';
+        });
+
+        // Add smooth scrolling to all links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
