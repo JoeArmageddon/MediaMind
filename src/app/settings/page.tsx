@@ -134,12 +134,12 @@ export default function SettingsPage() {
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">TMDB Token</label>
+            <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">TMDB API Key</label>
             <Input
               type="password"
               value={tmdbKey}
               onChange={(e) => setTmdbKey(e.target.value)}
-              placeholder="Your TMDB Bearer token"
+              placeholder="Your TMDB API key"
               className="bg-black border-white/10 focus:border-indigo-500"
             />
           </div>
