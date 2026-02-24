@@ -352,26 +352,28 @@ export default function SmartCollectionsPage() {
       {/* Collection Detail Dialog */}
       <Dialog open={!!selectedCollection} onOpenChange={() => setSelectedCollection(null)}>
         <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-white" />
-              </div>
-              {'title' in selectedCollection ? selectedCollection.title : ''}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {'description' in selectedCollection && selectedCollection?.description && (
-              <p className="text-white/60 text-sm leading-relaxed">{selectedCollection.description}</p>
-            )}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                {'media_ids' in selectedCollection ? 'Media in collection' : 'Suggested media'}
-              </h4>
-              {'media_ids' in selectedCollection ? (
-                // User collection - show actual media
-                getMediaForCollection(selectedCollection as SmartCollection).length > 0 ? (
-                  getMediaForCollection(selectedCollection as SmartCollection).map((item) => (
+          {selectedCollection && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center">
+                    <Sparkles className="h-4 w-4 text-white" />
+                  </div>
+                  {'title' in selectedCollection ? selectedCollection.title : ''}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                {'description' in selectedCollection && selectedCollection?.description && (
+                  <p className="text-white/60 text-sm leading-relaxed">{selectedCollection.description}</p>
+                )}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                    {'media_ids' in selectedCollection ? 'Media in collection' : 'Suggested media'}
+                  </h4>
+                  {'media_ids' in selectedCollection ? (
+                    // User collection - show actual media
+                    getMediaForCollection(selectedCollection as SmartCollection).length > 0 ? (
+                      getMediaForCollection(selectedCollection as SmartCollection).map((item) => (
                     <div
                       key={item.id}
                       className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10"
@@ -410,8 +412,10 @@ export default function SmartCollectionsPage() {
                   </div>
                 ))
               )}
-            </div>
-          </div>
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
