@@ -74,16 +74,10 @@ export class TMDBClient {
       
       console.log('TMDB fetching:', url.replace(this.apiKey, '***'));
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
+      // Use simple fetch without AbortController for better mobile compatibility
       const response = await fetch(url, { 
         headers,
-        signal: controller.signal,
-        mode: 'cors',
       });
-      
-      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -94,9 +88,6 @@ export class TMDBClient {
       return await response.json();
     } catch (error: any) {
       console.error('TMDB fetch error:', error?.message || error);
-      if (error.name === 'AbortError') {
-        throw new Error('TMDB request timed out');
-      }
       throw error;
     }
   }

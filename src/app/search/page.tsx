@@ -114,13 +114,15 @@ export default function SearchPage() {
       // Check keys before search
       const tmdbKey = await getApiKey('tmdb_key');
       const rawgKey = await getApiKey('rawg_key');
-      setDebugInfo(`Keys - TMDB: ${!!tmdbKey}, RAWG: ${!!rawgKey}`);
+      setDebugInfo(`Keys - TMDB: ${tmdbKey ? 'yes' : 'no'}, RAWG: ${rawgKey ? 'yes' : 'no'}`);
       
       const orchestrator = getOrchestrator();
-      setDebugInfo('Orchestrator created, searching...');
+      setDebugInfo('Searching... (may take 10-15s on mobile)');
       
+      const startTime = Date.now();
       const searchResults = await orchestrator.search(searchQuery, preferredType);
-      setDebugInfo(`Search done. Results: ${searchResults.length}`);
+      const duration = Date.now() - startTime;
+      setDebugInfo(`Done in ${duration}ms. Results: ${searchResults.length}`);
       
       setResults(searchResults);
       

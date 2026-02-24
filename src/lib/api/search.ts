@@ -15,6 +15,29 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 };
 
+// Retry wrapper for flaky mobile connections
+const withRetry = async <T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 2,
+  delay: number = 1000
+): Promise<T> => {
+  let lastError: any;
+  
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      console.warn(`Attempt ${i + 1} failed, retrying...`);
+      if (i < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+      }
+    }
+  }
+  
+  throw lastError;
+};
+
 export class SearchOrchestrator {
   private tmdb = createTMDBClient();
   private jikan = createJikanClient();
@@ -44,14 +67,18 @@ export class SearchOrchestrator {
     const errors: string[] = [];
 
     try {
-      // Movies & TV from TMDB (10s timeout)
+      // Movies & TV from TMDB (15s timeout with retry)
       if (!preferredType || ['movie', 'tv'].includes(preferredType)) {
         console.log('Searching TMDB...');
         try {
-          const tmdbResults = await withTimeout(
-            this.tmdb.searchMulti(title),
-            10000,
-            'TMDB'
+          const tmdbResults = await withRetry(
+            () => withTimeout(
+              this.tmdb.searchMulti(title),
+              15000,
+              'TMDB'
+            ),
+            2, // 2 retries
+            500 // 500ms initial delay
           );
           console.log(`TMDB found: ${tmdbResults.length} results`);
           
