@@ -1,8 +1,26 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Media, MediaStatus, MediaType, FilterState, ViewMode } from '@/types';
+import type { Media, MediaStatus, MediaType, FilterState, ViewMode, History } from '@/types';
 import { db } from '@/lib/db/dexie';
 import { supabase } from '@/lib/db/supabase';
+
+// Helper to add history entry
+async function logHistory(entry: Omit<History, 'id' | 'created_at'>) {
+  const historyEntry: History = {
+    ...entry,
+    id: crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+  };
+  
+  try {
+    await db.history.add(historyEntry);
+    if (navigator.onLine) {
+      await (supabase as any).from('history').insert(historyEntry);
+    }
+  } catch (e) {
+    console.warn('Failed to log history:', e);
+  }
+}
 
 interface MediaStore {
   // Data
@@ -131,6 +149,14 @@ export const useMediaStore = create<MediaStore>()(
           // Add to IndexedDB FIRST (always succeed locally)
           await db.media.add(newMedia);
           console.log('Saved to IndexedDB:', tempId);
+
+          // Log history entry
+          await logHistory({
+            media_id: tempId,
+            action_type: 'added',
+            value: { title: newMedia.title, type: newMedia.type },
+            previous_value: null,
+          });
 
           // Update local state immediately (optimistic)
           set((state) => ({
@@ -266,8 +292,43 @@ export const useMediaStore = create<MediaStore>()(
         try {
           const updated_at = new Date().toISOString();
           
+          // Get current media for history logging
+          const currentMedia = get().media.find((m) => m.id === id);
+          
           // Update IndexedDB
           await db.media.update(id, { ...updates, updated_at });
+
+          // Log history entry based on what changed
+          if (currentMedia) {
+            let actionType: History['action_type'] = 'updated';
+            let value: Record<string, unknown> = updates;
+            let previousValue: Record<string, unknown> | null = null;
+
+            if ('status' in updates && updates.status !== currentMedia.status) {
+              actionType = 'status_change';
+              value = { status: updates.status };
+              previousValue = { status: currentMedia.status };
+            } else if ('progress' in updates && updates.progress !== currentMedia.progress) {
+              actionType = 'progress_update';
+              value = { progress: updates.progress, completion_percent: updates.completion_percent };
+              previousValue = { progress: currentMedia.progress, completion_percent: currentMedia.completion_percent };
+            } else if ('is_favorite' in updates && updates.is_favorite !== currentMedia.is_favorite) {
+              actionType = updates.is_favorite ? 'favorited' : 'unfavorited';
+              value = { is_favorite: updates.is_favorite };
+              previousValue = { is_favorite: currentMedia.is_favorite };
+            } else if ('is_archived' in updates && updates.is_archived !== currentMedia.is_archived) {
+              actionType = updates.is_archived ? 'archived' : 'unarchived';
+              value = { is_archived: updates.is_archived };
+              previousValue = { is_archived: currentMedia.is_archived };
+            }
+
+            await logHistory({
+              media_id: id,
+              action_type: actionType,
+              value,
+              previous_value: previousValue,
+            });
+          }
 
           // Update local state immediately (optimistic)
           set((state) => ({
@@ -306,6 +367,19 @@ export const useMediaStore = create<MediaStore>()(
       deleteMedia: async (id) => {
         set({ isLoading: true, error: null });
         try {
+          // Get media info before deleting for history
+          const mediaToDelete = get().media.find((m) => m.id === id);
+
+          // Log history entry before deletion
+          if (mediaToDelete) {
+            await logHistory({
+              media_id: id,
+              action_type: 'deleted',
+              value: null,
+              previous_value: { title: mediaToDelete.title, type: mediaToDelete.type },
+            });
+          }
+
           // Delete from IndexedDB
           await db.media.delete(id);
 
