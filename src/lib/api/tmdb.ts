@@ -10,7 +10,7 @@ export class TMDBClient {
   private initialized: boolean = false;
 
   async init() {
-    if (this.initialized) return;
+    if (this.initialized) return true;
     
     // Check IndexedDB first (more reliable on mobile), then env vars
     let key = await getApiKey('tmdb_key');

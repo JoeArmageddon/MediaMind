@@ -21,9 +21,24 @@ export class SearchOrchestrator {
   private rawg = createRAWGClient();
   private books = createBooksClient();
   private ai = getAIClient();
+  private initialized = false;
+
+  async init() {
+    if (this.initialized) return;
+    // Initialize all clients that need async setup
+    await Promise.all([
+      this.tmdb.init(),
+      this.rawg.init(),
+      this.books.init(),
+    ]);
+    this.initialized = true;
+  }
 
   async search(title: string, preferredType?: MediaType): Promise<SearchResult[]> {
     console.log(`=== SEARCH START === Query: "${title}", Type: ${preferredType || 'all'}`);
+    
+    // Ensure clients are initialized
+    await this.init();
     
     const results: SearchResult[] = [];
     const errors: string[] = [];
