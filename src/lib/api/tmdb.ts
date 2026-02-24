@@ -6,104 +6,35 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 export class TMDBClient {
   private apiKey: string = '';
-  private useBearer: boolean = false;
-  private initialized: boolean = false;
 
-  async init() {
-    if (this.initialized) return true;
-    
-    // Check IndexedDB first (more reliable on mobile), then env vars
-    let key = await getApiKey('tmdb_key');
-    
-    if (!key) {
-      key = process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
-    }
-    
-    // Check if it's a Bearer token (JWT format with 3 parts separated by dots)
-    const parts = key.split('.');
-    if (key && parts.length === 3 && parts[0].startsWith('eyJ')) {
-      console.log('TMDB: Using Bearer token authentication');
-      this.useBearer = true;
-      this.apiKey = key;
-    } else {
-      console.log('TMDB: Using API key authentication');
-      this.useBearer = false;
-      this.apiKey = key;
-    }
-    
-    if (!this.apiKey) {
-      console.error('TMDB API Key/Token is missing! Add it in Settings.');
-    }
-    
-    this.initialized = true;
+  private async getKey(): Promise<string> {
+    const key = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
+    this.apiKey = key;
+    return key;
   }
 
   private async fetch<T>(endpoint: string): Promise<T | null> {
-    console.log('TMDB fetch called for:', endpoint.substring(0, 30));
-    
-    // Always re-check for keys in case they were saved after initialization
-    const freshKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
-    console.log('TMDB key found:', !!freshKey, 'length:', freshKey.length);
-    
-    if (freshKey && freshKey !== this.apiKey) {
-      // Key was updated, re-initialize
-      this.apiKey = freshKey;
-      const parts = freshKey.split('.');
-      this.useBearer = !!(freshKey && parts.length === 3 && parts[0].startsWith('eyJ'));
-      console.log('TMDB key updated, bearer:', this.useBearer);
-    }
-    
-    if (!this.apiKey) {
-      console.error('Cannot fetch TMDB: No API key/token');
+    const key = await this.getKey();
+    if (!key) {
       throw new Error('No TMDB API key');
     }
 
-    try {
-      // For Bearer tokens, we need to use the Authorization header
-      // For API keys, we use the api_key query parameter
-      const headers: HeadersInit = {
-        'Accept': 'application/json',
-      };
-      
-      let url: string;
-      
-      if (this.useBearer) {
-        // Bearer token auth - use Authorization header, no api_key in URL
-        headers['Authorization'] = `Bearer ${this.apiKey}`;
-        url = `${TMDB_BASE_URL}${endpoint}`;
-      } else {
-        // API key auth - add api_key to URL
-        const separator = endpoint.includes('?') ? '&' : '?';
-        url = `${TMDB_BASE_URL}${endpoint}${separator}api_key=${this.apiKey}`;
-      }
-      
-      console.log('TMDB fetching:', url.substring(0, 50) + '...');
-      
-      // Use simple fetch with explicit CORS mode for mobile
-      const response = await fetch(url, { 
-        method: 'GET',
-        headers,
-        cache: 'no-cache',
-      });
-      
-      console.log('TMDB response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('TMDB API error:', response.status, errorData.status_message || '');
-        throw new Error(`TMDB HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('TMDB data received');
-      return data;
-    } catch (error: any) {
-      console.error('TMDB fetch error:', error?.message || error);
-      throw error;
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const url = `${TMDB_BASE_URL}${endpoint}${separator}api_key=${key}`;
+
+    console.log('TMDB fetch:', endpoint.split('?')[0]);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`TMDB HTTP ${response.status}`);
     }
+
+    return await response.json();
   }
 
   async searchMovies(query: string): Promise<SearchResult[]> {
+    console.log('TMDB searchMovies:', query);
     const data = await this.fetch<{ results: TMDBResult[] }>(
       `/search/movie?query=${encodeURIComponent(query)}&language=en-US&page=1&include_adult=false`
     );
@@ -113,6 +44,7 @@ export class TMDBClient {
   }
 
   async searchTV(query: string): Promise<SearchResult[]> {
+    console.log('TMDB searchTV:', query);
     const data = await this.fetch<{ results: TMDBResult[] }>(
       `/search/tv?query=${encodeURIComponent(query)}&language=en-US&page=1&include_adult=false`
     );
@@ -122,21 +54,23 @@ export class TMDBClient {
   }
 
   async searchMulti(query: string): Promise<SearchResult[]> {
-    console.log('TMDB searching for:', query);
-    
-    // Fetch movies and TV sequentially on mobile to avoid connection limits
-    const movies = await this.searchMovies(query);
-    console.log(`TMDB movies: ${movies.length}`);
-    
-    const tv = await this.searchTV(query);
-    console.log(`TMDB TV: ${tv.length}`);
+    console.log('TMDB searchMulti:', query);
 
-    console.log(`TMDB results: ${movies.length} movies, ${tv.length} TV shows`);
-    
-    const combined = [...movies, ...tv];
-    combined.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-    
-    return combined;
+    try {
+      const movies = await this.searchMovies(query);
+      console.log('TMDB movies:', movies.length);
+
+      const tv = await this.searchTV(query);
+      console.log('TMDB tv:', tv.length);
+
+      const combined = [...movies, ...tv];
+      combined.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+
+      return combined;
+    } catch (e) {
+      console.error('TMDB searchMulti error:', e);
+      throw e;
+    }
   }
 
   private normalizeMovie(item: TMDBResult): SearchResult {
