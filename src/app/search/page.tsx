@@ -112,15 +112,23 @@ export default function SearchPage() {
       setDebugInfo(`Type: ${preferredType || 'all'}`);
       
       // Check keys before search
+      setDebugInfo('Checking keys...');
       const tmdbKey = await getApiKey('tmdb_key');
       const rawgKey = await getApiKey('rawg_key');
       setDebugInfo(`Keys - TMDB: ${tmdbKey ? 'yes' : 'no'}, RAWG: ${rawgKey ? 'yes' : 'no'}`);
       
       const orchestrator = getOrchestrator();
-      setDebugInfo('Searching... (may take 10-15s on mobile)');
+      setDebugInfo('Searching with 30s timeout...');
       
       const startTime = Date.now();
-      const searchResults = await orchestrator.search(searchQuery, preferredType);
+      
+      // Add hard timeout to prevent hanging
+      const searchPromise = orchestrator.search(searchQuery, preferredType);
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Search timed out after 30s')), 30000)
+      );
+      
+      const searchResults = await Promise.race([searchPromise, timeoutPromise]);
       const duration = Date.now() - startTime;
       setDebugInfo(`Done in ${duration}ms. Results: ${searchResults.length}`);
       
@@ -414,15 +422,14 @@ export default function SearchPage() {
                 />
               </div>
               <Button 
-                onClick={handleSearch} 
-                disabled={isLoading}
+                onClick={isLoading ? () => window.location.reload() : handleSearch} 
                 className={cn(
                   'h-14 px-6 rounded-xl font-bold text-white',
                   'bg-gradient-to-r shadow-lg',
-                  selectedConfig.gradient
+                  isLoading ? 'from-red-500 to-red-600' : selectedConfig.gradient
                 )}
               >
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'SEARCH'}
+                {isLoading ? <X className="h-5 w-5" /> : 'SEARCH'}
               </Button>
             </div>
           </div>

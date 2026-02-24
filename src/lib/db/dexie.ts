@@ -47,30 +47,45 @@ export class MediaDatabase extends Dexie {
   }
 }
 
-// Helper functions for API keys
+// Helper functions for API keys with timeout
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T | null> => {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))
+  ]);
+};
+
 export const getApiKey = async (keyName: string): Promise<string> => {
-  try {
-    // First try IndexedDB (more reliable on mobile)
-    const stored = await db.apiKeys.get(keyName);
-    if (stored?.value) {
-      return stored.value;
+  // Fast path: check localStorage first (instant)
+  if (typeof window !== 'undefined') {
+    const localValue = localStorage.getItem(keyName);
+    if (localValue) {
+      // Also try to save to IndexedDB in background
+      try {
+        db.apiKeys.put({
+          id: keyName,
+          value: localValue,
+          updated_at: new Date().toISOString(),
+        }).catch(() => {});
+      } catch {}
+      return localValue;
     }
-    // Fallback to localStorage for backwards compatibility
-    if (typeof window !== 'undefined') {
-      const localValue = localStorage.getItem(keyName);
-      if (localValue) {
-        // Migrate to IndexedDB
-        await saveApiKey(keyName, localValue);
-        return localValue;
+  }
+  
+  // Slow path: check IndexedDB with timeout
+  try {
+    const stored = await withTimeout(db.apiKeys.get(keyName), 500);
+    if (stored?.value) {
+      // Sync to localStorage as backup
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(keyName, stored.value);
       }
+      return stored.value;
     }
   } catch (e) {
     console.warn('Error reading API key from IndexedDB:', e);
-    // Final fallback to localStorage
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(keyName) || '';
-    }
   }
+  
   return '';
 };
 
