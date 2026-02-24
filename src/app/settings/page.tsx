@@ -111,18 +111,16 @@ export default function SettingsPage() {
     console.log('Testing API keys...');
     setTestResults({ tmdb: 'loading', rawg: 'loading' });
     
-    // Small delay to ensure UI updates on mobile
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Test TMDB
+    // Test TMDB with actual API call
     try {
       const tmdbKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
       console.log('TMDB key found:', !!tmdbKey);
       if (tmdbKey) {
-        // On mobile, just check if key exists and has valid format
-        // Network requests might be blocked by CORS or connectivity
-        const isValidFormat = tmdbKey.length > 20;
-        setTestResults(prev => ({ ...prev, tmdb: isValidFormat }));
+        const response = await fetch(
+          `https://api.themoviedb.org/3/movie/550?api_key=${tmdbKey}`
+        );
+        console.log('TMDB test response:', response.status);
+        setTestResults(prev => ({ ...prev, tmdb: response.ok }));
       } else {
         setTestResults(prev => ({ ...prev, tmdb: false }));
       }
@@ -131,14 +129,16 @@ export default function SettingsPage() {
       setTestResults(prev => ({ ...prev, tmdb: false }));
     }
     
-    // Test RAWG
+    // Test RAWG with actual API call
     try {
       const rawgKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
       console.log('RAWG key found:', !!rawgKey);
       if (rawgKey) {
-        // On mobile, just check if key exists and has valid format
-        const isValidFormat = rawgKey.length > 20;
-        setTestResults(prev => ({ ...prev, rawg: isValidFormat }));
+        const response = await fetch(
+          `https://api.rawg.io/api/games?key=${rawgKey}&page_size=1`
+        );
+        console.log('RAWG test response:', response.status);
+        setTestResults(prev => ({ ...prev, rawg: response.ok }));
       } else {
         setTestResults(prev => ({ ...prev, rawg: false }));
       }
