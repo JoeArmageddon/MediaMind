@@ -1,18 +1,20 @@
 import type { TMDBResult, SearchResult } from '@/types';
+import { getApiKey } from '@/lib/db/dexie';
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 export class TMDBClient {
-  private apiKey: string;
-  private useBearer: boolean;
+  private apiKey: string = '';
+  private useBearer: boolean = false;
+  private initialized: boolean = false;
 
-  constructor() {
-    // Check localStorage first (for mobile/user-saved keys), then env vars
-    let key = '';
-    if (typeof window !== 'undefined') {
-      key = localStorage.getItem('tmdb_key') || '';
-    }
+  async init() {
+    if (this.initialized) return;
+    
+    // Check IndexedDB first (more reliable on mobile), then env vars
+    let key = await getApiKey('tmdb_key');
+    
     if (!key) {
       key = process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
     }
@@ -32,9 +34,13 @@ export class TMDBClient {
     if (!this.apiKey) {
       console.error('TMDB API Key/Token is missing! Add it in Settings.');
     }
+    
+    this.initialized = true;
   }
 
   private async fetch<T>(endpoint: string): Promise<T | null> {
+    await this.init();
+    
     if (!this.apiKey) {
       console.error('Cannot fetch TMDB: No API key/token');
       return null;

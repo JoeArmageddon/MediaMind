@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMediaStore } from '@/store/mediaStore';
 import { useSyncStore } from '@/store/syncStore';
-import { exportDatabase, importDatabase } from '@/lib/db/dexie';
+import { exportDatabase, importDatabase, getApiKey, saveApiKey } from '@/lib/db/dexie';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -22,20 +22,38 @@ export default function SettingsPage() {
   const [geminiKey, setGeminiKey] = useState('');
   const [groqKey, setGroqKey] = useState('');
 
+  const [saved, setSaved] = useState(false);
+
   useEffect(() => {
-    // Load keys from localStorage
-    setTmdbKey(localStorage.getItem('tmdb_key') || '');
-    setRawgKey(localStorage.getItem('rawg_key') || '');
-    setGeminiKey(localStorage.getItem('gemini_key') || '');
-    setGroqKey(localStorage.getItem('groq_key') || '');
+    // Load keys from IndexedDB (more reliable on mobile)
+    const loadKeys = async () => {
+      const tmdb = await getApiKey('tmdb_key');
+      const rawg = await getApiKey('rawg_key');
+      const gemini = await getApiKey('gemini_key');
+      const groq = await getApiKey('groq_key');
+      
+      setTmdbKey(tmdb);
+      setRawgKey(rawg);
+      setGeminiKey(gemini);
+      setGroqKey(groq);
+    };
+    
+    loadKeys();
   }, []);
 
-  const saveKeys = () => {
-    localStorage.setItem('tmdb_key', tmdbKey);
-    localStorage.setItem('rawg_key', rawgKey);
-    localStorage.setItem('gemini_key', geminiKey);
-    localStorage.setItem('groq_key', groqKey);
-    alert('API Keys saved!');
+  const saveKeys = async () => {
+    try {
+      await saveApiKey('tmdb_key', tmdbKey);
+      await saveApiKey('rawg_key', rawgKey);
+      await saveApiKey('gemini_key', geminiKey);
+      await saveApiKey('groq_key', groqKey);
+      
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Failed to save API keys:', error);
+      alert('Failed to save API keys. Please try again.');
+    }
   };
 
   const handleExport = async () => {
@@ -81,6 +99,41 @@ export default function SettingsPage() {
       console.error('Sync failed:', error);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const [testResults, setTestResults] = useState<Record<string, boolean | null>>({
+    tmdb: null,
+    rawg: null,
+  });
+
+  const testApiKeys = async () => {
+    setTestResults({ tmdb: null, rawg: null });
+    
+    // Test TMDB
+    try {
+      const tmdbKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
+      if (tmdbKey) {
+        const response = await fetch(`https://api.themoviedb.org/3/movie/550?api_key=${tmdbKey}`);
+        setTestResults(prev => ({ ...prev, tmdb: response.ok }));
+      } else {
+        setTestResults(prev => ({ ...prev, tmdb: false }));
+      }
+    } catch {
+      setTestResults(prev => ({ ...prev, tmdb: false }));
+    }
+    
+    // Test RAWG
+    try {
+      const rawgKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
+      if (rawgKey) {
+        const response = await fetch(`https://api.rawg.io/api/games?key=${rawgKey}&page_size=1`);
+        setTestResults(prev => ({ ...prev, rawg: response.ok }));
+      } else {
+        setTestResults(prev => ({ ...prev, rawg: false }));
+      }
+    } catch {
+      setTestResults(prev => ({ ...prev, rawg: false }));
     }
   };
 
@@ -180,9 +233,46 @@ export default function SettingsPage() {
           onClick={saveKeys}
           className="w-full bg-indigo-600 hover:bg-indigo-700 rounded-xl"
         >
-          <Save className="mr-2 h-4 w-4" />
-          Save Keys
+          {saved ? (
+            <>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Saved!
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              Save Keys
+            </>
+          )}
         </Button>
+
+        {/* Test API Keys */}
+        <div className="pt-4 border-t border-white/10">
+          <Button 
+            onClick={testApiKeys}
+            variant="outline"
+            className="w-full border-white/10 hover:bg-white/5 rounded-xl"
+          >
+            Test API Keys
+          </Button>
+          
+          {(testResults.tmdb !== null || testResults.rawg !== null) && (
+            <div className="mt-3 space-y-2">
+              {testResults.tmdb !== null && (
+                <div className={`flex items-center gap-2 text-sm ${testResults.tmdb ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className={`w-2 h-2 rounded-full ${testResults.tmdb ? 'bg-green-400' : 'bg-red-400'}`} />
+                  TMDB: {testResults.tmdb ? 'Working' : 'Failed'}
+                </div>
+              )}
+              {testResults.rawg !== null && (
+                <div className={`flex items-center gap-2 text-sm ${testResults.rawg ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className={`w-2 h-2 rounded-full ${testResults.rawg ? 'bg-green-400' : 'bg-red-400'}`} />
+                  RAWG: {testResults.rawg ? 'Working' : 'Failed'}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Data Management */}

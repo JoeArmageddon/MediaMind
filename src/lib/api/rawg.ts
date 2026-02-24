@@ -1,15 +1,29 @@
 import type { RAWGResult, SearchResult } from '@/types';
+import { getApiKey } from '@/lib/db/dexie';
 
 const RAWG_BASE_URL = 'https://api.rawg.io/api';
 
 export class RAWGClient {
-  private apiKey: string;
+  private apiKey: string = '';
+  private initialized: boolean = false;
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+  async init() {
+    if (this.initialized) return;
+    
+    // Check IndexedDB first (more reliable on mobile), then env vars
+    let key = await getApiKey('rawg_key');
+    
+    if (!key) {
+      key = process.env.NEXT_PUBLIC_RAWG_API_KEY || '';
+    }
+    
+    this.apiKey = key;
+    this.initialized = true;
   }
 
   private async fetch<T>(endpoint: string): Promise<T | null> {
+    await this.init();
+    
     try {
       const response = await fetch(
         `${RAWG_BASE_URL}${endpoint}&key=${this.apiKey}`
@@ -66,16 +80,5 @@ export class RAWGClient {
 
 // Factory function
 export const createRAWGClient = () => {
-  // Check localStorage first (for mobile/user-saved keys), then env vars
-  let apiKey = '';
-  if (typeof window !== 'undefined') {
-    apiKey = localStorage.getItem('rawg_key') || '';
-  }
-  if (!apiKey) {
-    apiKey = process.env.NEXT_PUBLIC_RAWG_API_KEY || '';
-  }
-  if (!apiKey) {
-    console.warn('RAWG API key not configured. Add it in Settings.');
-  }
-  return new RAWGClient(apiKey);
+  return new RAWGClient();
 };

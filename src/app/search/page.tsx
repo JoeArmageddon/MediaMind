@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getSearchOrchestrator } from '@/lib/api/search';
+import { getApiKey } from '@/lib/db/dexie';
 import { cn, getTypeLabel, getUnitLabel } from '@/lib/utils';
 import type { SearchResult, MediaType } from '@/types';
 
@@ -86,9 +87,9 @@ export default function SearchPage() {
       return;
     }
 
-    // Check if API keys are configured
-    const tmdbKey = localStorage.getItem('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
-    const rawgKey = localStorage.getItem('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
+    // Check if API keys are configured (from IndexedDB - more reliable on mobile)
+    const tmdbKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
+    const rawgKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
     
     if (!tmdbKey && (type === 'all' || type === 'movie' || type === 'tv')) {
       setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');
@@ -228,9 +229,9 @@ export default function SearchPage() {
   const processBatch = async () => {
     if (batchItems.length === 0) return;
     
-    // Check if API keys are configured
-    const tmdbKey = localStorage.getItem('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
-    const rawgKey = localStorage.getItem('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
+    // Check if API keys are configured (from IndexedDB - more reliable on mobile)
+    const tmdbKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
+    const rawgKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
     
     if (!tmdbKey && (batchType === 'movie' || batchType === 'tv')) {
       setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');

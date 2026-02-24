@@ -1,4 +1,5 @@
 import Groq from 'groq-sdk';
+import { getApiKey } from '@/lib/db/dexie';
 import type {
   AISuggestion,
   AIRecommendation,
@@ -30,14 +31,36 @@ Focus on: Themes, Mood, Genre patterns, Narrative depth, Audience fit, Emotional
 If unsure, infer intelligently.`;
 
 export class GroqClient {
-  private client: Groq;
+  private client: Groq | null = null;
   private model: string = 'llama-3.3-70b-versatile';
+  private apiKey: string = '';
+  private initialized: boolean = false;
 
-  constructor(apiKey: string) {
-    this.client = new Groq({ apiKey });
+  async init() {
+    if (this.initialized) return;
+    
+    // Check IndexedDB first (more reliable on mobile), then env vars
+    let key = await getApiKey('groq_key');
+    
+    if (!key) {
+      key = process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY || '';
+    }
+    
+    this.apiKey = key;
+    if (key) {
+      this.client = new Groq({ apiKey: key });
+    }
+    
+    this.initialized = true;
   }
 
   private async generateContent(prompt: string): Promise<string> {
+    await this.init();
+    
+    if (!this.client) {
+      throw new Error('Groq client not initialized - API key missing');
+    }
+    
     try {
       const response = await this.client.chat.completions.create({
         model: this.model,
@@ -291,16 +314,5 @@ Return JSON:
 
 // Factory
 export const createGroqClient = () => {
-  // Check localStorage first (for mobile/user-saved keys), then env vars
-  let apiKey = '';
-  if (typeof window !== 'undefined') {
-    apiKey = localStorage.getItem('groq_key') || '';
-  }
-  if (!apiKey) {
-    apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY || '';
-  }
-  if (!apiKey) {
-    throw new Error('Groq API key not configured. Add it in Settings or set GROQ_API_KEY.');
-  }
-  return new GroqClient(apiKey);
+  return new GroqClient();
 };

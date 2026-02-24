@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getApiKey } from '@/lib/db/dexie';
 import type {
   AISuggestion,
   AIRecommendation,
@@ -30,14 +31,36 @@ Focus on: Themes, Mood, Genre patterns, Narrative depth, Audience fit, Emotional
 If unsure, infer intelligently.`;
 
 export class GeminiClient {
-  private client: GoogleGenerativeAI;
+  private client: GoogleGenerativeAI | null = null;
   private model: string = 'gemini-2.0-flash-lite';
+  private apiKey: string = '';
+  private initialized: boolean = false;
 
-  constructor(apiKey: string) {
-    this.client = new GoogleGenerativeAI(apiKey);
+  async init() {
+    if (this.initialized) return;
+    
+    // Check IndexedDB first (more reliable on mobile), then env vars
+    let key = await getApiKey('gemini_key');
+    
+    if (!key) {
+      key = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+    }
+    
+    this.apiKey = key;
+    if (key) {
+      this.client = new GoogleGenerativeAI(key);
+    }
+    
+    this.initialized = true;
   }
 
   private async generateContent(prompt: string): Promise<string> {
+    await this.init();
+    
+    if (!this.client) {
+      throw new Error('Gemini client not initialized - API key missing');
+    }
+    
     try {
       const model = this.client.getGenerativeModel({ model: this.model });
       const result = await model.generateContent({
@@ -296,16 +319,5 @@ Return JSON:
 
 // Factory
 export const createGeminiClient = () => {
-  // Check localStorage first (for mobile/user-saved keys), then env vars
-  let apiKey = '';
-  if (typeof window !== 'undefined') {
-    apiKey = localStorage.getItem('gemini_key') || '';
-  }
-  if (!apiKey) {
-    apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-  }
-  if (!apiKey) {
-    throw new Error('Gemini API key not configured. Add it in Settings or set NEXT_PUBLIC_GEMINI_API_KEY.');
-  }
-  return new GeminiClient(apiKey);
+  return new GeminiClient();
 };

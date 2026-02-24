@@ -1,15 +1,29 @@
 import type { GoogleBooksResult, SearchResult } from '@/types';
+import { getApiKey } from '@/lib/db/dexie';
 
 const GOOGLE_BOOKS_BASE_URL = 'https://www.googleapis.com/books/v1';
 
 export class GoogleBooksClient {
-  private apiKey: string | null;
+  private apiKey: string | null = null;
+  private initialized: boolean = false;
 
-  constructor(apiKey: string | null = null) {
-    this.apiKey = apiKey;
+  async init() {
+    if (this.initialized) return;
+    
+    // Check IndexedDB first (more reliable on mobile), then env vars
+    let key = await getApiKey('google_books_key');
+    
+    if (!key) {
+      key = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || '';
+    }
+    
+    this.apiKey = key || null;
+    this.initialized = true;
   }
 
   private async fetch<T>(endpoint: string): Promise<T | null> {
+    await this.init();
+    
     try {
       const keyParam = this.apiKey ? `&key=${this.apiKey}` : '';
       const response = await fetch(
@@ -86,14 +100,5 @@ export class GoogleBooksClient {
 
 // Factory function
 export const createBooksClient = () => {
-  // Check localStorage first (for mobile/user-saved keys), then env vars
-  let apiKey: string | null = null;
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('google_books_key');
-    if (stored) apiKey = stored;
-  }
-  if (!apiKey) {
-    apiKey = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || null;
-  }
-  return new GoogleBooksClient(apiKey);
+  return new GoogleBooksClient();
 };
