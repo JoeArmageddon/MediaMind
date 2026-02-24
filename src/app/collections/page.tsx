@@ -15,7 +15,6 @@ import { useCollectionStore } from '@/store/collectionStore';
 import { cn, getTypeLabel } from '@/lib/utils';
 import type { AISmartCollection, SmartCollection, Media } from '@/types';
 
-// Separate components for different collection types to avoid type narrowing issues
 function UserCollectionCard({ 
   collection, 
   onClick, 
@@ -118,7 +117,6 @@ function AICollectionCard({
   );
 }
 
-// User collection detail dialog
 function UserCollectionDetail({ 
   collection, 
   media 
@@ -174,7 +172,6 @@ function UserCollectionDetail({
   );
 }
 
-// AI collection detail dialog
 function AICollectionDetail({ 
   collection, 
   allMedia 
@@ -217,8 +214,7 @@ function AICollectionDetail({
   );
 }
 
-// Build timestamp: force fresh deploy
-export default function SmartCollectionsPage() {
+export default function CollectionsPage() {
   const router = useRouter();
   const { media } = useMediaStore();
   const { collections, fetchCollections, addCollection, deleteCollection } = useCollectionStore();
@@ -303,7 +299,6 @@ export default function SmartCollectionsPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-white/10 rounded-xl">
@@ -323,7 +318,6 @@ export default function SmartCollectionsPage() {
         </Button>
       </div>
 
-      {/* Generate Button */}
       <Button 
         onClick={handleGenerate} 
         disabled={isGenerating || media.length === 0}
@@ -339,7 +333,6 @@ export default function SmartCollectionsPage() {
         </div>
       )}
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-2xl h-auto">
           <TabsTrigger value="my" className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
@@ -395,7 +388,6 @@ export default function SmartCollectionsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="max-w-lg bg-[#0a0a0a] border-white/10 rounded-[28px]">
           <DialogHeader>
@@ -458,7 +450,6 @@ export default function SmartCollectionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* User Collection Detail Dialog */}
       <Dialog open={!!selectedUserCollection} onOpenChange={() => setSelectedUserCollection(null)}>
         <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
           {selectedUserCollection && (
@@ -467,7 +458,6 @@ export default function SmartCollectionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* AI Collection Detail Dialog */}
       <Dialog open={!!selectedAICollection} onOpenChange={() => setSelectedAICollection(null)}>
         <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
           {selectedAICollection && (

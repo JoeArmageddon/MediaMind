@@ -154,7 +154,7 @@ export default function DashboardPage() {
 
         {/* AI Suggestions */}
         <button 
-          onClick={() => router.push('/smart-collections')}
+          onClick={() => router.push('/collections')}
           className="col-span-7 h-40 bg-[#0a0a0a] rounded-[28px] relative overflow-hidden group border border-white/10 flex flex-col justify-between p-5 text-left"
         >
           <div className="absolute top-0 right-0 p-4 opacity-20">

@@ -25,7 +25,7 @@ const navItems = [
   { href: '/calendar', icon: Calendar, label: 'Calendar' },
   { href: '/analytics', icon: BarChart3, label: 'Stats' },
   { href: '/timeline', icon: Clock, label: 'Timeline' },
-  { href: '/smart-collections', icon: Sparkles, label: 'AI' },
+  { href: '/collections', icon: Sparkles, label: 'AI' },
 ];
 
 export function Sidebar() {
