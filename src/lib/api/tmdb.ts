@@ -45,7 +45,7 @@ export class TMDBClient {
       // Key was updated, re-initialize
       this.apiKey = freshKey;
       const parts = freshKey.split('.');
-      this.useBearer = freshKey && parts.length === 3 && parts[0].startsWith('eyJ');
+      this.useBearer = !!(freshKey && parts.length === 3 && parts[0].startsWith('eyJ'));
     }
     
     if (!this.apiKey) {
