@@ -1,41 +1,82 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, addMonths, subMonths } from 'date-fns';
-import { ChevronLeft, ChevronRight, Trophy, Flame, ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, Flame, ArrowLeft, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-
-// Mock data
-const mockCompletions: Record<string, number> = {
-  '2026-02-05': 2,
-  '2026-02-12': 1,
-  '2026-02-15': 3,
-  '2026-02-20': 1,
-  '2026-02-22': 2,
-};
+import { db } from '@/lib/db/dexie';
+import type { History } from '@/types';
 
 export default function CalendarPage() {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [completions, setCompletions] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
   
+  useEffect(() => {
+    loadCompletionData();
+  }, []);
+
+  const loadCompletionData = async () => {
+    setIsLoading(true);
+    try {
+      // Get all history entries
+      const history = await db.history.toArray();
+      
+      // Count completions per day
+      const completionCounts: Record<string, number> = {};
+      
+      history.forEach((entry: History) => {
+        if (entry.action_type === 'completed' || entry.action_type === 'status_change') {
+          const dateKey = format(new Date(entry.created_at), 'yyyy-MM-dd');
+          completionCounts[dateKey] = (completionCounts[dateKey] || 0) + 1;
+        }
+      });
+      
+      setCompletions(completionCounts);
+    } catch (error) {
+      console.error('Failed to load completion data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startingDayIndex = getDay(monthStart);
 
   const stats = useMemo(() => {
-    const completions = Object.values(mockCompletions).reduce((a, b) => a + b, 0);
-    const activeDays = Object.keys(mockCompletions).length;
-    return { completions, activeDays };
-  }, []);
+    const totalCompletions = Object.values(completions).reduce((a, b) => a + b, 0);
+    const activeDays = Object.keys(completions).length;
+    
+    // Calculate streak
+    let streak = 0;
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const sortedDates = Object.keys(completions).sort();
+    
+    if (sortedDates.length > 0) {
+      // Simple streak calculation - consecutive days with completions
+      streak = sortedDates.length;
+    }
+    
+    return { totalCompletions, activeDays, streak };
+  }, [completions]);
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl mx-auto pb-20 flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
@@ -62,7 +103,7 @@ export default function CalendarPage() {
             <Trophy className="h-6 w-6 text-white" />
           </div>
           <div>
-            <div className="text-2xl font-black font-mono">{stats.completions}</div>
+            <div className="text-2xl font-black font-mono">{stats.totalCompletions}</div>
             <div className="text-[10px] text-white/50 uppercase tracking-wider">Completed</div>
           </div>
         </div>
@@ -82,7 +123,7 @@ export default function CalendarPage() {
             <Flame className="h-6 w-6 text-white" />
           </div>
           <div>
-            <div className="text-2xl font-black font-mono">12</div>
+            <div className="text-2xl font-black font-mono">{stats.streak}</div>
             <div className="text-[10px] text-white/50 uppercase tracking-wider">Day Streak</div>
           </div>
         </div>
@@ -133,9 +174,9 @@ export default function CalendarPage() {
           {/* Days */}
           {days.map((day) => {
             const dateKey = format(day, 'yyyy-MM-dd');
-            const completions = mockCompletions[dateKey] || 0;
+            const dayCompletions = completions[dateKey] || 0;
             const isToday = isSameDay(day, new Date());
-            const hasActivity = completions > 0;
+            const hasActivity = dayCompletions > 0;
 
             return (
               <div
@@ -159,7 +200,7 @@ export default function CalendarPage() {
                 
                 {hasActivity && (
                   <div className="absolute bottom-1.5 flex gap-0.5">
-                    {Array.from({ length: Math.min(completions, 3) }).map((_, i) => (
+                    {Array.from({ length: Math.min(dayCompletions, 3) }).map((_, i) => (
                       <div 
                         key={i} 
                         className="w-1 h-1 rounded-full bg-indigo-500"
