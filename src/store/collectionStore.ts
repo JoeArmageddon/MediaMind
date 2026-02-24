@@ -35,7 +35,7 @@ export const useCollectionStore = create<CollectionStore>()(
           // Sync with Supabase if online
           if (navigator.onLine) {
             try {
-              const { data, error } = await supabase
+              const { data, error } = await (supabase as any)
                 .from('smart_collections')
                 .select('*')
                 .order('updated_at', { ascending: false });
@@ -77,7 +77,7 @@ export const useCollectionStore = create<CollectionStore>()(
         // Sync with Supabase if online
         if (navigator.onLine) {
           try {
-            await supabase.from('smart_collections').insert(newCollection);
+            await (supabase as any).from('smart_collections').insert(newCollection);
           } catch (e) {
             console.warn('Failed to sync collection:', e);
           }
@@ -102,7 +102,7 @@ export const useCollectionStore = create<CollectionStore>()(
         // Sync with Supabase if online
         if (navigator.onLine) {
           try {
-            await supabase
+            await (supabase as any)
               .from('smart_collections')
               .update({ ...updates, updated_at })
               .eq('id', id);
@@ -124,7 +124,7 @@ export const useCollectionStore = create<CollectionStore>()(
         // Sync with Supabase if online
         if (navigator.onLine) {
           try {
-            await supabase.from('smart_collections').delete().eq('id', id);
+            await (supabase as any).from('smart_collections').delete().eq('id', id);
           } catch (e) {
             console.warn('Failed to sync collection deletion:', e);
           }
