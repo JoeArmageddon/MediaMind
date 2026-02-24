@@ -29,9 +29,12 @@ export default function CalendarPage() {
       const completionCounts: Record<string, number> = {};
       
       history.forEach((entry: History) => {
-        if (entry.action_type === 'completed' || entry.action_type === 'status_change') {
-          const dateKey = format(new Date(entry.created_at), 'yyyy-MM-dd');
-          completionCounts[dateKey] = (completionCounts[dateKey] || 0) + 1;
+        // Count when status changes to 'completed'
+        if (entry.action_type === 'status_change' && entry.value && typeof entry.value === 'object') {
+          if (entry.value.status === 'completed') {
+            const dateKey = format(new Date(entry.created_at), 'yyyy-MM-dd');
+            completionCounts[dateKey] = (completionCounts[dateKey] || 0) + 1;
+          }
         }
       });
       
