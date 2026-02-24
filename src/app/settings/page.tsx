@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMediaStore } from '@/store/mediaStore';
@@ -102,30 +102,35 @@ export default function SettingsPage() {
     }
   };
 
-  const [testResults, setTestResults] = useState<Record<string, boolean | null>>({
+  const [testResults, setTestResults] = useState<Record<string, boolean | null | 'loading'>>({
     tmdb: null,
     rawg: null,
   });
 
   const testApiKeys = async () => {
-    setTestResults({ tmdb: null, rawg: null });
+    console.log('Testing API keys...');
+    setTestResults({ tmdb: 'loading', rawg: 'loading' });
     
     // Test TMDB
     try {
       const tmdbKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
+      console.log('TMDB key found:', !!tmdbKey);
       if (tmdbKey) {
         const response = await fetch(`https://api.themoviedb.org/3/movie/550?api_key=${tmdbKey}`);
+        console.log('TMDB test response:', response.status);
         setTestResults(prev => ({ ...prev, tmdb: response.ok }));
       } else {
         setTestResults(prev => ({ ...prev, tmdb: false }));
       }
-    } catch {
+    } catch (e) {
+      console.error('TMDB test error:', e);
       setTestResults(prev => ({ ...prev, tmdb: false }));
     }
     
     // Test RAWG
     try {
       const rawgKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
+      console.log('RAWG key found:', !!rawgKey);
       if (rawgKey) {
         const response = await fetch(`https://api.rawg.io/api/games?key=${rawgKey}&page_size=1`);
         setTestResults(prev => ({ ...prev, rawg: response.ok }));
@@ -251,23 +256,27 @@ export default function SettingsPage() {
           <Button 
             onClick={testApiKeys}
             variant="outline"
-            className="w-full border-white/10 hover:bg-white/5 rounded-xl"
+            disabled={testResults.tmdb === 'loading' || testResults.rawg === 'loading'}
+            className="w-full border-white/10 hover:bg-white/5 rounded-xl disabled:opacity-50"
           >
+            {testResults.tmdb === 'loading' || testResults.rawg === 'loading' ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : null}
             Test API Keys
           </Button>
           
           {(testResults.tmdb !== null || testResults.rawg !== null) && (
             <div className="mt-3 space-y-2">
-              {testResults.tmdb !== null && (
+              {testResults.tmdb !== null && testResults.tmdb !== 'loading' && (
                 <div className={`flex items-center gap-2 text-sm ${testResults.tmdb ? 'text-green-400' : 'text-red-400'}`}>
                   <div className={`w-2 h-2 rounded-full ${testResults.tmdb ? 'bg-green-400' : 'bg-red-400'}`} />
-                  TMDB: {testResults.tmdb ? 'Working' : 'Failed'}
+                  TMDB: {testResults.tmdb ? 'Working' : 'Failed / No Key'}
                 </div>
               )}
-              {testResults.rawg !== null && (
+              {testResults.rawg !== null && testResults.rawg !== 'loading' && (
                 <div className={`flex items-center gap-2 text-sm ${testResults.rawg ? 'text-green-400' : 'text-red-400'}`}>
                   <div className={`w-2 h-2 rounded-full ${testResults.rawg ? 'bg-green-400' : 'bg-red-400'}`} />
-                  RAWG: {testResults.rawg ? 'Working' : 'Failed'}
+                  RAWG: {testResults.rawg ? 'Working' : 'Failed / No Key'}
                 </div>
               )}
             </div>

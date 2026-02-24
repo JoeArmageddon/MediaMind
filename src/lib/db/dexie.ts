@@ -26,6 +26,16 @@ export class MediaDatabase extends Dexie {
   constructor() {
     super('MediaIntelligenceDB');
     
+    // Version 1 - Original schema
+    this.version(1).stores({
+      media: 'id, title, normalized_title, type, status, is_favorite, is_archived, release_year, updated_at, *genres, *tags',
+      history: 'id, media_id, created_at, action_type',
+      smartCollections: 'id, title, updated_at',
+      appSettings: 'id',
+      syncQueue: 'id, table, operation, created_at',
+    });
+    
+    // Version 2 - Add apiKeys table
     this.version(2).stores({
       media: 'id, title, normalized_title, type, status, is_favorite, is_archived, release_year, updated_at, *genres, *tags',
       history: 'id, media_id, created_at, action_type',
