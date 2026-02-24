@@ -57,7 +57,7 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
             await db.history.bulkPut(data as History[]);
 
             // Get updated media info
-            const updatedMediaIds = Array.from(new Set(data.map((h: History) => h.media_id)));
+            const updatedMediaIds = Array.from(new Set((data as History[]).map((h) => h.media_id))) as string[];
             const updatedMediaItems = await db.media.where('id').anyOf(updatedMediaIds).toArray();
             const updatedMediaMap = new Map(updatedMediaItems.map((m) => [m.id, m]));
 

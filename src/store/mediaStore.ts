@@ -317,7 +317,7 @@ export const useMediaStore = create<MediaStore>()(
 
           // Sync with Supabase if online
           if (navigator.onLine) {
-            const { error } = await supabase.from('media').delete().eq('id', id);
+            const { error } = await (supabase as any).from('media').delete().eq('id', id);
             if (error) throw error;
           } else {
             // Queue for later sync
@@ -474,7 +474,7 @@ export const useMediaStore = create<MediaStore>()(
           // If online, try to sync with Supabase (but don't clear local data first!)
           if (navigator.onLine) {
             try {
-              const { data, error } = await supabase
+              const { data, error } = await (supabase as any)
                 .from('media')
                 .select('*')
                 .order('updated_at', { ascending: false });
