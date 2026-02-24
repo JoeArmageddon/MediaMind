@@ -217,6 +217,7 @@ function AICollectionDetail({
   );
 }
 
+// Build timestamp: force fresh deploy
 export default function SmartCollectionsPage() {
   const router = useRouter();
   const { media } = useMediaStore();
