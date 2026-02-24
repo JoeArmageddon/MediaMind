@@ -15,13 +15,21 @@ import { useCollectionStore } from '@/store/collectionStore';
 import { cn, getTypeLabel } from '@/lib/utils';
 import type { AISmartCollection, SmartCollection, Media } from '@/types';
 
-// Type guard functions
+// Type guard functions to properly narrow union types
 function isSmartCollection(coll: SmartCollection | AISmartCollection): coll is SmartCollection {
   return 'media_ids' in coll;
 }
 
 function isAICollection(coll: SmartCollection | AISmartCollection): coll is AISmartCollection {
   return 'media_titles' in coll;
+}
+
+// Safe title accessor
+function getCollectionTitle(coll: SmartCollection | AISmartCollection): string {
+  if (isSmartCollection(coll) || isAICollection(coll)) {
+    return coll.title;
+  }
+  return '';
 }
 
 // Helper component to render collection detail content with proper typing
@@ -34,7 +42,7 @@ function CollectionDetailContent({
   media: Media[];
   getMediaForCollection: (c: SmartCollection) => Media[];
 }) {
-  const title = isAICollection(collection) || isSmartCollection(collection) ? collection.title : '';
+  const title = getCollectionTitle(collection);
   const description = isAICollection(collection) || isSmartCollection(collection) ? collection.description : null;
   
   return (
