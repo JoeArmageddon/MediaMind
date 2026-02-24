@@ -296,9 +296,16 @@ Return JSON:
 
 // Factory
 export const createGeminiClient = () => {
-  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+  // Check localStorage first (for mobile/user-saved keys), then env vars
+  let apiKey = '';
+  if (typeof window !== 'undefined') {
+    apiKey = localStorage.getItem('gemini_key') || '';
+  }
   if (!apiKey) {
-    throw new Error('Gemini API key not configured - add NEXT_PUBLIC_GEMINI_API_KEY to .env.local');
+    apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+  }
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured. Add it in Settings or set NEXT_PUBLIC_GEMINI_API_KEY.');
   }
   return new GeminiClient(apiKey);
 };

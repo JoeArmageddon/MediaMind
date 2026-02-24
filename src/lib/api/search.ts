@@ -5,6 +5,16 @@ import { createRAWGClient } from './rawg';
 import { createBooksClient } from './books';
 import { getAIClient } from '@/lib/ai';
 
+// Timeout wrapper for API calls
+const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => 
+      setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms)
+    )
+  ]);
+};
+
 export class SearchOrchestrator {
   private tmdb = createTMDBClient();
   private jikan = createJikanClient();
@@ -19,11 +29,15 @@ export class SearchOrchestrator {
     const errors: string[] = [];
 
     try {
-      // Movies & TV from TMDB
+      // Movies & TV from TMDB (10s timeout)
       if (!preferredType || ['movie', 'tv'].includes(preferredType)) {
         console.log('Searching TMDB...');
         try {
-          const tmdbResults = await this.tmdb.searchMulti(title);
+          const tmdbResults = await withTimeout(
+            this.tmdb.searchMulti(title),
+            10000,
+            'TMDB'
+          );
           console.log(`TMDB found: ${tmdbResults.length} results`);
           
           const filtered = preferredType 
@@ -38,13 +52,17 @@ export class SearchOrchestrator {
         }
       }
 
-      // Anime, Manga, Manhwa, Donghua from Jikan
+      // Anime, Manga, Manhwa, Donghua from Jikan (15s timeout - Jikan is slower)
       if (!preferredType || ['anime', 'manga', 'manhwa', 'manhua', 'donghua'].includes(preferredType)) {
         console.log('Searching Jikan...');
         try {
           if (results.length > 0) await new Promise(r => setTimeout(r, 800));
           
-          const jikanResults = await this.jikan.searchAll(title);
+          const jikanResults = await withTimeout(
+            this.jikan.searchAll(title),
+            15000,
+            'Jikan'
+          );
           console.log(`Jikan found: ${jikanResults.length} results`);
           
           // Map manga results to manhwa if searching for manhwa
@@ -59,7 +77,11 @@ export class SearchOrchestrator {
           if (mappedResults.length === 0) {
             console.log('No Jikan results - trying AI classification...');
             try {
-              const aiResult = await this.ai.classifyMedia(title);
+              const aiResult = await withTimeout(
+                this.ai.classifyMedia(title),
+                8000,
+                'AI classify'
+              );
               
               if (aiResult && ['anime', 'manga', 'manhwa', 'manhua', 'donghua'].includes(aiResult.detected_type)) {
                 console.log('AI classified as:', aiResult.detected_type);
@@ -94,13 +116,17 @@ export class SearchOrchestrator {
         }
       }
 
-      // Games from RAWG
+      // Games from RAWG (10s timeout)
       if (!preferredType || preferredType === 'game') {
         console.log('Searching RAWG...');
         try {
           if (results.length > 0) await new Promise(r => setTimeout(r, 500));
           
-          const rawgResults = await this.rawg.searchGames(title);
+          const rawgResults = await withTimeout(
+            this.rawg.searchGames(title),
+            10000,
+            'RAWG'
+          );
           console.log(`RAWG found: ${rawgResults.length} results`);
           results.push(...rawgResults);
         } catch (e) {
@@ -110,13 +136,17 @@ export class SearchOrchestrator {
         }
       }
 
-      // Books from Google Books
+      // Books from Google Books (10s timeout)
       if (!preferredType || ['book', 'light_novel', 'visual_novel'].includes(preferredType)) {
         console.log('Searching Google Books...');
         try {
           if (results.length > 0) await new Promise(r => setTimeout(r, 500));
           
-          const bookResults = await this.books.searchBooks(title);
+          const bookResults = await withTimeout(
+            this.books.searchBooks(title),
+            10000,
+            'Google Books'
+          );
           console.log(`Google Books found: ${bookResults.length} results`);
           results.push(...bookResults);
         } catch (e) {

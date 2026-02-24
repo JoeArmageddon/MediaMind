@@ -8,7 +8,14 @@ export class TMDBClient {
   private useBearer: boolean;
 
   constructor() {
-    const key = process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
+    // Check localStorage first (for mobile/user-saved keys), then env vars
+    let key = '';
+    if (typeof window !== 'undefined') {
+      key = localStorage.getItem('tmdb_key') || '';
+    }
+    if (!key) {
+      key = process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
+    }
     
     // Check if it's a Bearer token (JWT format with 3 parts separated by dots)
     const parts = key.split('.');
@@ -23,7 +30,7 @@ export class TMDBClient {
     }
     
     if (!this.apiKey) {
-      console.error('TMDB API Key/Token is missing!');
+      console.error('TMDB API Key/Token is missing! Add it in Settings.');
     }
   }
 

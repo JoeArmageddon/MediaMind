@@ -482,12 +482,30 @@ export const useMediaStore = create<MediaStore>()(
               if (error) {
                 console.warn('Supabase fetch error:', error);
                 // Don't throw - keep local data
-              } else if (data && data.length > 0) {
+              } else if (data) {
                 console.log('Fetched from Supabase:', data.length, 'items');
+                
+                // Get IDs of items pending deletion from sync queue
+                const pendingDeletes = await db.syncQueue
+                  .where('operation')
+                  .equals('delete')
+                  .toArray();
+                const pendingDeleteIds = new Set(pendingDeletes.map(q => q.data.id));
+                console.log('Pending deletions:', pendingDeleteIds.size);
+                
                 // Merge: prefer Supabase data for same IDs, but don't lose local-only items
+                // AND filter out items pending deletion
                 const supabaseIds = new Set(data.map((m: Media) => m.id));
-                const localOnlyItems = localMedia.filter(m => !supabaseIds.has(m.id));
-                const mergedData = [...data as Media[], ...localOnlyItems];
+                const localOnlyItems = localMedia.filter(
+                  m => !supabaseIds.has(m.id) && !pendingDeleteIds.has(m.id)
+                );
+                
+                // Filter Supabase data to exclude items pending deletion
+                const filteredSupabaseData = (data as Media[]).filter(
+                  m => !pendingDeleteIds.has(m.id)
+                );
+                
+                const mergedData = [...filteredSupabaseData, ...localOnlyItems];
                 
                 // Update IndexedDB and state
                 await db.media.clear();

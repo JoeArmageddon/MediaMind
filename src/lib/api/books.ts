@@ -86,6 +86,14 @@ export class GoogleBooksClient {
 
 // Factory function
 export const createBooksClient = () => {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || null;
+  // Check localStorage first (for mobile/user-saved keys), then env vars
+  let apiKey: string | null = null;
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('google_books_key');
+    if (stored) apiKey = stored;
+  }
+  if (!apiKey) {
+    apiKey = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || null;
+  }
   return new GoogleBooksClient(apiKey);
 };

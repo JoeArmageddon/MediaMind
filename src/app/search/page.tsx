@@ -86,6 +86,16 @@ export default function SearchPage() {
       return;
     }
 
+    // Check if API keys are configured
+    const tmdbKey = localStorage.getItem('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
+    const rawgKey = localStorage.getItem('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
+    
+    if (!tmdbKey && (type === 'all' || type === 'movie' || type === 'tv')) {
+      setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setResults([]);
     setError(null);
@@ -102,7 +112,8 @@ export default function SearchPage() {
         setManualEntry({ title: searchQuery, description: '' });
       }
     } catch (err) {
-      setError('Search failed. You can still add manually.');
+      console.error('Search error:', err);
+      setError('Search failed. Check your API keys in Settings, or add manually.');
       setShowManualAdd(true);
       setManualEntry({ title: searchQuery, description: '' });
     } finally {
@@ -216,6 +227,19 @@ export default function SearchPage() {
 
   const processBatch = async () => {
     if (batchItems.length === 0) return;
+    
+    // Check if API keys are configured
+    const tmdbKey = localStorage.getItem('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
+    const rawgKey = localStorage.getItem('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
+    
+    if (!tmdbKey && (batchType === 'movie' || batchType === 'tv')) {
+      setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');
+      return;
+    }
+    if (!rawgKey && batchType === 'game') {
+      setError('RAWG API key missing. Please add it in Settings to search for Games.');
+      return;
+    }
     
     setIsBatchProcessing(true);
     const updatedItems = [...batchItems];

@@ -66,9 +66,16 @@ export class RAWGClient {
 
 // Factory function
 export const createRAWGClient = () => {
-  const apiKey = process.env.NEXT_PUBLIC_RAWG_API_KEY || '';
+  // Check localStorage first (for mobile/user-saved keys), then env vars
+  let apiKey = '';
+  if (typeof window !== 'undefined') {
+    apiKey = localStorage.getItem('rawg_key') || '';
+  }
   if (!apiKey) {
-    console.warn('RAWG API key not configured');
+    apiKey = process.env.NEXT_PUBLIC_RAWG_API_KEY || '';
+  }
+  if (!apiKey) {
+    console.warn('RAWG API key not configured. Add it in Settings.');
   }
   return new RAWGClient(apiKey);
 };
