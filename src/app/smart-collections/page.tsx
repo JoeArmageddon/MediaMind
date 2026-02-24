@@ -359,18 +359,18 @@ export default function SmartCollectionsPage() {
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center">
                     <Sparkles className="h-4 w-4 text-white" />
                   </div>
-                  {'title' in selectedCollection ? selectedCollection.title : ''}
+                  {selectedCollection && ('title' in selectedCollection ? selectedCollection.title : '')}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                {'description' in selectedCollection && selectedCollection?.description && (
+                {selectedCollection && 'description' in selectedCollection && selectedCollection?.description && (
                   <p className="text-white/60 text-sm leading-relaxed">{selectedCollection.description}</p>
                 )}
                 <div className="space-y-2">
                   <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                    {'media_ids' in selectedCollection ? 'Media in collection' : 'Suggested media'}
+                    {selectedCollection && ('media_ids' in selectedCollection ? 'Media in collection' : 'Suggested media')}
                   </h4>
-                  {'media_ids' in selectedCollection ? (
+                  {selectedCollection && ('media_ids' in selectedCollection ? (
                     // User collection - show actual media
                     getMediaForCollection(selectedCollection as SmartCollection).length > 0 ? (
                       getMediaForCollection(selectedCollection as SmartCollection).map((item) => (
