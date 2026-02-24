@@ -15,6 +15,85 @@ import { useCollectionStore } from '@/store/collectionStore';
 import { cn, getTypeLabel } from '@/lib/utils';
 import type { AISmartCollection, SmartCollection, Media } from '@/types';
 
+// Helper component to render collection detail content with proper typing
+function CollectionDetailContent({ 
+  collection, 
+  media, 
+  getMediaForCollection 
+}: { 
+  collection: SmartCollection | AISmartCollection;
+  media: Media[];
+  getMediaForCollection: (c: SmartCollection) => Media[];
+}) {
+  const isUserCollection = 'media_ids' in collection;
+  const collMedia = isUserCollection ? getMediaForCollection(collection as SmartCollection) : [];
+  
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-white" />
+          </div>
+          {'title' in collection ? collection.title : ''}
+        </DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-4">
+        {'description' in collection && collection.description && (
+          <p className="text-white/60 text-sm leading-relaxed">{collection.description}</p>
+        )}
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">
+            {isUserCollection ? 'Media in collection' : 'Suggested media'}
+          </h4>
+          {isUserCollection ? (
+            // User collection - show actual media
+            collMedia.length > 0 ? (
+              collMedia.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10"
+                >
+                  <div className="flex items-center gap-3">
+                    {item.poster_url ? (
+                      <img src={item.poster_url} alt={item.title} className="w-10 h-14 object-cover rounded-lg" />
+                    ) : (
+                      <div className="w-10 h-14 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold">
+                        {item.title[0]}
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-white font-medium text-sm">{item.title}</span>
+                      <p className="text-xs text-white/40">{getTypeLabel(item.type)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-white/40 text-sm text-center py-4">No media in this collection yet.</p>
+            )
+          ) : (
+            // AI collection - show suggested titles
+            (collection as AISmartCollection).media_titles?.map((title) => (
+              <div
+                key={title}
+                className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
+              >
+                <span className="text-white font-medium text-sm">{title}</span>
+                {media.find(m => m.title.toLowerCase().includes(title.toLowerCase())) && (
+                  <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-400">
+                    In Library
+                  </Badge>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function SmartCollectionsPage() {
   const router = useRouter();
   const { media } = useMediaStore();
@@ -353,68 +432,11 @@ export default function SmartCollectionsPage() {
       <Dialog open={!!selectedCollection} onOpenChange={() => setSelectedCollection(null)}>
         <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
           {selectedCollection && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center">
-                    <Sparkles className="h-4 w-4 text-white" />
-                  </div>
-                  {selectedCollection && ('title' in selectedCollection ? selectedCollection.title : '')}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                {selectedCollection && 'description' in selectedCollection && selectedCollection?.description && (
-                  <p className="text-white/60 text-sm leading-relaxed">{selectedCollection.description}</p>
-                )}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                    {selectedCollection && ('media_ids' in selectedCollection ? 'Media in collection' : 'Suggested media')}
-                  </h4>
-                  {selectedCollection && ('media_ids' in selectedCollection ? (
-                    // User collection - show actual media
-                    getMediaForCollection(selectedCollection as SmartCollection).length > 0 ? (
-                      getMediaForCollection(selectedCollection as SmartCollection).map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10"
-                    >
-                      <div className="flex items-center gap-3">
-                        {item.poster_url ? (
-                          <img src={item.poster_url} alt={item.title} className="w-10 h-14 object-cover rounded-lg" />
-                        ) : (
-                          <div className="w-10 h-14 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold">
-                            {item.title[0]}
-                          </div>
-                        )}
-                        <div>
-                          <span className="text-white font-medium text-sm">{item.title}</span>
-                          <p className="text-xs text-white/40">{getTypeLabel(item.type)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-white/40 text-sm text-center py-4">No media in this collection yet.</p>
-                )
-              ) : (
-                // AI collection - show suggested titles
-                (selectedCollection as AISmartCollection)?.media_titles?.map((title) => (
-                  <div
-                    key={title}
-                    className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
-                  >
-                    <span className="text-white font-medium text-sm">{title}</span>
-                    {media.find(m => m.title.toLowerCase().includes(title.toLowerCase())) && (
-                      <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-400">
-                        In Library
-                      </Badge>
-                    )}
-                  </div>
-                ))
-              )}
-                </div>
-              </div>
-            </>
+            <CollectionDetailContent 
+              collection={selectedCollection} 
+              media={media}
+              getMediaForCollection={getMediaForCollection}
+            />
           )}
         </DialogContent>
       </Dialog>
