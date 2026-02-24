@@ -22,7 +22,11 @@ export class GoogleBooksClient {
   }
 
   private async fetch<T>(endpoint: string): Promise<T | null> {
-    await this.init();
+    // Always re-check for keys in case they were saved after initialization
+    const freshKey = await getApiKey('google_books_key') || process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || null;
+    if (freshKey) {
+      this.apiKey = freshKey;
+    }
     
     try {
       const keyParam = this.apiKey ? `&key=${this.apiKey}` : '';

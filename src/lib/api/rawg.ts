@@ -22,7 +22,16 @@ export class RAWGClient {
   }
 
   private async fetch<T>(endpoint: string): Promise<T | null> {
-    await this.init();
+    // Always re-check for keys in case they were saved after initialization
+    const freshKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY || '';
+    if (freshKey) {
+      this.apiKey = freshKey;
+    }
+    
+    if (!this.apiKey) {
+      console.error('Cannot fetch RAWG: No API key');
+      return null;
+    }
     
     try {
       const response = await fetch(

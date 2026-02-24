@@ -39,7 +39,14 @@ export class TMDBClient {
   }
 
   private async fetch<T>(endpoint: string): Promise<T | null> {
-    await this.init();
+    // Always re-check for keys in case they were saved after initialization
+    const freshKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
+    if (freshKey && freshKey !== this.apiKey) {
+      // Key was updated, re-initialize
+      this.apiKey = freshKey;
+      const parts = freshKey.split('.');
+      this.useBearer = freshKey && parts.length === 3 && parts[0].startsWith('eyJ');
+    }
     
     if (!this.apiKey) {
       console.error('Cannot fetch TMDB: No API key/token');

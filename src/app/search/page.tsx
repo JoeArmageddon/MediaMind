@@ -79,7 +79,10 @@ export default function SearchPage() {
     user_rating: '',
   });
 
-  const orchestrator = getSearchOrchestrator();
+  // Create a fresh orchestrator for each search to ensure API keys are loaded
+  const getOrchestrator = () => {
+    return getSearchOrchestrator();
+  };
 
   const performSearch = useCallback(async (searchQuery: string, type: MediaType | 'all') => {
     if (!searchQuery.trim()) {
@@ -104,7 +107,12 @@ export default function SearchPage() {
 
     try {
       const preferredType = type === 'all' ? undefined : type;
+      // Create fresh orchestrator to ensure latest API keys are used
+      console.log('Creating fresh orchestrator...');
+      const orchestrator = getOrchestrator();
+      console.log('Starting search for:', searchQuery);
       const searchResults = await orchestrator.search(searchQuery, preferredType);
+      console.log('Search completed, results:', searchResults.length);
       
       setResults(searchResults);
       
@@ -253,6 +261,7 @@ export default function SearchPage() {
       setBatchItems([...updatedItems]);
 
       try {
+        const orchestrator = getOrchestrator();
         const results = await orchestrator.search(item.title, batchType);
         
         if (results.length > 0) {
