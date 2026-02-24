@@ -72,20 +72,32 @@ export class TMDBClient {
         url = `${TMDB_BASE_URL}${endpoint}${separator}api_key=${this.apiKey}`;
       }
       
-      console.log('TMDB fetching:', url);
+      console.log('TMDB fetching:', url.replace(this.apiKey, '***'));
       
-      const response = await fetch(url, { headers });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(url, { 
+        headers,
+        signal: controller.signal,
+        mode: 'cors',
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('TMDB API error:', response.status, errorData.status_message || '');
-        return null;
+        throw new Error(`TMDB HTTP ${response.status}`);
       }
       
       return await response.json();
-    } catch (error) {
-      console.error('TMDB fetch error:', error);
-      return null;
+    } catch (error: any) {
+      console.error('TMDB fetch error:', error?.message || error);
+      if (error.name === 'AbortError') {
+        throw new Error('TMDB request timed out');
+      }
+      throw error;
     }
   }
 

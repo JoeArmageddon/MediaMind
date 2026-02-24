@@ -58,6 +58,7 @@ export default function SearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedType, setSelectedType] = useState<MediaType | 'all'>('all');
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualEntry, setManualEntry] = useState({ title: '', description: '' });
 
@@ -103,16 +104,23 @@ export default function SearchPage() {
     setIsLoading(true);
     setResults([]);
     setError(null);
+    setDebugInfo('Starting search...');
     setShowManualAdd(false);
 
     try {
       const preferredType = type === 'all' ? undefined : type;
-      // Create fresh orchestrator to ensure latest API keys are used
-      console.log('Creating fresh orchestrator...');
+      setDebugInfo(`Type: ${preferredType || 'all'}`);
+      
+      // Check keys before search
+      const tmdbKey = await getApiKey('tmdb_key');
+      const rawgKey = await getApiKey('rawg_key');
+      setDebugInfo(`Keys - TMDB: ${!!tmdbKey}, RAWG: ${!!rawgKey}`);
+      
       const orchestrator = getOrchestrator();
-      console.log('Starting search for:', searchQuery);
+      setDebugInfo('Orchestrator created, searching...');
+      
       const searchResults = await orchestrator.search(searchQuery, preferredType);
-      console.log('Search completed, results:', searchResults.length);
+      setDebugInfo(`Search done. Results: ${searchResults.length}`);
       
       setResults(searchResults);
       
@@ -120,9 +128,11 @@ export default function SearchPage() {
         setShowManualAdd(true);
         setManualEntry({ title: searchQuery, description: '' });
       }
-    } catch (err) {
+    } catch (err: any) {
+      const errorMsg = err?.message || String(err);
       console.error('Search error:', err);
-      setError('Search failed. Check your API keys in Settings, or add manually.');
+      setError('Search failed.');
+      setDebugInfo(`Error: ${errorMsg}`);
       setShowManualAdd(true);
       setManualEntry({ title: searchQuery, description: '' });
     } finally {
@@ -456,6 +466,13 @@ export default function SearchPage() {
           {error && !showManualAdd && (
             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm">
               {error}
+            </div>
+          )}
+
+          {/* Debug Info */}
+          {debugInfo && (
+            <div className="p-3 bg-slate-800/50 border border-white/10 rounded-xl text-xs text-white/60 font-mono">
+              Debug: {debugInfo}
             </div>
           )}
 

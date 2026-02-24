@@ -180,6 +180,11 @@ export class SearchOrchestrator {
     console.log(`=== SEARCH COMPLETE === Total results: ${results.length}`);
     if (errors.length > 0) console.log('Errors:', errors);
     
+    // If we have no results but have errors, throw the first error
+    if (results.length === 0 && errors.length > 0) {
+      throw new Error(errors.join(', '));
+    }
+    
     return results;
   }
 
