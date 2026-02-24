@@ -25,7 +25,7 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
         .toArray();
 
       // Get media titles for each history entry
-      const mediaIds = [...new Set(localHistory.map((h) => h.media_id))];
+      const mediaIds = Array.from(new Set(localHistory.map((h) => h.media_id)));
       const mediaItems = await db.media.where('id').anyOf(mediaIds).toArray();
       const mediaMap = new Map(mediaItems.map((m) => [m.id, m]));
 
@@ -46,7 +46,7 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
       // Sync with Supabase if online
       if (navigator.onLine) {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await (supabase as any)
             .from('history')
             .select('*')
             .order('created_at', { ascending: false })
@@ -57,7 +57,7 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
             await db.history.bulkPut(data as History[]);
 
             // Get updated media info
-            const updatedMediaIds = [...new Set(data.map((h: History) => h.media_id))];
+            const updatedMediaIds = Array.from(new Set(data.map((h: History) => h.media_id)));
             const updatedMediaItems = await db.media.where('id').anyOf(updatedMediaIds).toArray();
             const updatedMediaMap = new Map(updatedMediaItems.map((m) => [m.id, m]));
 
@@ -99,7 +99,7 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
     // Sync with Supabase if online
     if (navigator.onLine) {
       try {
-        await supabase.from('history').insert(newEntry);
+        await (supabase as any).from('history').insert(newEntry);
       } catch (e) {
         console.warn('Failed to sync history:', e);
       }
