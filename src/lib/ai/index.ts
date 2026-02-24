@@ -215,12 +215,7 @@ export class AIClient {
   }
 }
 
-// Singleton instance
-let aiClient: AIClient | null = null;
-
+// Create fresh AI client each time to pick up new keys from localStorage
 export const getAIClient = (): AIClient => {
-  if (!aiClient) {
-    aiClient = new AIClient();
-  }
-  return aiClient;
+  return new AIClient();
 };

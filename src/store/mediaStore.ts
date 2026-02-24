@@ -391,8 +391,30 @@ export const useMediaStore = create<MediaStore>()(
 
           // Sync with Supabase if online
           if (navigator.onLine) {
-            const { error } = await (supabase as any).from('media').delete().eq('id', id);
-            if (error) throw error;
+            try {
+              const { error } = await (supabase as any).from('media').delete().eq('id', id);
+              if (error) {
+                console.warn('Supabase delete failed, queuing:', error);
+                // Queue for later retry
+                await db.syncQueue.add({
+                  id: crypto.randomUUID(),
+                  table: 'media',
+                  operation: 'delete',
+                  data: { id },
+                  created_at: new Date().toISOString(),
+                });
+              }
+            } catch (e) {
+              console.warn('Supabase delete error, queuing:', e);
+              // Queue for later retry
+              await db.syncQueue.add({
+                id: crypto.randomUUID(),
+                table: 'media',
+                operation: 'delete',
+                data: { id },
+                created_at: new Date().toISOString(),
+              });
+            }
           } else {
             // Queue for later sync
             await db.syncQueue.add({
@@ -539,6 +561,11 @@ export const useMediaStore = create<MediaStore>()(
       fetchMedia: async () => {
         set({ isLoading: true, error: null });
         try {
+          // Process any pending sync operations first (including deletes)
+          if (navigator.onLine) {
+            await get().syncWithSupabase();
+          }
+
           // Always load from IndexedDB first (don't wait for Supabase)
           const localMedia = await db.media.toArray();
           console.log('Loaded from IndexedDB:', localMedia.length, 'items');
