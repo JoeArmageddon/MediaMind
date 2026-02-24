@@ -39,18 +39,23 @@ export class TMDBClient {
   }
 
   private async fetch<T>(endpoint: string): Promise<T | null> {
+    console.log('TMDB fetch called for:', endpoint.substring(0, 30));
+    
     // Always re-check for keys in case they were saved after initialization
     const freshKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
+    console.log('TMDB key found:', !!freshKey, 'length:', freshKey.length);
+    
     if (freshKey && freshKey !== this.apiKey) {
       // Key was updated, re-initialize
       this.apiKey = freshKey;
       const parts = freshKey.split('.');
       this.useBearer = !!(freshKey && parts.length === 3 && parts[0].startsWith('eyJ'));
+      console.log('TMDB key updated, bearer:', this.useBearer);
     }
     
     if (!this.apiKey) {
       console.error('Cannot fetch TMDB: No API key/token');
-      return null;
+      throw new Error('No TMDB API key');
     }
 
     try {
@@ -72,12 +77,16 @@ export class TMDBClient {
         url = `${TMDB_BASE_URL}${endpoint}${separator}api_key=${this.apiKey}`;
       }
       
-      console.log('TMDB fetching:', url.replace(this.apiKey, '***'));
+      console.log('TMDB fetching:', url.substring(0, 50) + '...');
       
-      // Use simple fetch without AbortController for better mobile compatibility
+      // Use simple fetch with explicit CORS mode for mobile
       const response = await fetch(url, { 
+        method: 'GET',
         headers,
+        cache: 'no-cache',
       });
+      
+      console.log('TMDB response status:', response.status);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -85,7 +94,9 @@ export class TMDBClient {
         throw new Error(`TMDB HTTP ${response.status}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      console.log('TMDB data received');
+      return data;
     } catch (error: any) {
       console.error('TMDB fetch error:', error?.message || error);
       throw error;
@@ -113,10 +124,12 @@ export class TMDBClient {
   async searchMulti(query: string): Promise<SearchResult[]> {
     console.log('TMDB searching for:', query);
     
-    const [movies, tv] = await Promise.all([
-      this.searchMovies(query),
-      this.searchTV(query),
-    ]);
+    // Fetch movies and TV sequentially on mobile to avoid connection limits
+    const movies = await this.searchMovies(query);
+    console.log(`TMDB movies: ${movies.length}`);
+    
+    const tv = await this.searchTV(query);
+    console.log(`TMDB TV: ${tv.length}`);
 
     console.log(`TMDB results: ${movies.length} movies, ${tv.length} TV shows`);
     

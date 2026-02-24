@@ -67,19 +67,12 @@ export class SearchOrchestrator {
     const errors: string[] = [];
 
     try {
-      // Movies & TV from TMDB (15s timeout with retry)
+      // Movies & TV from TMDB
       if (!preferredType || ['movie', 'tv'].includes(preferredType)) {
         console.log('Searching TMDB...');
         try {
-          const tmdbResults = await withRetry(
-            () => withTimeout(
-              this.tmdb.searchMulti(title),
-              15000,
-              'TMDB'
-            ),
-            2, // 2 retries
-            500 // 500ms initial delay
-          );
+          // Direct call without timeout wrapper for mobile compatibility
+          const tmdbResults = await this.tmdb.searchMulti(title);
           console.log(`TMDB found: ${tmdbResults.length} results`);
           
           const filtered = preferredType 
