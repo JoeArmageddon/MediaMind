@@ -128,7 +128,7 @@ export default function SearchPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [orchestrator]);
+  }, []);
 
   const handleSearch = async () => {
     await performSearch(query, selectedType);
