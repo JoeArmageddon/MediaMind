@@ -1,8 +1,10 @@
 'use client';
 
+import { useMemo } from 'react';
 import { X, Filter, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { cn, getStatusLabel, getTypeLabel } from '@/lib/utils';
 import { useMediaStore } from '@/store/mediaStore';
 import type { MediaStatus, MediaType } from '@/types';
@@ -27,9 +29,18 @@ const types: MediaType[] = [
 ];
 
 export function FilterDrawer() {
-  const { filters, setFilters, resetFilters, isFilterDrawerOpen, toggleFilterDrawer } = useMediaStore();
+  const { media, filters, setFilters, resetFilters, isFilterDrawerOpen, toggleFilterDrawer } = useMediaStore();
 
-  const activeCount = filters.status.length + filters.type.length + 
+  // Extract all unique genres from media
+  const allGenres = useMemo(() => {
+    const genreSet = new Set<string>();
+    media.forEach((item) => {
+      item.genres.forEach((genre) => genreSet.add(genre));
+    });
+    return Array.from(genreSet).sort();
+  }, [media]);
+
+  const activeCount = filters.status.length + filters.type.length + filters.genres.length +
     (filters.is_favorite ? 1 : 0) + (filters.is_archived ? 1 : 0);
 
   if (!isFilterDrawerOpen) {
@@ -168,6 +179,44 @@ export function FilterDrawer() {
                 />
               </label>
             </div>
+
+            {/* Genres */}
+            {allGenres.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-white mb-3">Genres</h3>
+                <div className="flex flex-wrap gap-2">
+                  {allGenres.map((genre) => (
+                    <Badge
+                      key={genre}
+                      variant={filters.genres.includes(genre) ? 'default' : 'outline'}
+                      className={cn(
+                        'cursor-pointer px-3 py-1.5 text-xs transition-all',
+                        filters.genres.includes(genre)
+                          ? 'bg-violet-600 hover:bg-violet-700 border-transparent'
+                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                      )}
+                      onClick={() => {
+                        setFilters({
+                          genres: filters.genres.includes(genre)
+                            ? filters.genres.filter((g) => g !== genre)
+                            : [...filters.genres, genre],
+                        });
+                      }}
+                    >
+                      {genre}
+                    </Badge>
+                  ))}
+                </div>
+                {filters.genres.length > 0 && (
+                  <button
+                    onClick={() => setFilters({ genres: [] })}
+                    className="mt-2 text-xs text-violet-400 hover:text-violet-300"
+                  >
+                    Clear genre filters
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Footer */}

@@ -20,18 +20,21 @@ export default function SettingsPage() {
   const [tmdbKey, setTmdbKey] = useState('');
   const [rawgKey, setRawgKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
+  const [groqKey, setGroqKey] = useState('');
 
   useEffect(() => {
     // Load keys from localStorage
     setTmdbKey(localStorage.getItem('tmdb_key') || '');
     setRawgKey(localStorage.getItem('rawg_key') || '');
     setGeminiKey(localStorage.getItem('gemini_key') || '');
+    setGroqKey(localStorage.getItem('groq_key') || '');
   }, []);
 
   const saveKeys = () => {
     localStorage.setItem('tmdb_key', tmdbKey);
     localStorage.setItem('rawg_key', rawgKey);
     localStorage.setItem('gemini_key', geminiKey);
+    localStorage.setItem('groq_key', groqKey);
     alert('API Keys saved!');
   };
 
@@ -159,6 +162,17 @@ export default function SettingsPage() {
               placeholder="Your Gemini API key"
               className="bg-black border-white/10 focus:border-indigo-500"
             />
+          </div>
+          <div>
+            <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">Groq API Key (Primary AI)</label>
+            <Input
+              type="password"
+              value={groqKey}
+              onChange={(e) => setGroqKey(e.target.value)}
+              placeholder="Your Groq API key (gsk_...)"
+              className="bg-black border-white/10 focus:border-indigo-500"
+            />
+            <p className="text-[10px] text-white/30 mt-1">Used for AI collections and recommendations. Faster than Gemini.</p>
           </div>
         </div>
 

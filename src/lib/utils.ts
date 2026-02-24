@@ -136,28 +136,44 @@ export function calculateEstimatedHours(media: {
   progress: number;
   completion_percent: number;
 }): number {
+  // Average duration per UNIT (in minutes)
   const avgDurations: Record<string, number> = {
-    movie: 120,
-    tv: 45,
-    anime: 24,
-    manga: 0.2,
-    manhwa: 0.2,
-    game: 1,
-    book: 0.5,
-    light_novel: 0.3,
-    visual_novel: 2,
-    web_series: 20,
-    misc: 1,
+    movie: 120,        // 2 hours per movie
+    tv: 45,            // 45 min per episode
+    anime: 24,         // 24 min per episode
+    manga: 5,          // 5 min per chapter
+    manhwa: 5,         // 5 min per chapter
+    manhua: 5,         // 5 min per chapter
+    donghua: 24,       // 24 min per episode
+    game: 60,          // 60 min per % (games use % progress)
+    book: 2,           // 2 min per page
+    light_novel: 1.5,  // 1.5 min per page
+    visual_novel: 60,  // 1 hour per route
+    web_series: 20,    // 20 min per episode
+    misc: 60,          // 1 hour per item
   };
 
-  const avgDuration = avgDurations[media.type] || 1;
+  const avgDuration = avgDurations[media.type] || 60;
   
-  // For games, progress is already in percentage
+  // For games, total_units represents percentage (0-100)
   if (media.type === 'game') {
-    return (media.total_units || 100) * avgDuration * (media.completion_percent / 100);
+    // Estimate total game length as 40 hours * completion percentage
+    const totalGameHours = 40;
+    return totalGameHours * (media.completion_percent / 100);
   }
   
-  return media.total_units * avgDuration;
+  // For movies, total_units is typically 1 (the movie itself)
+  if (media.type === 'movie') {
+    return avgDuration / 60; // Convert minutes to hours
+  }
+  
+  // For other media: multiply units by average duration, convert to hours
+  // e.g., 12 anime episodes * 24 min = 288 min = 4.8 hours
+  if (media.total_units > 0) {
+    return (media.total_units * avgDuration) / 60;
+  }
+  
+  return 0;
 }
 
 export function generateId(): string {

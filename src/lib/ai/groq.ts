@@ -291,9 +291,16 @@ Return JSON:
 
 // Factory
 export const createGroqClient = () => {
-  const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY || '';
+  // Check localStorage first (for mobile/user-saved keys), then env vars
+  let apiKey = '';
+  if (typeof window !== 'undefined') {
+    apiKey = localStorage.getItem('groq_key') || '';
+  }
   if (!apiKey) {
-    throw new Error('Groq API key not configured - add GROQ_API_KEY to .env.local');
+    apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY || '';
+  }
+  if (!apiKey) {
+    throw new Error('Groq API key not configured. Add it in Settings or set GROQ_API_KEY.');
   }
   return new GroqClient(apiKey);
 };

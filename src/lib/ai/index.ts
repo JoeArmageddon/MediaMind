@@ -12,42 +12,42 @@ import type {
   StreamingPlatform,
 } from '@/types';
 
-// Unified AI Client with fallback
+// Unified AI Client with Groq as primary
 export class AIClient {
-  private primary: GeminiClient | null = null;
-  private fallback: GroqClient | null = null;
-  private primaryType: 'gemini' | 'groq' = 'gemini';
+  private primary: GroqClient | null = null;
+  private fallback: GeminiClient | null = null;
+  private primaryType: 'gemini' | 'groq' = 'groq';
 
   constructor() {
-    // Try Gemini first
+    // Try Groq first (primary)
     try {
-      this.primary = createGeminiClient();
-      this.primaryType = 'gemini';
-      console.log('✓ Gemini AI initialized');
+      this.primary = createGroqClient();
+      this.primaryType = 'groq';
+      console.log('✓ Groq AI initialized (primary)');
     } catch (error) {
-      console.warn('Gemini not configured, will try Groq as primary');
+      console.warn('Groq not configured, will try Gemini as primary');
       this.primary = null;
     }
 
-    // Try Groq as fallback (or primary if Gemini failed)
+    // Try Gemini as fallback (or primary if Groq failed)
     try {
-      this.fallback = createGroqClient();
-      console.log('✓ Groq AI initialized');
+      this.fallback = createGeminiClient();
+      console.log('✓ Gemini AI initialized (fallback)');
       
-      // If Gemini failed, use Groq as primary
+      // If Groq failed, use Gemini as primary
       if (!this.primary) {
-        this.primary = this.fallback as unknown as GeminiClient;
-        this.primaryType = 'groq';
+        this.primary = this.fallback as unknown as GroqClient;
+        this.primaryType = 'gemini';
         this.fallback = null;
-        console.log('Using Groq as primary AI');
+        console.log('Using Gemini as primary AI');
       }
     } catch (error) {
-      console.warn('Groq not configured');
+      console.warn('Gemini not configured');
       this.fallback = null;
       
       // If both failed, we have no AI
       if (!this.primary) {
-        console.error('No AI service configured. Please add GEMINI_API_KEY or GROQ_API_KEY to .env.local');
+        console.error('No AI service configured. Please add GROQ_API_KEY or GEMINI_API_KEY to .env.local');
       }
     }
   }
