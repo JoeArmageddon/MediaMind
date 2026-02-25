@@ -6,6 +6,21 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 export class TMDBClient {
   private apiKey: string = '';
+  private initialized: boolean = false;
+
+  async init() {
+    if (this.initialized) return true;
+    
+    // Check IndexedDB first (more reliable on mobile), then env vars
+    let key = await getApiKey('tmdb_key');
+    
+    if (!key) {
+      key = process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
+    }
+    
+    this.apiKey = key;
+    this.initialized = true;
+  }
 
   private async getKey(): Promise<string> {
     const key = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY || '';
