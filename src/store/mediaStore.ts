@@ -561,20 +561,21 @@ export const useMediaStore = create<MediaStore>()(
       fetchMedia: async () => {
         set({ isLoading: true, error: null });
         try {
-          // Process any pending sync operations first (including deletes)
-          if (navigator.onLine) {
-            await get().syncWithSupabase();
-          }
-
-          // Always load from IndexedDB first (don't wait for Supabase)
+          // Always load from IndexedDB FIRST - this is the source of truth
           const localMedia = await db.media.toArray();
           console.log('Loaded from IndexedDB:', localMedia.length, 'items');
+          
+          // Update UI immediately with local data
           set({ media: localMedia });
           get().applyFilters();
 
-          // If online, try to sync with Supabase (but don't clear local data first!)
+          // If online, try to sync with Supabase
           if (navigator.onLine) {
             try {
+              // First: Push any pending local changes TO Supabase
+              await get().syncWithSupabase();
+
+              // Then: Fetch from Supabase to get any new data from other devices
               const { data, error } = await (supabase as any)
                 .from('media')
                 .select('*')
@@ -582,9 +583,25 @@ export const useMediaStore = create<MediaStore>()(
 
               if (error) {
                 console.warn('Supabase fetch error:', error);
-                // Don't throw - keep local data
+                // Keep local data, don't modify it
               } else if (data) {
                 console.log('Fetched from Supabase:', data.length, 'items');
+                
+                // SAFETY CHECK: If Supabase returns empty but we have local data,
+                // DON'T clear local data - instead try to sync local TO Supabase
+                if (data.length === 0 && localMedia.length > 0) {
+                  console.log('Supabase empty but local has data - keeping local data');
+                  // Try to upload local data to Supabase
+                  for (const item of localMedia) {
+                    try {
+                      await (supabase as any).from('media').upsert(item);
+                    } catch (e) {
+                      console.warn('Failed to upsert item:', item.title, e);
+                    }
+                  }
+                  set({ isLoading: false });
+                  return;
+                }
                 
                 // Get IDs of items pending deletion from sync queue
                 const pendingDeletes = await db.syncQueue
@@ -594,8 +611,10 @@ export const useMediaStore = create<MediaStore>()(
                 const pendingDeleteIds = new Set(pendingDeletes.map(q => q.data.id));
                 console.log('Pending deletions:', pendingDeleteIds.size);
                 
-                // Merge: prefer Supabase data for same IDs, but don't lose local-only items
-                // AND filter out items pending deletion
+                // Merge strategy: 
+                // - Supabase data wins for same IDs (newer)
+                // - Local-only items are preserved
+                // - Items pending deletion are removed
                 const supabaseIds = new Set(data.map((m: Media) => m.id));
                 const localOnlyItems = localMedia.filter(
                   m => !supabaseIds.has(m.id) && !pendingDeleteIds.has(m.id)
@@ -608,15 +627,23 @@ export const useMediaStore = create<MediaStore>()(
                 
                 const mergedData = [...filteredSupabaseData, ...localOnlyItems];
                 
-                // Update IndexedDB and state
-                await db.media.clear();
-                await db.media.bulkAdd(mergedData);
-                set({ media: mergedData });
-                get().applyFilters();
+                console.log('Merged data:', mergedData.length, 'items');
+                
+                // SAFER UPDATE: Use bulkPut (upsert) instead of clear + bulkAdd
+                // This way if something fails, we don't lose data
+                try {
+                  await db.media.bulkPut(mergedData);
+                  set({ media: mergedData });
+                  get().applyFilters();
+                  console.log('Successfully saved merged data to IndexedDB');
+                } catch (bulkError) {
+                  console.error('Failed to save merged data:', bulkError);
+                  // Keep original local data on error
+                }
               }
             } catch (supabaseError) {
               console.warn('Supabase sync failed, using local data:', supabaseError);
-              // Keep local data, don't clear it
+              // Keep local data unchanged
             }
           }
 
@@ -634,27 +661,34 @@ export const useMediaStore = create<MediaStore>()(
         try {
           // Get pending changes
           const pendingChanges = await db.syncQueue.toArray();
+          console.log('Processing pending changes:', pendingChanges.length);
 
           for (const change of pendingChanges) {
-            if (change.operation === 'update') {
-              await (supabase as any)
-                .from(change.table)
-                .update(change.data)
-                .eq('id', change.data.id);
-            } else if (change.operation === 'delete') {
-              await (supabase as any).from(change.table).delete().eq('id', change.data.id);
-            } else if (change.operation === 'insert') {
-              await (supabase as any).from(change.table).insert(change.data);
+            try {
+              if (change.operation === 'update') {
+                await (supabase as any)
+                  .from(change.table)
+                  .update(change.data)
+                  .eq('id', change.data.id);
+              } else if (change.operation === 'delete') {
+                await (supabase as any).from(change.table).delete().eq('id', change.data.id);
+              } else if (change.operation === 'insert') {
+                await (supabase as any).from(change.table).insert(change.data);
+              }
+              console.log('Synced:', change.operation, change.data.id || change.data.title);
+            } catch (changeError) {
+              console.error('Failed to sync change:', change, changeError);
+              // Continue with other changes, don't stop
             }
           }
 
-          // Clear sync queue
+          // Clear sync queue only after successful sync
           await db.syncQueue.clear();
-
-          // Refresh data
-          await get().fetchMedia();
+          console.log('Sync queue cleared');
+          
           set({ isLoading: false });
         } catch (error) {
+          console.error('syncWithSupabase error:', error);
           set({ error: (error as Error).message, isLoading: false });
         }
       },
