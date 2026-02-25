@@ -224,7 +224,7 @@ export default function LibraryPage() {
 
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-[#0a0a0a] border-white/10 p-0">
+        <DialogContent className="max-w-4xl h-[90vh] lg:h-auto lg:max-h-[90vh] overflow-hidden bg-[#0a0a0a] border-white/10 p-0">
           <DialogHeader className="sr-only">
             <DialogTitle>Media Details</DialogTitle>
           </DialogHeader>
@@ -234,6 +234,7 @@ export default function LibraryPage() {
               onUpdate={handleUpdateMedia}
               onDelete={handleDeleteMedia}
               onAISuggestions={() => {}}
+              onClose={() => setDetailOpen(false)}
             />
           )}
         </DialogContent>
