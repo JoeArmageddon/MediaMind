@@ -85,6 +85,12 @@ export default function SearchPage() {
     return getSearchOrchestrator();
   };
 
+  // Detect if we're on a mobile device
+  const isMobile = () => {
+    if (typeof navigator === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
   const performSearch = useCallback(async (searchQuery: string, type: MediaType | 'all') => {
     if (!searchQuery.trim()) {
       setError('Please enter a search term');
@@ -109,7 +115,8 @@ export default function SearchPage() {
 
     try {
       const preferredType = type === 'all' ? undefined : type;
-      setDebugInfo(`Type: ${preferredType || 'all'}`);
+      const mobile = isMobile();
+      setDebugInfo(`Type: ${preferredType || 'all'}, Mobile: ${mobile}`);
       
       // Check keys before search
       setDebugInfo('Checking keys...');
@@ -118,14 +125,17 @@ export default function SearchPage() {
       setDebugInfo(`Keys - TMDB: ${tmdbKey ? 'yes' : 'no'}, RAWG: ${rawgKey ? 'yes' : 'no'}`);
       
       const orchestrator = getOrchestrator();
-      setDebugInfo('Searching with 30s timeout...');
+      
+      // Longer timeout for mobile (45s) vs desktop (30s)
+      const timeoutMs = mobile ? 45000 : 30000;
+      setDebugInfo(`Searching with ${timeoutMs/1000}s timeout...`);
       
       const startTime = Date.now();
       
       // Add hard timeout to prevent hanging
       const searchPromise = orchestrator.search(searchQuery, preferredType);
       const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Search timed out after 30s')), 30000)
+        setTimeout(() => reject(new Error(mobile ? 'Search timed out. Try selecting a specific type for faster results.' : 'Search timed out after 30s')), timeoutMs)
       );
       
       const searchResults = await Promise.race([searchPromise, timeoutPromise]);
@@ -141,7 +151,14 @@ export default function SearchPage() {
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
       console.error('Search error:', err);
-      setError('Search failed.');
+      
+      // Better error messages for mobile users
+      if (errorMsg.includes('timed out')) {
+        setError(errorMsg);
+      } else {
+        setError('Search failed. Please try again.');
+      }
+      
       setDebugInfo(`Error: ${errorMsg}`);
       setShowManualAdd(true);
       setManualEntry({ title: searchQuery, description: '' });

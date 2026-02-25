@@ -5,7 +5,7 @@ import { createRAWGClient } from './rawg';
 import { createBooksClient } from './books';
 import { getAIClient } from '@/lib/ai';
 
-// Timeout wrapper for API calls
+// Timeout wrapper for API calls - shorter for mobile responsiveness
 const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
   return Promise.race([
     promise,
@@ -15,27 +15,10 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 };
 
-// Retry wrapper for flaky mobile connections
-const withRetry = async <T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 2,
-  delay: number = 1000
-): Promise<T> => {
-  let lastError: any;
-  
-  for (let i = 0; i <= maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      console.warn(`Attempt ${i + 1} failed, retrying...`);
-      if (i < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-      }
-    }
-  }
-  
-  throw lastError;
+// Detect if we're on a mobile device
+const isMobile = () => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
 
 export class SearchOrchestrator {
@@ -44,152 +27,183 @@ export class SearchOrchestrator {
   private rawg = createRAWGClient();
   private books = createBooksClient();
   private ai = getAIClient();
-  private initialized = false;
-
-  async init() {
-    if (this.initialized) return;
-    // Initialize all clients that need async setup
-    await Promise.all([
-      this.tmdb.init(),
-      this.rawg.init(),
-      this.books.init(),
-    ]);
-    this.initialized = true;
-  }
 
   async search(title: string, preferredType?: MediaType): Promise<SearchResult[]> {
-    console.log(`=== SEARCH START === Query: "${title}", Type: ${preferredType || 'all'}`);
-    
-    // Ensure clients are initialized
-    await this.init();
+    console.log(`=== SEARCH START === Query: "${title}", Type: ${preferredType || 'all'}, Mobile: ${isMobile()}`);
     
     const results: SearchResult[] = [];
     const errors: string[] = [];
+    const mobile = isMobile();
 
-    try {
-      // Movies & TV from TMDB
-      if (!preferredType || ['movie', 'tv'].includes(preferredType)) {
-        console.log('Searching TMDB...');
-        try {
-          // Direct call without timeout wrapper for mobile compatibility
-          const tmdbResults = await this.tmdb.searchMulti(title);
-          console.log(`TMDB found: ${tmdbResults.length} results`);
-          
-          const filtered = preferredType 
-            ? tmdbResults.filter(r => r.type === preferredType)
-            : tmdbResults;
-          
-          results.push(...filtered);
-        } catch (e) {
-          const msg = `TMDB error: ${e}`;
-          console.error(msg);
-          errors.push(msg);
-        }
-      }
+    // Define which APIs to call based on preferred type
+    const shouldSearchTMDB = !preferredType || ['movie', 'tv'].includes(preferredType);
+    const shouldSearchJikan = !preferredType || ['anime', 'manga', 'manhwa', 'manhua', 'donghua'].includes(preferredType);
+    const shouldSearchRAWG = !preferredType || preferredType === 'game';
+    const shouldSearchBooks = !preferredType || ['book', 'light_novel', 'visual_novel'].includes(preferredType);
 
-      // Anime, Manga, Manhwa, Donghua from Jikan (15s timeout - Jikan is slower)
-      if (!preferredType || ['anime', 'manga', 'manhwa', 'manhua', 'donghua'].includes(preferredType)) {
-        console.log('Searching Jikan...');
-        try {
-          if (results.length > 0) await new Promise(r => setTimeout(r, 800));
-          
-          const jikanResults = await withTimeout(
-            this.jikan.searchAll(title),
-            15000,
-            'Jikan'
-          );
-          console.log(`Jikan found: ${jikanResults.length} results`);
-          
-          // Map manga results to manhwa if searching for manhwa
-          const mappedResults = jikanResults.map(r => {
-            if (preferredType === 'manhwa' && r.type === 'manga') {
-              return { ...r, type: 'manhwa' as MediaType };
-            }
-            return r;
-          });
-          
-          // If no results found, try AI classification as fallback
-          if (mappedResults.length === 0) {
-            console.log('No Jikan results - trying AI classification...');
-            try {
-              const aiResult = await withTimeout(
-                this.ai.classifyMedia(title),
-                8000,
-                'AI classify'
-              );
-              
-              if (aiResult && ['anime', 'manga', 'manhwa', 'manhua', 'donghua'].includes(aiResult.detected_type)) {
-                console.log('AI classified as:', aiResult.detected_type);
-                const normalizedConfidence = aiResult.confidence > 1 ? aiResult.confidence / 100 : aiResult.confidence;
-                
-                results.push({
-                  title: title,
-                  type: aiResult.detected_type as MediaType,
-                  poster_url: null,
-                  description: `AI-classified ${aiResult.detected_type}. Likely genres: ${aiResult.likely_genres.join(', ')}`,
-                  release_year: null,
-                  api_rating: null,
-                  genres: aiResult.likely_genres,
-                  total_units: 0,
-                  external_id: `ai-${Date.now()}`,
-                  confidence: normalizedConfidence * 0.7,
-                });
-              }
-            } catch (aiError) {
-              console.error('AI classification failed:', aiError);
-            }
-          } else {
-            const filtered = preferredType && preferredType !== 'manhwa'
-              ? mappedResults.filter(r => r.type === preferredType)
-              : mappedResults;
+    // Create an array of search promises to run in parallel where possible
+    const searchPromises: Promise<void>[] = [];
+
+    // TMDB search - with timeout
+    if (shouldSearchTMDB) {
+      searchPromises.push(
+        (async () => {
+          console.log('Searching TMDB...');
+          try {
+            // Initialize client first
+            await withTimeout(this.tmdb.init(), 3000, 'TMDB init');
+            // Search with timeout - shorter on mobile
+            const tmdbResults = await withTimeout(
+              this.tmdb.searchMulti(title),
+              mobile ? 8000 : 12000,
+              'TMDB'
+            );
+            console.log(`TMDB found: ${tmdbResults.length} results`);
+            
+            const filtered = preferredType 
+              ? tmdbResults.filter(r => r.type === preferredType)
+              : tmdbResults;
+            
             results.push(...filtered);
+          } catch (e) {
+            const msg = `TMDB error: ${e}`;
+            console.error(msg);
+            errors.push(msg);
           }
-        } catch (e) {
-          const msg = `Jikan error: ${e}`;
-          console.error(msg);
-          errors.push(msg);
-        }
-      }
+        })()
+      );
+    }
 
-      // Games from RAWG (10s timeout)
-      if (!preferredType || preferredType === 'game') {
-        console.log('Searching RAWG...');
-        try {
-          if (results.length > 0) await new Promise(r => setTimeout(r, 500));
+    // Jikan search - rate limited, needs delay if TMDB also running
+    if (shouldSearchJikan) {
+      searchPromises.push(
+        (async () => {
+          // Small delay if TMDB is also running to avoid hammering APIs simultaneously
+          if (shouldSearchTMDB) {
+            await new Promise(r => setTimeout(r, mobile ? 200 : 500));
+          }
           
-          const rawgResults = await withTimeout(
-            this.rawg.searchGames(title),
-            10000,
-            'RAWG'
-          );
-          console.log(`RAWG found: ${rawgResults.length} results`);
-          results.push(...rawgResults);
-        } catch (e) {
-          const msg = `RAWG error: ${e}`;
-          console.error(msg);
-          errors.push(msg);
-        }
-      }
+          console.log('Searching Jikan...');
+          try {
+            const jikanResults = await withTimeout(
+              this.jikan.searchAll(title),
+              mobile ? 12000 : 18000,
+              'Jikan'
+            );
+            console.log(`Jikan found: ${jikanResults.length} results`);
+            
+            // Map manga results to manhwa if searching for manhwa
+            const mappedResults = jikanResults.map(r => {
+              if (preferredType === 'manhwa' && r.type === 'manga') {
+                return { ...r, type: 'manhwa' as MediaType };
+              }
+              return r;
+            });
+            
+            // If no results found, try AI classification as fallback
+            if (mappedResults.length === 0 && this.ai.isAvailable()) {
+              console.log('No Jikan results - trying AI classification...');
+              try {
+                const aiResult = await withTimeout(
+                  this.ai.classifyMedia(title),
+                  mobile ? 5000 : 8000,
+                  'AI classify'
+                );
+                
+                if (aiResult && ['anime', 'manga', 'manhwa', 'manhua', 'donghua'].includes(aiResult.detected_type)) {
+                  console.log('AI classified as:', aiResult.detected_type);
+                  const normalizedConfidence = aiResult.confidence > 1 ? aiResult.confidence / 100 : aiResult.confidence;
+                  
+                  results.push({
+                    title: title,
+                    type: aiResult.detected_type as MediaType,
+                    poster_url: null,
+                    description: `AI-classified ${aiResult.detected_type}. Likely genres: ${aiResult.likely_genres.join(', ')}`,
+                    release_year: null,
+                    api_rating: null,
+                    genres: aiResult.likely_genres,
+                    total_units: 0,
+                    external_id: `ai-${Date.now()}`,
+                    confidence: normalizedConfidence * 0.7,
+                  });
+                }
+              } catch (aiError) {
+                console.error('AI classification failed:', aiError);
+              }
+            } else {
+              const filtered = preferredType && preferredType !== 'manhwa'
+                ? mappedResults.filter(r => r.type === preferredType)
+                : mappedResults;
+              results.push(...filtered);
+            }
+          } catch (e) {
+            const msg = `Jikan error: ${e}`;
+            console.error(msg);
+            errors.push(msg);
+          }
+        })()
+      );
+    }
 
-      // Books from Google Books (10s timeout)
-      if (!preferredType || ['book', 'light_novel', 'visual_novel'].includes(preferredType)) {
-        console.log('Searching Google Books...');
-        try {
-          if (results.length > 0) await new Promise(r => setTimeout(r, 500));
+    // RAWG search - games
+    if (shouldSearchRAWG) {
+      searchPromises.push(
+        (async () => {
+          // Small delay to stagger requests
+          if (shouldSearchTMDB || shouldSearchJikan) {
+            await new Promise(r => setTimeout(r, mobile ? 200 : 400));
+          }
           
-          const bookResults = await withTimeout(
-            this.books.searchBooks(title),
-            10000,
-            'Google Books'
-          );
-          console.log(`Google Books found: ${bookResults.length} results`);
-          results.push(...bookResults);
-        } catch (e) {
-          const msg = `Books error: ${e}`;
-          console.error(msg);
-          errors.push(msg);
-        }
-      }
+          console.log('Searching RAWG...');
+          try {
+            await this.rawg.init();
+            const rawgResults = await withTimeout(
+              this.rawg.searchGames(title),
+              mobile ? 8000 : 12000,
+              'RAWG'
+            );
+            console.log(`RAWG found: ${rawgResults.length} results`);
+            results.push(...rawgResults);
+          } catch (e) {
+            const msg = `RAWG error: ${e}`;
+            console.error(msg);
+            errors.push(msg);
+          }
+        })()
+      );
+    }
+
+    // Books search
+    if (shouldSearchBooks) {
+      searchPromises.push(
+        (async () => {
+          // Small delay to stagger requests
+          if (shouldSearchTMDB || shouldSearchJikan || shouldSearchRAWG) {
+            await new Promise(r => setTimeout(r, mobile ? 300 : 500));
+          }
+          
+          console.log('Searching Google Books...');
+          try {
+            await this.books.init();
+            const bookResults = await withTimeout(
+              this.books.searchBooks(title),
+              mobile ? 8000 : 12000,
+              'Google Books'
+            );
+            console.log(`Google Books found: ${bookResults.length} results`);
+            results.push(...bookResults);
+          } catch (e) {
+            const msg = `Books error: ${e}`;
+            console.error(msg);
+            errors.push(msg);
+          }
+        })()
+      );
+    }
+
+    // Wait for all searches to complete (they run in parallel)
+    try {
+      await Promise.all(searchPromises);
     } catch (error) {
       console.error('Search error:', error);
     }
@@ -215,7 +229,8 @@ export class SearchOrchestrator {
       try {
         const searchResults = await this.search(title);
         results.set(title, searchResults);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Longer delay between batch items to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 1500));
       } catch (error) {
         console.error('Batch search error for:', title, error);
         results.set(title, []);
