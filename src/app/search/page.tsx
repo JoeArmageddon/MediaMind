@@ -67,6 +67,13 @@ export default function SearchPage() {
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
   const [batchType, setBatchType] = useState<MediaType>('anime');
+  const [editingManualItem, setEditingManualItem] = useState<string | null>(null);
+  const [manualEditForm, setManualEditForm] = useState<{
+    title: string;
+    description: string;
+    poster_url: string;
+    release_year: string;
+  }>({ title: '', description: '', poster_url: '', release_year: '' });
 
   // Manual add state
   const [manualForm, setManualForm] = useState<ManualFormData>({
@@ -342,6 +349,37 @@ export default function SearchPage() {
 
   const removeBatchItem = (itemId: string) => {
     setBatchItems(items => items.filter(item => item.id !== itemId));
+    if (editingManualItem === itemId) {
+      setEditingManualItem(null);
+    }
+  };
+
+  const startManualEdit = (item: BatchItem) => {
+    setEditingManualItem(item.id);
+    setManualEditForm({
+      title: item.title,
+      description: '',
+      poster_url: '',
+      release_year: '',
+    });
+  };
+
+  const saveManualEdit = (itemId: string) => {
+    const customResult: SearchResult = {
+      title: manualEditForm.title || 'Untitled',
+      type: batchType,
+      poster_url: manualEditForm.poster_url || null,
+      description: manualEditForm.description || null,
+      release_year: manualEditForm.release_year ? parseInt(manualEditForm.release_year) : null,
+      api_rating: null,
+      genres: [],
+      total_units: 0,
+      external_id: 'manual-' + Date.now(),
+      confidence: 1,
+    };
+    
+    selectResultForItem(itemId, customResult);
+    setEditingManualItem(null);
   };
 
   const addAllSelected = async () => {
@@ -769,25 +807,67 @@ export default function SearchPage() {
 
                         {/* Not Found - Manual Add Option */}
                         {item.status === 'not_found' && (
-                          <div className="mt-2 text-sm text-white/50">
-                            No results found. 
-                            <button 
-                              onClick={() => selectResultForItem(item.id, {
-                                title: item.title,
-                                type: batchType,
-                                poster_url: null,
-                                description: null,
-                                release_year: null,
-                                api_rating: null,
-                                genres: [],
-                                total_units: 0,
-                                external_id: 'manual-' + Date.now(),
-                                confidence: 1,
-                              })}
-                              className="text-indigo-400 hover:text-indigo-300 ml-1"
-                            >
-                              Add manually
-                            </button>
+                          <div className="mt-3">
+                            {editingManualItem === item.id ? (
+                              /* Inline Manual Edit Form */
+                              <div className="space-y-3 p-3 bg-white/5 rounded-xl border border-white/10">
+                                <p className="text-xs text-amber-400 font-medium">Add manually:</p>
+                                <Input
+                                  value={manualEditForm.title}
+                                  onChange={(e) => setManualEditForm({ ...manualEditForm, title: e.target.value })}
+                                  placeholder="Title"
+                                  className="bg-black border-white/10 rounded-lg h-10 text-sm"
+                                />
+                                <Input
+                                  value={manualEditForm.poster_url}
+                                  onChange={(e) => setManualEditForm({ ...manualEditForm, poster_url: e.target.value })}
+                                  placeholder="Poster URL (optional)"
+                                  className="bg-black border-white/10 rounded-lg h-10 text-sm"
+                                />
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Input
+                                    value={manualEditForm.release_year}
+                                    onChange={(e) => setManualEditForm({ ...manualEditForm, release_year: e.target.value })}
+                                    placeholder="Year"
+                                    className="bg-black border-white/10 rounded-lg h-10 text-sm"
+                                  />
+                                </div>
+                                <textarea
+                                  value={manualEditForm.description}
+                                  onChange={(e) => setManualEditForm({ ...manualEditForm, description: e.target.value })}
+                                  placeholder="Description (optional)"
+                                  className="w-full h-16 bg-black border border-white/10 rounded-lg p-2 text-sm text-white resize-none focus:border-indigo-500 focus:outline-none"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => saveManualEdit(item.id)}
+                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg h-9"
+                                  >
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Confirm
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setEditingManualItem(null)}
+                                    className="border-white/10 text-white/60 rounded-lg h-9"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-sm text-white/50">
+                                No results found. 
+                                <button 
+                                  onClick={() => startManualEdit(item)}
+                                  className="text-indigo-400 hover:text-indigo-300 ml-1 font-medium"
+                                >
+                                  Add manually →
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
