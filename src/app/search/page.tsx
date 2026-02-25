@@ -119,23 +119,23 @@ export default function SearchPage() {
       setDebugInfo(`Type: ${preferredType || 'all'}, Mobile: ${mobile}`);
       
       // Check keys before search
-      setDebugInfo('Checking keys...');
-      const tmdbKey = await getApiKey('tmdb_key');
-      const rawgKey = await getApiKey('rawg_key');
-      setDebugInfo(`Keys - TMDB: ${tmdbKey ? 'yes' : 'no'}, RAWG: ${rawgKey ? 'yes' : 'no'}`);
+      const tmdbKeyLoaded = await getApiKey('tmdb_key');
+      const rawgKeyLoaded = await getApiKey('rawg_key');
+      setDebugInfo(`Keys - TMDB: ${tmdbKeyLoaded ? 'yes' : 'no'}${tmdbKeyLoaded ? '' : ' (using env)'}, RAWG: ${rawgKeyLoaded ? 'yes' : 'no'}${rawgKeyLoaded ? '' : ' (using env)'}`);
       
       const orchestrator = getOrchestrator();
       
-      // Longer timeout for mobile (45s) vs desktop (30s)
-      const timeoutMs = mobile ? 45000 : 30000;
-      setDebugInfo(`Searching with ${timeoutMs/1000}s timeout...`);
+      // VERY LONG timeout for mobile (90s) vs desktop (60s)
+      // Each API has its own shorter timeout, so this is just a safety net
+      const timeoutMs = mobile ? 90000 : 60000;
+      setDebugInfo(`Searching... (max ${timeoutMs/1000}s)`);
       
       const startTime = Date.now();
       
-      // Add hard timeout to prevent hanging
+      // Search with timeout protection
       const searchPromise = orchestrator.search(searchQuery, preferredType);
       const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error(mobile ? 'Search timed out. Try selecting a specific type for faster results.' : 'Search timed out after 30s')), timeoutMs)
+        setTimeout(() => reject(new Error('Search is taking too long. Try selecting a specific type.')), timeoutMs)
       );
       
       const searchResults = await Promise.race([searchPromise, timeoutPromise]);
@@ -152,13 +152,8 @@ export default function SearchPage() {
       const errorMsg = err?.message || String(err);
       console.error('Search error:', err);
       
-      // Better error messages for mobile users
-      if (errorMsg.includes('timed out')) {
-        setError(errorMsg);
-      } else {
-        setError('Search failed. Please try again.');
-      }
-      
+      // Show partial error but still allow manual add
+      setError(errorMsg.includes('timed out') ? errorMsg : 'Some searches failed. Try again or add manually.');
       setDebugInfo(`Error: ${errorMsg}`);
       setShowManualAdd(true);
       setManualEntry({ title: searchQuery, description: '' });
