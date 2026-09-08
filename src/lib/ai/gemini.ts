@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getApiKey } from '@/lib/db/dexie';
+import { resolveApiKey } from '@/lib/api/apiKey';
 import type {
   AISuggestion,
   AIRecommendation,
@@ -32,20 +32,17 @@ If unsure, infer intelligently.`;
 
 export class GeminiClient {
   private client: GoogleGenerativeAI | null = null;
-  private model: string = 'gemini-2.0-flash-lite';
+  // gemini-2.0-flash-lite was retired ("no longer available to new users");
+  // this is Google's own recommended direct replacement, confirmed working.
+  private model: string = 'gemini-3.5-flash-lite';
   private apiKey: string = '';
   private initialized: boolean = false;
 
   async init() {
     if (this.initialized) return;
     
-    // Check IndexedDB first (more reliable on mobile), then env vars
-    let key = await getApiKey('gemini_key');
-    
-    if (!key) {
-      key = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-    }
-    
+    const key = await resolveApiKey('gemini_key', process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+
     this.apiKey = key;
     if (key) {
       this.client = new GoogleGenerativeAI(key);
@@ -68,6 +65,11 @@ export class GeminiClient {
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 2000,
+          // Forces raw JSON output instead of relying on prompt instructions
+          // alone - matches Groq's response_format:'json_object' reliability.
+          // parseJSON()'s markdown-fence stripping stays as a fallback for
+          // any older/unsupported model that ignores this.
+          responseMimeType: 'application/json',
         },
       });
 

@@ -1,5 +1,6 @@
 import { createGeminiClient, GeminiClient } from './gemini';
 import { createGroqClient, GroqClient } from './groq';
+import { withAICache, AI_CACHE_TTL } from './cache';
 import type {
   AISuggestion,
   AIRecommendation,
@@ -112,10 +113,14 @@ export class AIClient {
     media: Pick<Media, 'title' | 'type' | 'genres' | 'description' | 'release_year'>
   ): Promise<AISuggestion[] | null> {
     if (!this.primary) return null;
-    return this.callWithFallback(
-      () => this.primary!.getSuggestions(media),
-      () => this.fallback!.getSuggestions(media),
-      'getSuggestions'
+    // Cached by title+type: stable input, and worth sharing across devices
+    // (aiStore's Map cache is per-browser and cleared on reload).
+    return withAICache('getSuggestions', `${media.type}:${media.title}`, AI_CACHE_TTL.THIRTY_DAYS, () =>
+      this.callWithFallback(
+        () => this.primary!.getSuggestions(media),
+        () => this.fallback!.getSuggestions(media),
+        'getSuggestions'
+      )
     );
   }
 
@@ -180,20 +185,27 @@ export class AIClient {
     media: Pick<Media, 'title' | 'description' | 'genres'>
   ): Promise<AIMediaAnalysis | null> {
     if (!this.primary) return null;
-    return this.callWithFallback(
-      () => this.primary!.analyzeMedia(media),
-      () => this.fallback!.analyzeMedia(media),
-      'analyzeMedia'
+    // Cached by title: this analysis only depends on stable metadata, so a
+    // second lookup for the same title (even from a different device/entry)
+    // shouldn't cost another Groq/Gemini call.
+    return withAICache('analyzeMedia', media.title, AI_CACHE_TTL.THIRTY_DAYS, () =>
+      this.callWithFallback(
+        () => this.primary!.analyzeMedia(media),
+        () => this.fallback!.analyzeMedia(media),
+        'analyzeMedia'
+      )
     );
   }
 
   // 6. AI Fallback Classification
   async classifyMedia(title: string): Promise<AIFallbackClassification | null> {
     if (!this.primary) return null;
-    return this.callWithFallback(
-      () => this.primary!.classifyMedia(title),
-      () => this.fallback!.classifyMedia(title),
-      'classifyMedia'
+    return withAICache('classifyMedia', title, AI_CACHE_TTL.THIRTY_DAYS, () =>
+      this.callWithFallback(
+        () => this.primary!.classifyMedia(title),
+        () => this.fallback!.classifyMedia(title),
+        'classifyMedia'
+      )
     );
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMediaStore } from '@/store/mediaStore';
 import { Search, Loader2, Plus, ArrowLeft, Film, Tv, Gamepad2, BookOpen, Sparkles, Wand2, List, Check, X, Trash2, PenSquare, MoreHorizontal } from 'lucide-react';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getSearchOrchestrator } from '@/lib/api/search';
 import { getApiKey } from '@/lib/db/dexie';
+import { resolveApiKey } from '@/lib/api/apiKey';
 import { cn, getTypeLabel, getUnitLabel } from '@/lib/utils';
 import type { SearchResult, MediaType } from '@/types';
 
@@ -62,6 +63,10 @@ export default function SearchPage() {
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualEntry, setManualEntry] = useState({ title: '', description: '' });
 
+  // AbortControllers for cancelling in-flight searches without losing page state
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const batchAbortRef = useRef<AbortController | null>(null);
+
   // Batch mode state
   const [batchText, setBatchText] = useState('');
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
@@ -105,8 +110,8 @@ export default function SearchPage() {
     }
 
     // Check if API keys are configured (from IndexedDB - more reliable on mobile)
-    const tmdbKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
-    const rawgKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
+    const tmdbKey = await resolveApiKey('tmdb_key', process.env.NEXT_PUBLIC_TMDB_API_KEY);
+    const rawgKey = await resolveApiKey('rawg_key', process.env.NEXT_PUBLIC_RAWG_API_KEY);
     
     if (!tmdbKey && (type === 'all' || type === 'movie' || type === 'tv')) {
       setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');
@@ -114,63 +119,96 @@ export default function SearchPage() {
       return;
     }
 
+    // Cancel any still-running previous search first - otherwise an old
+    // slow/stuck request and a new one would both resolve into the same
+    // isLoading/results state and race each other (the old one's `finally`
+    // could flip isLoading back off, or its results could overwrite the new
+    // search's), which is exactly what made the UI look "stuck" or wrong.
+    searchAbortRef.current?.abort();
+
     setIsLoading(true);
     setResults([]);
     setError(null);
     setDebugInfo('Starting search...');
     setShowManualAdd(false);
 
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+
     try {
       const preferredType = type === 'all' ? undefined : type;
       const mobile = isMobile();
       setDebugInfo(`Type: ${preferredType || 'all'}, Mobile: ${mobile}`);
-      
+
       // Check keys before search
       const tmdbKeyLoaded = await getApiKey('tmdb_key');
       const rawgKeyLoaded = await getApiKey('rawg_key');
       setDebugInfo(`Keys - TMDB: ${tmdbKeyLoaded ? 'yes' : 'no'}${tmdbKeyLoaded ? '' : ' (using env)'}, RAWG: ${rawgKeyLoaded ? 'yes' : 'no'}${rawgKeyLoaded ? '' : ' (using env)'}`);
-      
+
       const orchestrator = getOrchestrator();
-      
+
       // VERY LONG timeout for mobile (90s) vs desktop (60s)
       // Each API has its own shorter timeout, so this is just a safety net
       const timeoutMs = mobile ? 90000 : 60000;
       setDebugInfo(`Searching... (max ${timeoutMs/1000}s)`);
-      
+
       const startTime = Date.now();
-      
-      // Search with timeout protection
-      const searchPromise = orchestrator.search(searchQuery, preferredType);
-      const timeoutPromise = new Promise<never>((_, reject) => 
+
+      // Search with timeout protection, cancellable via the abort button
+      const searchPromise = orchestrator.search(searchQuery, preferredType, controller.signal);
+      const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Search is taking too long. Try selecting a specific type.')), timeoutMs)
       );
-      
+
       const searchResults = await Promise.race([searchPromise, timeoutPromise]);
       const duration = Date.now() - startTime;
+
+      // A newer search may have started (and aborted this one) while this
+      // was still resolving - don't let a stale search's result overwrite
+      // whatever the current one has already shown.
+      if (searchAbortRef.current !== controller) return;
+
       setDebugInfo(`Done in ${duration}ms. Results: ${searchResults.length}`);
-      
       setResults(searchResults);
-      
+
       if (searchResults.length === 0) {
         setShowManualAdd(true);
         setManualEntry({ title: searchQuery, description: '' });
       }
     } catch (err: any) {
+      if (searchAbortRef.current !== controller) return; // superseded - ignore
+
+      if (err?.name === 'AbortError') {
+        // User cancelled - not an error, leave the form as-is so they can retry.
+        setDebugInfo('Search cancelled.');
+        return;
+      }
+
       const errorMsg = err?.message || String(err);
       console.error('Search error:', err);
-      
+
       // Show partial error but still allow manual add
       setError(errorMsg.includes('timed out') ? errorMsg : 'Some searches failed. Try again or add manually.');
       setDebugInfo(`Error: ${errorMsg}`);
       setShowManualAdd(true);
       setManualEntry({ title: searchQuery, description: '' });
     } finally {
-      setIsLoading(false);
+      // Only the still-current search gets to turn off the loading state -
+      // a superseded/cancelled one finishing later must not flip isLoading
+      // back off (or clear the ref) out from under a newer search.
+      if (searchAbortRef.current === controller) {
+        setIsLoading(false);
+        searchAbortRef.current = null;
+      }
     }
   }, []);
 
   const handleSearch = async () => {
     await performSearch(query, selectedType);
+  };
+
+  const cancelSearch = () => {
+    searchAbortRef.current?.abort();
   };
 
   const handleAddResult = async (result: SearchResult) => {
@@ -277,8 +315,8 @@ export default function SearchPage() {
     if (batchItems.length === 0) return;
     
     // Check if API keys are configured (from IndexedDB - more reliable on mobile)
-    const tmdbKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
-    const rawgKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
+    const tmdbKey = await resolveApiKey('tmdb_key', process.env.NEXT_PUBLIC_TMDB_API_KEY);
+    const rawgKey = await resolveApiKey('rawg_key', process.env.NEXT_PUBLIC_RAWG_API_KEY);
     
     if (!tmdbKey && (batchType === 'movie' || batchType === 'tv')) {
       setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');
@@ -290,9 +328,13 @@ export default function SearchPage() {
     }
     
     setIsBatchProcessing(true);
+    const controller = new AbortController();
+    batchAbortRef.current = controller;
     const updatedItems = [...batchItems];
 
     for (let i = 0; i < updatedItems.length; i++) {
+      if (controller.signal.aborted) break;
+
       const item = updatedItems[i];
       if (item.status === 'added') continue;
 
@@ -301,8 +343,8 @@ export default function SearchPage() {
 
       try {
         const orchestrator = getOrchestrator();
-        const results = await orchestrator.search(item.title, batchType);
-        
+        const results = await orchestrator.search(item.title, batchType, controller.signal);
+
         if (results.length > 0) {
           updatedItems[i] = {
             ...item,
@@ -313,18 +355,28 @@ export default function SearchPage() {
         } else {
           updatedItems[i] = { ...item, status: 'not_found' };
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (error?.name === 'AbortError') {
+          updatedItems[i] = { ...item, status: 'pending' }; // leave it retryable, not falsely "not found"
+          setBatchItems([...updatedItems]);
+          break;
+        }
         updatedItems[i] = { ...item, status: 'not_found' };
       }
 
       setBatchItems([...updatedItems]);
-      
-      if (i < updatedItems.length - 1) {
+
+      if (i < updatedItems.length - 1 && !controller.signal.aborted) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
+    batchAbortRef.current = null;
     setIsBatchProcessing(false);
+  };
+
+  const cancelBatch = () => {
+    batchAbortRef.current?.abort();
   };
 
   const selectResultForItem = (itemId: string, result: SearchResult) => {
@@ -471,8 +523,8 @@ export default function SearchPage() {
                   className="pl-12 h-14 bg-black border-white/10 rounded-xl text-lg focus:border-indigo-500"
                 />
               </div>
-              <Button 
-                onClick={isLoading ? () => window.location.reload() : handleSearch} 
+              <Button
+                onClick={isLoading ? cancelSearch : handleSearch}
                 className={cn(
                   'h-14 px-6 rounded-xl font-bold text-white',
                   'bg-gradient-to-r shadow-lg',
@@ -528,8 +580,8 @@ export default function SearchPage() {
             </div>
           )}
 
-          {/* Debug Info */}
-          {debugInfo && (
+          {/* Debug Info - dev only */}
+          {process.env.NODE_ENV === 'development' && debugInfo && (
             <div className="p-3 bg-slate-800/50 border border-white/10 rounded-xl text-xs text-white/60 font-mono">
               Debug: {debugInfo}
             </div>
@@ -693,26 +745,32 @@ export default function SearchPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setBatchItems([])}
+                    disabled={isBatchProcessing}
                     className="border-white/10 text-white/60 rounded-xl"
                   >
                     Reset
                   </Button>
                   <Button
                     size="sm"
-                    onClick={processBatch}
-                    disabled={isBatchProcessing}
+                    onClick={isBatchProcessing ? cancelBatch : processBatch}
                     className={cn(
                       'rounded-xl font-bold text-white',
-                      'bg-gradient-to-r shadow-lg',
-                      batchTypeConfig.gradient
+                      isBatchProcessing
+                        ? 'bg-red-600 hover:bg-red-700'
+                        : cn('bg-gradient-to-r shadow-lg', batchTypeConfig.gradient)
                     )}
                   >
                     {isBatchProcessing ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <>
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </>
                     ) : (
-                      <Search className="h-4 w-4 mr-2" />
+                      <>
+                        <Search className="h-4 w-4 mr-2" />
+                        Search All
+                      </>
                     )}
-                    Search All
                   </Button>
                 </div>
               </div>

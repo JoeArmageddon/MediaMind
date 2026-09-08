@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import {
   Heart,
@@ -12,21 +12,28 @@ import {
   Sparkles,
   X,
   AlertTriangle,
+  Tv2,
+  Loader2,
+  Brain,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusSelect } from './StatusSelect';
 import { ProgressControl } from './ProgressControl';
+import { AISuggestionsDialog } from './AISuggestionsDialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, getTypeLabel, formatDate } from '@/lib/utils';
+import { createJustWatchClient } from '@/lib/api/justwatch';
+import { getAIClient } from '@/lib/ai';
 import type { Media } from '@/types';
+
+const NOTES_DEBOUNCE_MS = 600;
 
 interface MediaDetailProps {
   media: Media;
   onUpdate: (updates: Partial<Media>) => void;
   onDelete: () => void;
-  onAISuggestions: () => void;
   onClose?: () => void;
   className?: string;
 }
@@ -35,11 +42,98 @@ export function MediaDetail({
   media,
   onUpdate,
   onDelete,
-  onAISuggestions,
   onClose,
   className,
 }: MediaDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [isFindingStreaming, setIsFindingStreaming] = useState(false);
+  const [streamingError, setStreamingError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  const analyzeTone = async () => {
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    try {
+      const analysis = await getAIClient().analyzeMedia({
+        title: media.title,
+        description: media.description,
+        genres: media.genres,
+      });
+      if (analysis) {
+        onUpdate({
+          ai_primary_tone: analysis.primary_tone,
+          ai_secondary_tone: analysis.secondary_tone,
+          ai_core_themes: analysis.core_themes,
+          ai_emotional_intensity: analysis.emotional_intensity,
+          ai_pacing: analysis.pacing,
+          ai_darkness_level: analysis.darkness_level,
+          ai_intellectual_depth: analysis.intellectual_depth,
+        });
+      } else {
+        setAnalysisError('Analysis is unavailable right now - check that a Groq or Gemini API key is set in Settings.');
+      }
+    } catch (e) {
+      setAnalysisError(e instanceof Error ? e.message : 'Failed to analyze this title.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const findStreaming = async () => {
+    setIsFindingStreaming(true);
+    setStreamingError(null);
+    try {
+      const platforms = await createJustWatchClient().getStreamingAvailability(
+        media.title,
+        media.release_year ?? undefined
+      );
+      if (platforms.length === 0) {
+        setStreamingError('No streaming availability found for this title in India.');
+      } else {
+        onUpdate({ streaming_platforms: platforms });
+      }
+    } catch (e) {
+      setStreamingError(e instanceof Error ? e.message : 'Failed to look up streaming availability.');
+    } finally {
+      setIsFindingStreaming(false);
+    }
+  };
+
+  // Notes: keep local state so typing is instant, but only push to
+  // onUpdate() (Dexie write + history entry) after the user pauses, and
+  // always flush immediately on blur so nothing typed is lost.
+  const [notesDraft, setNotesDraft] = useState(media.notes || '');
+  const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setNotesDraft(media.notes || '');
+  }, [media.id, media.notes]);
+
+  const scheduleNotesUpdate = (value: string) => {
+    setNotesDraft(value);
+    if (notesTimer.current) clearTimeout(notesTimer.current);
+    notesTimer.current = setTimeout(() => {
+      onUpdate({ notes: value });
+    }, NOTES_DEBOUNCE_MS);
+  };
+
+  const flushNotesUpdate = () => {
+    if (notesTimer.current) {
+      clearTimeout(notesTimer.current);
+      notesTimer.current = null;
+    }
+    if (notesDraft !== (media.notes || '')) {
+      onUpdate({ notes: notesDraft });
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (notesTimer.current) clearTimeout(notesTimer.current);
+    };
+  }, []);
 
   const handleDelete = () => {
     onDelete();
@@ -258,14 +352,77 @@ export function MediaDetail({
                 <Button
                   variant="outline"
                   className="w-full border-violet-500/30 bg-violet-500/5 h-10 text-sm"
-                  onClick={onAISuggestions}
+                  onClick={() => setShowAISuggestions(true)}
                 >
                   <Sparkles className="mr-2 h-4 w-4 text-violet-400" />
                   AI Suggestions
                 </Button>
+
+                {/* Thematic Analysis */}
+                {media.ai_primary_tone ? (
+                  <div className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-lg space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-white/40 uppercase tracking-wider">Thematic Analysis</span>
+                      <button
+                        onClick={analyzeTone}
+                        disabled={isAnalyzing}
+                        className="text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-50"
+                      >
+                        {isAnalyzing ? 'Re-analyzing...' : 'Re-analyze'}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="secondary" className="bg-white/5 border-white/10 text-xs">
+                        {media.ai_primary_tone}
+                      </Badge>
+                      {media.ai_secondary_tone && (
+                        <Badge variant="secondary" className="bg-white/5 border-white/10 text-xs">
+                          {media.ai_secondary_tone}
+                        </Badge>
+                      )}
+                      {media.ai_pacing && (
+                        <Badge variant="outline" className="border-white/10 text-white/50 text-xs">
+                          {media.ai_pacing} pacing
+                        </Badge>
+                      )}
+                    </div>
+                    {media.ai_core_themes?.length > 0 && (
+                      <p className="text-xs text-white/50">{media.ai_core_themes.join(' · ')}</p>
+                    )}
+                    <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                      <div>
+                        <div className="text-sm font-mono text-white/80">{media.ai_emotional_intensity ?? '—'}</div>
+                        <div className="text-[9px] text-white/30 uppercase">Intensity</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-mono text-white/80">{media.ai_darkness_level ?? '—'}</div>
+                        <div className="text-[9px] text-white/30 uppercase">Darkness</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-mono text-white/80">{media.ai_intellectual_depth ?? '—'}</div>
+                        <div className="text-[9px] text-white/30 uppercase">Depth</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full border-white/10 bg-white/5 h-10 text-sm"
+                    onClick={analyzeTone}
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-white/60" />
+                    ) : (
+                      <Brain className="mr-2 h-4 w-4 text-white/60" />
+                    )}
+                    Analyze Tone & Themes
+                  </Button>
+                )}
+                {analysisError && <p className="text-xs text-red-400 text-center">{analysisError}</p>}
               </TabsContent>
 
-              <TabsContent value="streaming" className="mt-3">
+              <TabsContent value="streaming" className="mt-3 space-y-3">
                 <div className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-lg">
                   {media.streaming_platforms?.length > 0 ? (
                     <div className="space-y-2">
@@ -274,8 +431,19 @@ export function MediaDetail({
                           key={platform.platform}
                           className="flex items-center justify-between p-2.5 lg:p-3 bg-white/5 rounded-lg"
                         >
-                          <span className="font-medium text-sm">{platform.platform}</span>
-                          <Badge 
+                          {platform.url ? (
+                            <a
+                              href={platform.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-sm hover:text-violet-300 hover:underline"
+                            >
+                              {platform.platform}
+                            </a>
+                          ) : (
+                            <span className="font-medium text-sm">{platform.platform}</span>
+                          )}
+                          <Badge
                             variant={platform.type === 'subscription' ? 'default' : 'outline'}
                             className={platform.type === 'subscription' ? 'bg-green-500/20 text-green-400 text-xs' : 'text-xs'}
                           >
@@ -290,14 +458,33 @@ export function MediaDetail({
                     </div>
                   )}
                 </div>
+
+                {streamingError && (
+                  <p className="text-xs text-red-400 text-center">{streamingError}</p>
+                )}
+
+                <Button
+                  variant="outline"
+                  className="w-full border-violet-500/30 bg-violet-500/5 h-10 text-sm"
+                  onClick={findStreaming}
+                  disabled={isFindingStreaming}
+                >
+                  {isFindingStreaming ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin text-violet-400" />
+                  ) : (
+                    <Tv2 className="mr-2 h-4 w-4 text-violet-400" />
+                  )}
+                  {media.streaming_platforms?.length > 0 ? 'Refresh streaming info' : 'Find streaming'}
+                </Button>
               </TabsContent>
 
               <TabsContent value="notes" className="mt-3">
                 <textarea
                   className="w-full min-h-[120px] lg:min-h-[150px] rounded-lg bg-white/5 border border-white/10 p-3 text-sm resize-none focus:outline-none focus:border-violet-500/50 text-white"
                   placeholder="Add your notes..."
-                  value={media.notes || ''}
-                  onChange={(e) => onUpdate({ notes: e.target.value })}
+                  value={notesDraft}
+                  onChange={(e) => scheduleNotesUpdate(e.target.value)}
+                  onBlur={flushNotesUpdate}
                 />
               </TabsContent>
             </Tabs>
@@ -316,6 +503,8 @@ export function MediaDetail({
           </div>
         </div>
       </div>
+
+      <AISuggestionsDialog media={media} open={showAISuggestions} onOpenChange={setShowAISuggestions} />
     </ScrollArea>
   );
 }

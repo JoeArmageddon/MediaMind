@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { SyncStatus } from '@/types';
-import { db } from '@/lib/db/dexie';
+import { db, MAX_SYNC_ATTEMPTS } from '@/lib/db/dexie';
+import { useMediaStore } from '@/store/mediaStore';
 
 interface SyncStore extends SyncStatus {
   setOnline: (online: boolean) => void;
@@ -32,10 +33,12 @@ export const useSyncStore = create<SyncStore>()(
       setConflictCount: (count) => set({ conflict_count: count }),
 
       updateSyncStatus: async () => {
-        const pendingChanges = await db.syncQueue.count();
-        set({ 
-          pending_changes: pendingChanges,
-          is_online: navigator.onLine 
+        const queue = await db.syncQueue.toArray();
+        const conflictCount = queue.filter((item) => (item.attempts ?? 0) >= MAX_SYNC_ATTEMPTS).length;
+        set({
+          pending_changes: queue.length,
+          conflict_count: conflictCount,
+          is_online: navigator.onLine,
         });
       },
     }),
@@ -49,13 +52,37 @@ export const useSyncStore = create<SyncStore>()(
   )
 );
 
-// Listen for online/offline events
+// Listen for online/offline events, and actually drive the sync queue -
+// previously nothing ever called syncWithSupabase() except indirectly via
+// fetchMedia() on page mount, so queued changes (from mediaStore,
+// collectionStore, historyStore) could sit unsynced indefinitely.
+const SYNC_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
+
+async function runSync() {
+  try {
+    await useMediaStore.getState().syncWithSupabase();
+  } catch (e) {
+    console.warn('Background sync failed:', e);
+  } finally {
+    await useSyncStore.getState().updateSyncStatus();
+  }
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     useSyncStore.getState().setOnline(true);
+    runSync();
   });
-  
+
   window.addEventListener('offline', () => {
     useSyncStore.getState().setOnline(false);
   });
+
+  setInterval(() => {
+    if (navigator.onLine) runSync();
+  }, SYNC_INTERVAL_MS);
+
+  // Reflect current queue state (and pick up anything left over from a
+  // previous session) as soon as the app loads.
+  useSyncStore.getState().updateSyncStatus();
 }

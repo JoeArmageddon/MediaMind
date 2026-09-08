@@ -30,11 +30,17 @@ export class JikanClient {
     this.lastRequestTime = Date.now();
   }
 
-  private async fetchWithRetry(url: string, retries = 0): Promise<JikanResponse> {
+  private async fetchWithRetry(url: string, retries = 0, signal?: AbortSignal): Promise<JikanResponse> {
+    if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
+
     await this.rateLimit();
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
+    // Cancel this request immediately if the caller's own signal fires
+    // (e.g. the user cancelled the search), not just on our own timeout.
+    const onExternalAbort = () => controller.abort();
+    signal?.addEventListener('abort', onExternalAbort);
 
     try {
       const response = await fetch(url, {
@@ -50,7 +56,7 @@ export class JikanClient {
           const waitTime = 2000 * (retries + 1);
           console.warn(`Jikan rate limited. Retrying after ${waitTime}ms...`);
           await this.delay(waitTime);
-          return this.fetchWithRetry(url, retries + 1);
+          return this.fetchWithRetry(url, retries + 1, signal);
         }
         throw new Error('Jikan API rate limit exceeded. Please try again later.');
       }
@@ -68,9 +74,12 @@ export class JikanClient {
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === 'AbortError') {
+        if (signal?.aborted) throw error; // real cancellation - propagate as-is
         throw new Error('Request timeout - Jikan API took too long to respond');
       }
       throw error;
+    } finally {
+      signal?.removeEventListener('abort', onExternalAbort);
     }
   }
 
@@ -104,57 +113,58 @@ export class JikanClient {
     };
   }
 
-  async searchAnime(query: string, limit = 10): Promise<SearchResult[]> {
+  async searchAnime(query: string, limit = 10, signal?: AbortSignal): Promise<SearchResult[]> {
     if (!query.trim()) return [];
 
     try {
       const encodedQuery = encodeURIComponent(query.trim());
       const data = await this.fetchWithRetry(
-        `${JIKAN_BASE_URL}/anime?q=${encodedQuery}&limit=${limit}&sfw=false&order_by=score&sort=desc`
+        `${JIKAN_BASE_URL}/anime?q=${encodedQuery}&limit=${limit}&sfw=false&order_by=score&sort=desc`,
+        0,
+        signal
       );
 
       return (data.data || []).map(this.mapAnimeResult);
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') throw error;
       console.error('Anime search error:', error);
       return [];
     }
   }
 
-  async searchManga(query: string, limit = 10): Promise<SearchResult[]> {
+  async searchManga(query: string, limit = 10, signal?: AbortSignal): Promise<SearchResult[]> {
     if (!query.trim()) return [];
 
     try {
       const encodedQuery = encodeURIComponent(query.trim());
       const data = await this.fetchWithRetry(
-        `${JIKAN_BASE_URL}/manga?q=${encodedQuery}&limit=${limit}&order_by=score&sort=desc`
+        `${JIKAN_BASE_URL}/manga?q=${encodedQuery}&limit=${limit}&order_by=score&sort=desc`,
+        0,
+        signal
       );
 
       return (data.data || []).map(this.mapMangaResult);
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') throw error;
       console.error('Manga search error:', error);
       return [];
     }
   }
 
-  async searchAll(query: string): Promise<SearchResult[]> {
+  async searchAll(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
     const results: SearchResult[] = [];
 
-    try {
-      // Search anime first
-      const animeResults = await this.searchAnime(query, 5);
-      results.push(...animeResults);
+    // Search anime first
+    const animeResults = await this.searchAnime(query, 12, signal);
+    results.push(...animeResults);
 
-      // Wait before searching manga
-      if (animeResults.length > 0) {
-        await this.delay(500);
-      }
-
-      const mangaResults = await this.searchManga(query, 5);
-      results.push(...mangaResults);
-
-    } catch (error) {
-      console.error('Jikan searchAll error:', error);
+    // Wait before searching manga
+    if (animeResults.length > 0) {
+      await this.delay(500);
     }
+
+    const mangaResults = await this.searchManga(query, 12, signal);
+    results.push(...mangaResults);
 
     return results;
   }

@@ -1,5 +1,5 @@
 import Groq from 'groq-sdk';
-import { getApiKey } from '@/lib/db/dexie';
+import { resolveApiKey } from '@/lib/api/apiKey';
 import type {
   AISuggestion,
   AIRecommendation,
@@ -32,25 +32,29 @@ If unsure, infer intelligently.`;
 
 export class GroqClient {
   private client: Groq | null = null;
-  private model: string = 'llama-3.3-70b-versatile';
+  // llama-3.3-70b-versatile was decommissioned from Groq's lineup; this is
+  // the closest current equivalent (large, general-purpose, confirmed
+  // working). Note it's a reasoning model - it spends some of its output
+  // budget on hidden chain-of-thought before the actual JSON answer, which
+  // is why generateContent() below uses a larger max_tokens than a
+  // non-reasoning model would need.
+  private model: string = 'openai/gpt-oss-120b';
   private apiKey: string = '';
   private initialized: boolean = false;
 
   async init() {
     if (this.initialized) return;
     
-    // Check IndexedDB first (more reliable on mobile), then env vars
-    let key = await getApiKey('groq_key');
-    
-    if (!key) {
-      key = process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY || '';
-    }
-    
+    // Note: process.env.GROQ_API_KEY (no NEXT_PUBLIC_ prefix) is never
+    // actually available here - Next.js only inlines NEXT_PUBLIC_* vars
+    // into client-side code - kept only as a harmless no-op fallback.
+    const key = await resolveApiKey('groq_key', process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY);
+
     this.apiKey = key;
     if (key) {
-      this.client = new Groq({ apiKey: key });
+      this.client = new Groq({ apiKey: key, dangerouslyAllowBrowser: true });
     }
-    
+
     this.initialized = true;
   }
 
@@ -69,7 +73,12 @@ export class GroqClient {
           { role: 'user', content: prompt },
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        // gpt-oss-120b is a reasoning model - even a trivial prompt used
+        // 70-190 hidden "reasoning" tokens before the actual answer in
+        // testing, and this app's real prompts (multi-item JSON schemas)
+        // need more. 2000 was tight enough to truncate mid-JSON and fail
+        // parsing; this leaves real headroom.
+        max_tokens: 4000,
         response_format: { type: 'json_object' },
       });
 
@@ -81,10 +90,15 @@ export class GroqClient {
   }
 
   private parseJSON<T>(text: string): T {
+    // response_format:'json_object' should already guarantee raw JSON, but
+    // strip markdown code fences defensively in case a future model ignores it.
+    const codeBlockMatch = text.match(/```(?:json)?\n?([\s\S]*?)```/);
+    const cleanText = codeBlockMatch ? codeBlockMatch[1].trim() : text.trim();
+
     try {
-      return JSON.parse(text) as T;
+      return JSON.parse(cleanText) as T;
     } catch (error) {
-      console.error('JSON parse error:', error, 'Text:', text);
+      console.error('JSON parse error:', error, 'Text:', cleanText);
       throw new Error('Failed to parse AI response as JSON');
     }
   }
@@ -281,7 +295,9 @@ Return JSON:
 }
 
 Allowed types:
-movie, tv, anime, manga, manhwa, game, book, light_novel, visual_novel, web_series, misc`;
+movie, tv, anime, manga, manhwa, manhua, donghua, game, book, light_novel, visual_novel, web_series, misc
+
+Use "misc" for anything that doesn't fit the other categories.`;
 
     const response = await this.generateContent(prompt);
     return this.parseJSON<AIFallbackClassification>(response);

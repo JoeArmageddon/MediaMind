@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MediaGrid } from '@/components/media/MediaGrid';
 import { MediaDetail } from '@/components/media/MediaDetail';
+import { DiscoverDialog } from '@/components/media/DiscoverDialog';
 import { FilterDrawer } from '@/components/layout/FilterDrawer';
 import { useMediaStore } from '@/store/mediaStore';
 import { cn } from '@/lib/utils';
@@ -29,7 +30,7 @@ export default function DashboardPage() {
   } = useMediaStore();
 
   const [detailOpen, setDetailOpen] = useState(false);
-  const [randomPickerOpen, setRandomPickerOpen] = useState(false);
+  const [discoverOpen, setDiscoverOpen] = useState(false);
 
   const handleMediaClick = (media: Media) => {
     setSelectedMedia(media);
@@ -50,14 +51,9 @@ export default function DashboardPage() {
     }
   };
 
-  const pickRandom = () => {
-    const planned = filteredMedia.filter((m) => m.status === 'planned');
-    if (planned.length > 0) {
-      const random = planned[Math.floor(Math.random() * planned.length)];
-      setSelectedMedia(random);
-      setDetailOpen(true);
-    }
-    setRandomPickerOpen(false);
+  const handleDiscoverPick = (media: Media) => {
+    setSelectedMedia(media);
+    setDetailOpen(true);
   };
 
   const completedCount = filteredMedia.filter((m) => m.status === 'completed').length;
@@ -171,12 +167,30 @@ export default function DashboardPage() {
         </button>
 
         {/* Add Button */}
-        <button 
+        <button
           onClick={() => router.push('/search')}
           className="col-span-5 h-40 bg-white rounded-[28px] relative overflow-hidden group border border-white/10 flex flex-col justify-center items-center p-4 hover:bg-slate-200 transition-colors"
         >
           <Plus size={40} className="text-black mb-2 group-hover:scale-125 transition-transform duration-300" strokeWidth={3} />
           <span className="text-black font-black text-sm uppercase tracking-widest">ADD</span>
+        </button>
+
+        {/* Discover (Random pick / AI recommendations) */}
+        <button
+          onClick={() => setDiscoverOpen(true)}
+          className="col-span-12 bg-[#111] border border-white/5 rounded-[24px] p-4 flex items-center justify-between group hover:border-indigo-500/30 transition-colors relative overflow-hidden"
+        >
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-fuchsia-500" />
+          <div className="flex items-center gap-4 z-10">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/20 rounded-lg flex items-center justify-center border border-white/10">
+              <Shuffle size={18} className="text-indigo-300" />
+            </div>
+            <div className="text-left">
+              <div className="font-bold text-slate-200 text-sm">DISCOVER</div>
+              <div className="text-[10px] text-slate-500 font-mono">RANDOM PICK OR AI RECOMMENDATIONS</div>
+            </div>
+          </div>
+          <ArrowRight size={18} className="text-slate-500 group-hover:translate-x-1 transition-transform" />
         </button>
 
         {/* Settings */}
@@ -237,38 +251,18 @@ export default function DashboardPage() {
               media={selectedMedia}
               onUpdate={handleUpdateMedia}
               onDelete={handleDeleteMedia}
-              onAISuggestions={() => {}}
               onClose={() => setDetailOpen(false)}
             />
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Random Picker */}
-      <Dialog open={randomPickerOpen} onOpenChange={setRandomPickerOpen}>
-        <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10">
-          <DialogHeader>
-            <DialogTitle className="text-white">Random Picker</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-white/60">
-              Pick something random from your planned list.
-            </p>
-            <div className="p-4 rounded-xl glass-card">
-              <p className="text-sm text-indigo-400">
-                {filteredMedia.filter(m => m.status === 'planned').length} items available
-              </p>
-            </div>
-            <Button 
-              onClick={pickRandom} 
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl"
-            >
-              <Shuffle className="mr-2 h-4 w-4" />
-              Pick Random
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <DiscoverDialog
+        open={discoverOpen}
+        onOpenChange={setDiscoverOpen}
+        media={filteredMedia}
+        onPickMedia={handleDiscoverPick}
+      />
     </div>
   );
 }

@@ -60,14 +60,20 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
 }
 
 export function getStatusColor(status: string): string {
+  // These must be real Tailwind utility classes - the config has no
+  // `status` color family, so the previous `bg-status-*` names never
+  // matched any generated CSS and every status badge/dot rendered with no
+  // color at all. Keys also had 'on-hold' (hyphen) while MediaStatus uses
+  // 'on_hold' (underscore), so even fixing the class names alone wouldn't
+  // have made on-hold items match.
   const colors: Record<string, string> = {
-    planned: 'bg-status-planned',
-    watching: 'bg-status-watching',
-    completed: 'bg-status-completed',
-    'on-hold': 'bg-status-on-hold',
-    dropped: 'bg-status-dropped',
-    rewatching: 'bg-status-rewatching',
-    archived: 'bg-status-archived',
+    planned: 'bg-slate-500',
+    watching: 'bg-indigo-500',
+    completed: 'bg-emerald-500',
+    on_hold: 'bg-amber-500',
+    dropped: 'bg-red-500',
+    rewatching: 'bg-violet-500',
+    archived: 'bg-gray-500',
   };
   return colors[status] || 'bg-gray-500';
 }
@@ -77,7 +83,7 @@ export function getStatusLabel(status: string): string {
     planned: 'Planned',
     watching: 'Watching',
     completed: 'Completed',
-    'on-hold': 'On Hold',
+    on_hold: 'On Hold',
     dropped: 'Dropped',
     rewatching: 'Rewatching',
     archived: 'Archived',

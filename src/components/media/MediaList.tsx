@@ -1,16 +1,26 @@
 'use client';
 
+import { useState } from 'react';
 import { useMediaStore } from '@/store/mediaStore';
 import { cn, getStatusColor, getStatusLabel, getTypeLabel } from '@/lib/utils';
 import type { Media } from '@/types';
-import { Star, MoreVertical } from 'lucide-react';
+import { Star, MoreVertical, Heart, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface MediaListProps {
   onMediaClick?: (media: Media) => void;
 }
 
 export function MediaList({ onMediaClick }: MediaListProps) {
-  const { filteredMedia } = useMediaStore();
+  const { filteredMedia, updateMedia, deleteMedia } = useMediaStore();
+  const [pendingDelete, setPendingDelete] = useState<Media | null>(null);
 
   if (filteredMedia.length === 0) {
     return (
@@ -23,10 +33,15 @@ export function MediaList({ onMediaClick }: MediaListProps) {
   return (
     <div className="space-y-2">
       {filteredMedia.map((media) => (
-        <button
+        <div
           key={media.id}
+          role="button"
+          tabIndex={0}
           onClick={() => onMediaClick?.(media)}
-          className="w-full glass-card rounded-2xl p-3 flex items-center gap-4 hover:border-white/20 transition-all text-left group"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') onMediaClick?.(media);
+          }}
+          className="w-full glass-card rounded-2xl p-3 flex items-center gap-4 hover:border-white/20 transition-all text-left group cursor-pointer"
         >
           {/* Poster */}
           <div className="h-16 w-12 flex-shrink-0 bg-black rounded-lg overflow-hidden border border-white/10">
@@ -82,11 +97,47 @@ export function MediaList({ onMediaClick }: MediaListProps) {
           </div>
 
           {/* Actions */}
-          <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            <MoreVertical className="h-5 w-5 text-white/40" />
+          <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                  aria-label="More actions"
+                >
+                  <MoreVertical className="h-5 w-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onSelect={() => updateMedia(media.id, { is_favorite: !media.is_favorite })}>
+                  <Heart className={cn('h-4 w-4', media.is_favorite && 'fill-current text-yellow-400')} />
+                  {media.is_favorite ? 'Remove favorite' : 'Add favorite'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => updateMedia(media.id, { is_archived: !media.is_archived })}>
+                  {media.is_archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                  {media.is_archived ? 'Unarchive' : 'Archive'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem destructive onSelect={() => setPendingDelete(media)}>
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </button>
+        </div>
       ))}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title="Delete this item?"
+        description={pendingDelete ? `"${pendingDelete.title}" will be permanently removed from your library.` : ''}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (pendingDelete) deleteMedia(pendingDelete.id);
+        }}
+      />
     </div>
   );
 }

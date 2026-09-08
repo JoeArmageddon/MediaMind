@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, addMonths, subMonths, subDays } from 'date-fns';
 import { ChevronLeft, ChevronRight, Trophy, Flame, ArrowLeft, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -55,16 +55,25 @@ export default function CalendarPage() {
     const totalCompletions = Object.values(completions).reduce((a, b) => a + b, 0);
     const activeDays = Object.keys(completions).length;
     
-    // Calculate streak
+    // Real consecutive-day streak: walk backward from today (or yesterday,
+    // so finishing something late at night doesn't zero out the streak
+    // before you've had a chance to log anything today) while each day has
+    // at least one completion, stopping at the first gap. If the most
+    // recent completion isn't today or yesterday, the streak is broken (0).
     let streak = 0;
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const sortedDates = Object.keys(completions).sort();
-    
-    if (sortedDates.length > 0) {
-      // Simple streak calculation - consecutive days with completions
-      streak = sortedDates.length;
+    const completionDays = new Set(Object.keys(completions));
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
+    const yesterdayKey = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+
+    let cursor: Date | null = null;
+    if (completionDays.has(todayKey)) cursor = new Date();
+    else if (completionDays.has(yesterdayKey)) cursor = subDays(new Date(), 1);
+
+    while (cursor && completionDays.has(format(cursor, 'yyyy-MM-dd'))) {
+      streak++;
+      cursor = subDays(cursor, 1);
     }
-    
+
     return { totalCompletions, activeDays, streak };
   }, [completions]);
 

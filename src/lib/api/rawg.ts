@@ -1,5 +1,5 @@
 import type { RAWGResult, SearchResult } from '@/types';
-import { getApiKey } from '@/lib/db/dexie';
+import { resolveApiKey } from './apiKey';
 
 const RAWG_BASE_URL = 'https://api.rawg.io/api';
 
@@ -9,50 +9,43 @@ export class RAWGClient {
 
   async init() {
     if (this.initialized) return true;
-    
-    // Check IndexedDB first (more reliable on mobile), then env vars
-    let key = await getApiKey('rawg_key');
-    
-    if (!key) {
-      key = process.env.NEXT_PUBLIC_RAWG_API_KEY || '';
-    }
-    
-    this.apiKey = key;
+
+    this.apiKey = await resolveApiKey('rawg_key', process.env.NEXT_PUBLIC_RAWG_API_KEY);
     this.initialized = true;
   }
 
-  private async fetch<T>(endpoint: string): Promise<T | null> {
+  private async fetch<T>(endpoint: string, signal?: AbortSignal): Promise<T | null> {
     // Always re-check for keys in case they were saved after initialization
-    const freshKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY || '';
-    if (freshKey) {
-      this.apiKey = freshKey;
-    }
-    
+    this.apiKey = await resolveApiKey('rawg_key', process.env.NEXT_PUBLIC_RAWG_API_KEY);
+
     if (!this.apiKey) {
       console.error('Cannot fetch RAWG: No API key');
       return null;
     }
-    
+
     try {
       const response = await fetch(
-        `${RAWG_BASE_URL}${endpoint}&key=${this.apiKey}`
+        `${RAWG_BASE_URL}${endpoint}&key=${this.apiKey}`,
+        { signal }
       );
-      
+
       if (!response.ok) {
         if (response.status === 404) return null;
         throw new Error(`RAWG API error: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') throw error;
       console.error('RAWG fetch error:', error);
       return null;
     }
   }
 
-  async searchGames(query: string): Promise<SearchResult[]> {
+  async searchGames(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
     const data = await this.fetch<{ results: RAWGResult[] }>(
-      `/games?search=${encodeURIComponent(query)}&page_size=10&ordering=-rating`
+      `/games?search=${encodeURIComponent(query)}&page_size=20&ordering=-rating`,
+      signal
     );
 
     if (!data?.results) return [];

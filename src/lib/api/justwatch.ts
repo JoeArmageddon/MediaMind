@@ -1,4 +1,5 @@
 import type { StreamingPlatform } from '@/types';
+import { fetchWithTimeout } from './http';
 
 const JUSTWATCH_BASE_URL = 'https://apis.justwatch.com/graphql';
 
@@ -74,10 +75,11 @@ export class JustWatchClient {
     this.country = country;
   }
 
-  async search(title: string, year?: number): Promise<JustWatchResult | null> {
+  async search(title: string, year?: number, signal?: AbortSignal): Promise<JustWatchResult | null> {
     try {
-      const response = await fetch(JUSTWATCH_BASE_URL, {
+      const response = await fetchWithTimeout(JUSTWATCH_BASE_URL, 15000, 'JustWatch', {
         method: 'POST',
+        signal,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -122,9 +124,10 @@ export class JustWatchClient {
 
   async getStreamingAvailability(
     title: string,
-    year?: number
+    year?: number,
+    signal?: AbortSignal
   ): Promise<StreamingPlatform[]> {
-    const result = await this.search(title, year);
+    const result = await this.search(title, year, signal);
     
     if (!result) return [];
 

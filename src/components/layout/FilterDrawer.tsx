@@ -16,6 +16,7 @@ const statuses: MediaStatus[] = [
   'on_hold',
   'dropped',
   'rewatching',
+  'archived',
 ];
 
 const types: MediaType[] = [
@@ -24,8 +25,14 @@ const types: MediaType[] = [
   'anime',
   'manga',
   'manhwa',
+  'manhua',
+  'donghua',
   'game',
   'book',
+  'light_novel',
+  'visual_novel',
+  'web_series',
+  'misc',
 ];
 
 export function FilterDrawer() {

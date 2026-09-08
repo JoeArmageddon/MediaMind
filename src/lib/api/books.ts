@@ -1,5 +1,5 @@
 import type { GoogleBooksResult, SearchResult } from '@/types';
-import { getApiKey } from '@/lib/db/dexie';
+import { resolveApiKey } from './apiKey';
 
 const GOOGLE_BOOKS_BASE_URL = 'https://www.googleapis.com/books/v1';
 
@@ -9,46 +9,39 @@ export class GoogleBooksClient {
 
   async init() {
     if (this.initialized) return true;
-    
-    // Check IndexedDB first (more reliable on mobile), then env vars
-    let key = await getApiKey('google_books_key');
-    
-    if (!key) {
-      key = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || '';
-    }
-    
-    this.apiKey = key || null;
+
+    this.apiKey = (await resolveApiKey('google_books_key', process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY)) || null;
     this.initialized = true;
   }
 
-  private async fetch<T>(endpoint: string): Promise<T | null> {
+  private async fetch<T>(endpoint: string, signal?: AbortSignal): Promise<T | null> {
     // Always re-check for keys in case they were saved after initialization
-    const freshKey = await getApiKey('google_books_key') || process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || null;
-    if (freshKey) {
-      this.apiKey = freshKey;
-    }
-    
+    this.apiKey = (await resolveApiKey('google_books_key', process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY)) || null;
+
     try {
       const keyParam = this.apiKey ? `&key=${this.apiKey}` : '';
       const response = await fetch(
-        `${GOOGLE_BOOKS_BASE_URL}${endpoint}${keyParam}`
+        `${GOOGLE_BOOKS_BASE_URL}${endpoint}${keyParam}`,
+        { signal }
       );
-      
+
       if (!response.ok) {
         if (response.status === 404) return null;
         throw new Error(`Google Books API error: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') throw error;
       console.error('Google Books fetch error:', error);
       return null;
     }
   }
 
-  async searchBooks(query: string): Promise<SearchResult[]> {
+  async searchBooks(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
     const data = await this.fetch<{ items: GoogleBooksResult[] }>(
-      `/volumes?q=${encodeURIComponent(query)}&maxResults=10&orderBy=relevance&printType=books`
+      `/volumes?q=${encodeURIComponent(query)}&maxResults=20&orderBy=relevance&printType=books`,
+      signal
     );
 
     if (!data?.items) return [];

@@ -1,26 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Media, MediaStatus, MediaType, FilterState, ViewMode, History } from '@/types';
-import { db } from '@/lib/db/dexie';
+import { db, MAX_SYNC_ATTEMPTS } from '@/lib/db/dexie';
 import { supabase } from '@/lib/db/supabase';
-
-// Helper to add history entry
-async function logHistory(entry: Omit<History, 'id' | 'created_at'>) {
-  const historyEntry: History = {
-    ...entry,
-    id: crypto.randomUUID(),
-    created_at: new Date().toISOString(),
-  };
-  
-  try {
-    await db.history.add(historyEntry);
-    if (navigator.onLine) {
-      await (supabase as any).from('history').insert(historyEntry);
-    }
-  } catch (e) {
-    console.warn('Failed to log history:', e);
-  }
-}
+import { logHistory } from '@/lib/history';
 
 interface MediaStore {
   // Data
@@ -663,29 +646,58 @@ export const useMediaStore = create<MediaStore>()(
           const pendingChanges = await db.syncQueue.toArray();
           console.log('Processing pending changes:', pendingChanges.length);
 
+          const succeededIds: string[] = [];
+
           for (const change of pendingChanges) {
+            // Items that have failed MAX_SYNC_ATTEMPTS times are left in the
+            // queue (so nothing is lost / conflict_count reflects them) but
+            // are no longer retried automatically every sync cycle.
+            if ((change.attempts ?? 0) >= MAX_SYNC_ATTEMPTS) continue;
+
             try {
+              let error: { message?: string } | null = null;
+
               if (change.operation === 'update') {
-                await (supabase as any)
+                ({ error } = await (supabase as any)
                   .from(change.table)
                   .update(change.data)
-                  .eq('id', change.data.id);
+                  .eq('id', change.data.id));
               } else if (change.operation === 'delete') {
-                await (supabase as any).from(change.table).delete().eq('id', change.data.id);
+                ({ error } = await (supabase as any).from(change.table).delete().eq('id', change.data.id));
               } else if (change.operation === 'insert') {
-                await (supabase as any).from(change.table).insert(change.data);
+                ({ error } = await (supabase as any).from(change.table).insert(change.data));
               }
+
+              // Supabase's client returns { error } rather than throwing for
+              // most failures (RLS denial, constraint violation, etc.) - the
+              // old code never checked this, so failed writes were treated
+              // as successful and their queue entries were discarded anyway.
+              if (error) throw error;
+
+              succeededIds.push(change.id);
               console.log('Synced:', change.operation, change.data.id || change.data.title);
             } catch (changeError) {
               console.error('Failed to sync change:', change, changeError);
-              // Continue with other changes, don't stop
+              // Leave it queued and record the attempt - do NOT drop it.
+              await db.syncQueue.update(change.id, {
+                attempts: (change.attempts ?? 0) + 1,
+                last_error: (changeError as Error)?.message ?? String(changeError),
+              });
             }
           }
 
-          // Clear sync queue only after successful sync
-          await db.syncQueue.clear();
-          console.log('Sync queue cleared');
-          
+          // Only remove items that actually made it to Supabase. Anything
+          // that failed (or was skipped for having maxed out attempts) stays
+          // queued for the next sync pass instead of being silently dropped.
+          if (succeededIds.length > 0) {
+            await db.syncQueue.bulkDelete(succeededIds);
+          }
+          console.log(
+            `Sync: ${succeededIds.length}/${pendingChanges.length} synced, ${
+              pendingChanges.length - succeededIds.length
+            } remain queued`
+          );
+
           set({ isLoading: false });
         } catch (error) {
           console.error('syncWithSupabase error:', error);

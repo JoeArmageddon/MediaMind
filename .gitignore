@@ -35,3 +35,11 @@ build
 
 # Test coverage
 coverage
+
+# next-pwa generated service worker output - regenerated on every
+# `npm run build`, shouldn't be committed (a stale committed copy can
+# reference old/dead routes in its precache manifest).
+/public/sw.js
+/public/workbox-*.js
+/public/swe-worker*.js
+/public/fallback-*.js

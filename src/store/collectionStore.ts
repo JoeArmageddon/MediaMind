@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { db } from '@/lib/db/dexie';
 import { supabase } from '@/lib/db/supabase';
-import type { SmartCollection, Media } from '@/types';
+import type { SmartCollection } from '@/types';
+
+const TABLE = 'smart_collections';
 
 interface CollectionStore {
   collections: SmartCollection[];
@@ -15,6 +17,19 @@ interface CollectionStore {
   removeMediaFromCollection: (collectionId: string, mediaId: string) => Promise<void>;
 }
 
+// Queues a write for later retry - picked up generically by
+// mediaStore.syncWithSupabase(), which processes db.syncQueue regardless of
+// which store enqueued the entry.
+async function queueChange(operation: 'insert' | 'update' | 'delete', data: Record<string, unknown>) {
+  await db.syncQueue.add({
+    id: crypto.randomUUID(),
+    table: TABLE,
+    operation,
+    data,
+    created_at: new Date().toISOString(),
+  });
+}
+
 export const useCollectionStore = create<CollectionStore>()(
   persist(
     (set, get) => ({
@@ -24,27 +39,49 @@ export const useCollectionStore = create<CollectionStore>()(
       fetchCollections: async () => {
         set({ isLoading: true });
         try {
-          // Load from IndexedDB first
+          // Load from IndexedDB first - always the source of truth for the UI.
           const localCollections = await db.smartCollections
             .orderBy('updated_at')
             .reverse()
             .toArray();
-          
+
           set({ collections: localCollections });
 
           // Sync with Supabase if online
           if (navigator.onLine) {
             try {
               const { data, error } = await (supabase as any)
-                .from('smart_collections')
+                .from(TABLE)
                 .select('*')
                 .order('updated_at', { ascending: false });
 
               if (!error && data) {
-                // Merge: prefer Supabase data
-                await db.smartCollections.clear();
-                await db.smartCollections.bulkAdd(data as SmartCollection[]);
-                set({ collections: data as SmartCollection[] });
+                // Collections pending deletion shouldn't reappear just
+                // because the delete hasn't reached Supabase yet.
+                const pendingDeletes = await db.syncQueue
+                  .where('table')
+                  .equals(TABLE)
+                  .toArray();
+                const pendingDeleteIds = new Set(
+                  pendingDeletes.filter((c) => c.operation === 'delete').map((c) => c.data.id)
+                );
+
+                const serverCollections = (data as SmartCollection[]).filter(
+                  (c) => !pendingDeleteIds.has(c.id)
+                );
+                const serverIds = new Set(serverCollections.map((c) => c.id));
+
+                // Local-only collections (created/edited offline, or whose
+                // sync hasn't landed yet) must survive a refetch instead of
+                // being wiped by clear()+bulkAdd() of server data.
+                const localOnly = localCollections.filter(
+                  (c) => !serverIds.has(c.id) && !pendingDeleteIds.has(c.id)
+                );
+
+                const merged = [...serverCollections, ...localOnly];
+
+                await db.smartCollections.bulkPut(merged);
+                set({ collections: merged });
               }
             } catch (e) {
               console.warn('Supabase collections sync failed:', e);
@@ -66,21 +103,23 @@ export const useCollectionStore = create<CollectionStore>()(
           updated_at: now,
         };
 
-        // Add to IndexedDB
+        // Add to IndexedDB first (always succeeds locally)
         await db.smartCollections.add(newCollection);
 
-        // Update state
         set((state) => ({
           collections: [newCollection, ...state.collections],
         }));
 
-        // Sync with Supabase if online
         if (navigator.onLine) {
           try {
-            await (supabase as any).from('smart_collections').insert(newCollection);
+            const { error } = await (supabase as any).from(TABLE).insert(newCollection);
+            if (error) throw error;
           } catch (e) {
-            console.warn('Failed to sync collection:', e);
+            console.warn('Failed to sync new collection, queuing:', e);
+            await queueChange('insert', newCollection as unknown as Record<string, unknown>);
           }
+        } else {
+          await queueChange('insert', newCollection as unknown as Record<string, unknown>);
         }
 
         return newCollection;
@@ -88,46 +127,48 @@ export const useCollectionStore = create<CollectionStore>()(
 
       updateCollection: async (id, updates) => {
         const updated_at = new Date().toISOString();
-        
-        // Update IndexedDB
+
         await db.smartCollections.update(id, { ...updates, updated_at });
 
-        // Update state
         set((state) => ({
           collections: state.collections.map((c) =>
             c.id === id ? { ...c, ...updates, updated_at } : c
           ),
         }));
 
-        // Sync with Supabase if online
         if (navigator.onLine) {
           try {
-            await (supabase as any)
-              .from('smart_collections')
+            const { error } = await (supabase as any)
+              .from(TABLE)
               .update({ ...updates, updated_at })
               .eq('id', id);
+            if (error) throw error;
           } catch (e) {
-            console.warn('Failed to sync collection update:', e);
+            console.warn('Failed to sync collection update, queuing:', e);
+            await queueChange('update', { id, ...updates, updated_at });
           }
+        } else {
+          await queueChange('update', { id, ...updates, updated_at });
         }
       },
 
       deleteCollection: async (id) => {
-        // Delete from IndexedDB
         await db.smartCollections.delete(id);
 
-        // Update state
         set((state) => ({
           collections: state.collections.filter((c) => c.id !== id),
         }));
 
-        // Sync with Supabase if online
         if (navigator.onLine) {
           try {
-            await (supabase as any).from('smart_collections').delete().eq('id', id);
+            const { error } = await (supabase as any).from(TABLE).delete().eq('id', id);
+            if (error) throw error;
           } catch (e) {
-            console.warn('Failed to sync collection deletion:', e);
+            console.warn('Failed to sync collection deletion, queuing:', e);
+            await queueChange('delete', { id });
           }
+        } else {
+          await queueChange('delete', { id });
         }
       },
 

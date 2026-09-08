@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { MediaGrid } from '@/components/media/MediaGrid';
 import { MediaList } from '@/components/media/MediaList';
 import { MediaDetail } from '@/components/media/MediaDetail';
+import { GridSizeControl } from '@/components/media/GridSizeControl';
 import { FilterDrawer } from '@/components/layout/FilterDrawer';
 import { useMediaStore } from '@/store/mediaStore';
 import { cn, getTypeLabel } from '@/lib/utils';
@@ -141,6 +142,7 @@ export default function LibraryPage() {
           />
         </div>
         <div className="flex items-center gap-2">
+          {viewMode === 'grid' && <GridSizeControl />}
           <Button
             variant="ghost"
             size="icon"
@@ -233,7 +235,6 @@ export default function LibraryPage() {
               media={selectedMedia}
               onUpdate={handleUpdateMedia}
               onDelete={handleDeleteMedia}
-              onAISuggestions={() => {}}
               onClose={() => setDetailOpen(false)}
             />
           )}

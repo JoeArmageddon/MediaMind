@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getAIClient } from '@/lib/ai';
 import { useMediaStore } from '@/store/mediaStore';
 import { useCollectionStore } from '@/store/collectionStore';
+import { db, type AICollectionDraft } from '@/lib/db/dexie';
 import { cn, getTypeLabel } from '@/lib/utils';
 import type { AISmartCollection, SmartCollection, Media } from '@/types';
 
@@ -65,17 +66,19 @@ function UserCollectionCard({
   );
 }
 
-function AICollectionCard({ 
-  collection, 
-  onSave 
-}: { 
-  collection: AISmartCollection; 
+function AICollectionCard({
+  collection,
+  onSave,
+  onDiscard,
+}: {
+  collection: AISmartCollection;
   onSave: () => void;
+  onDiscard: () => void;
 }) {
   return (
     <div className="glass-card rounded-[24px] p-6 hover:border-fuchsia-500/50 transition-all group relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-600/10 to-pink-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-      
+
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -84,14 +87,23 @@ function AICollectionCard({
             </div>
             <h3 className="text-xl font-black text-white tracking-tight">{collection.title}</h3>
           </div>
-          <Button
-            size="sm"
-            onClick={onSave}
-            className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-lg"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Save
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={onSave}
+              className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-lg"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Save
+            </Button>
+            <button
+              onClick={onDiscard}
+              title="Discard suggestion"
+              className="p-2 rounded-lg hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         
         <p className="text-white/60 text-sm mb-4 leading-relaxed">{collection.description}</p>
@@ -219,7 +231,9 @@ export default function CollectionsPage() {
   const { media } = useMediaStore();
   const { collections, fetchCollections, addCollection, deleteCollection } = useCollectionStore();
   
-  const [aiCollections, setAiCollections] = useState<AISmartCollection[]>([]);
+  // Generated-but-unsaved AI suggestions, persisted to db.aiCollectionDrafts
+  // so they survive navigation/reload until explicitly saved or discarded.
+  const [aiCollections, setAiCollections] = useState<AICollectionDraft[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedUserCollection, setSelectedUserCollection] = useState<SmartCollection | null>(null);
   const [selectedAICollection, setSelectedAICollection] = useState<AISmartCollection | null>(null);
@@ -231,6 +245,12 @@ export default function CollectionsPage() {
 
   useEffect(() => {
     fetchCollections();
+    db.aiCollectionDrafts
+      .orderBy('created_at')
+      .reverse()
+      .toArray()
+      .then(setAiCollections)
+      .catch((e) => console.warn('Failed to load AI collection drafts:', e));
   }, [fetchCollections]);
 
   const handleGenerate = async () => {
@@ -246,7 +266,18 @@ export default function CollectionsPage() {
         }))
       );
       if (newCollections) {
-        setAiCollections(newCollections);
+        const now = new Date().toISOString();
+        const drafts: AICollectionDraft[] = newCollections.map((data) => ({
+          id: crypto.randomUUID(),
+          data,
+          created_at: now,
+        }));
+
+        // Replace any previous batch of drafts with the new one.
+        await db.aiCollectionDrafts.clear();
+        await db.aiCollectionDrafts.bulkAdd(drafts);
+
+        setAiCollections(drafts);
         setActiveTab('ai');
       }
     } catch (error) {
@@ -255,6 +286,11 @@ export default function CollectionsPage() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const discardAICollection = async (draftId: string) => {
+    await db.aiCollectionDrafts.delete(draftId);
+    setAiCollections((prev) => prev.filter((d) => d.id !== draftId));
   };
 
   const handleCreateCollection = async () => {
@@ -274,11 +310,12 @@ export default function CollectionsPage() {
     setIsCreateOpen(false);
   };
 
-  const handleSaveAICollection = async (aiCollection: AISmartCollection) => {
+  const handleSaveAICollection = async (draft: AICollectionDraft) => {
+    const aiCollection = draft.data;
     const mediaIds: string[] = [];
     aiCollection.media_titles.forEach((title) => {
       const matchedMedia = media.find(
-        (m) => m.title.toLowerCase().includes(title.toLowerCase()) || 
+        (m) => m.title.toLowerCase().includes(title.toLowerCase()) ||
                title.toLowerCase().includes(m.title.toLowerCase())
       );
       if (matchedMedia) {
@@ -293,6 +330,9 @@ export default function CollectionsPage() {
       filter_criteria: null,
       is_auto_generated: true,
     });
+
+    // Saved for real now - the draft has served its purpose.
+    await discardAICollection(draft.id);
 
     alert(`"${aiCollection.title}" saved!`);
   };
@@ -376,11 +416,12 @@ export default function CollectionsPage() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {aiCollections.map((collection, index) => (
+              {aiCollections.map((draft) => (
                 <AICollectionCard
-                  key={index}
-                  collection={collection}
-                  onSave={() => handleSaveAICollection(collection)}
+                  key={draft.id}
+                  collection={draft.data}
+                  onSave={() => handleSaveAICollection(draft)}
+                  onDiscard={() => discardAICollection(draft.id)}
                 />
               ))}
             </div>

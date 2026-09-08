@@ -1,13 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useMediaStore } from '@/store/mediaStore';
 import { useSyncStore } from '@/store/syncStore';
 import { exportDatabase, importDatabase, getApiKey, saveApiKey } from '@/lib/db/dexie';
+import { resolveApiKey } from '@/lib/api/apiKey';
+import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -17,6 +21,9 @@ export default function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [includeApiKeysInExport, setIncludeApiKeysInExport] = useState(false);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [tmdbKey, setTmdbKey] = useState('');
   const [rawgKey, setRawgKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
@@ -56,17 +63,21 @@ export default function SettingsPage() {
     }
   };
 
+  const downloadJson = (data: string, filenamePrefix: string) => {
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filenamePrefix}-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const data = await exportDatabase();
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `mediamind-backup-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const data = await exportDatabase({ includeApiKeys: includeApiKeysInExport });
+      downloadJson(data, 'mediamind-backup');
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
@@ -74,12 +85,31 @@ export default function SettingsPage() {
     }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // File selection just opens the confirmation - importDatabase() clears
+  // existing tables before restoring, so this must never fire on selection
+  // alone (see runImport for the actual destructive step).
+  const handleImportFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (file) setPendingImportFile(file);
+  };
+
+  const runImport = async () => {
+    const file = pendingImportFile;
+    setPendingImportFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     if (!file) return;
 
     setIsImporting(true);
     try {
+      // Safety net: snapshot current data before wiping it, so a bad/wrong
+      // import file can be undone by re-importing this backup.
+      try {
+        const preImportBackup = await exportDatabase();
+        downloadJson(preImportBackup, 'mediamind-pre-import-backup');
+      } catch (backupError) {
+        console.warn('Could not create pre-import safety backup:', backupError);
+      }
+
       const text = await file.text();
       await importDatabase(text);
       window.location.reload();
@@ -113,7 +143,7 @@ export default function SettingsPage() {
     
     // Test TMDB with actual API call
     try {
-      const tmdbKey = await getApiKey('tmdb_key') || process.env.NEXT_PUBLIC_TMDB_API_KEY;
+      const tmdbKey = await resolveApiKey('tmdb_key', process.env.NEXT_PUBLIC_TMDB_API_KEY);
       console.log('TMDB key found:', !!tmdbKey);
       if (tmdbKey) {
         const response = await fetch(
@@ -131,7 +161,7 @@ export default function SettingsPage() {
     
     // Test RAWG with actual API call
     try {
-      const rawgKey = await getApiKey('rawg_key') || process.env.NEXT_PUBLIC_RAWG_API_KEY;
+      const rawgKey = await resolveApiKey('rawg_key', process.env.NEXT_PUBLIC_RAWG_API_KEY);
       console.log('RAWG key found:', !!rawgKey);
       if (rawgKey) {
         const response = await fetch(
@@ -308,24 +338,45 @@ export default function SettingsPage() {
             disabled={isExporting}
             className="h-14 border-white/10 hover:bg-white/5 flex flex-col items-center gap-1"
           >
-            <Download className="h-5 w-5" />
+            {isExporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
             <span className="text-xs">Export</span>
           </Button>
 
           <label className="cursor-pointer">
             <input
+              ref={fileInputRef}
               type="file"
               accept=".json"
-              onChange={handleImport}
+              onChange={handleImportFileSelected}
+              disabled={isImporting}
               className="hidden"
             />
             <div className="h-14 border border-white/10 hover:bg-white/5 rounded-md flex flex-col items-center justify-center gap-1 transition-colors">
-              <Upload className="h-5 w-5" />
+              {isImporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
               <span className="text-xs">Import</span>
             </div>
           </label>
         </div>
+
+        <label className="flex items-center gap-2 pt-1">
+          <Checkbox checked={includeApiKeysInExport} onCheckedChange={(v) => setIncludeApiKeysInExport(v === true)} />
+          <span className="text-xs text-white/50">Include API keys in export (kept out by default)</span>
+        </label>
       </div>
+
+      <ConfirmDialog
+        open={pendingImportFile !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingImportFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+          }
+        }}
+        title="Replace all local data?"
+        description={`Importing "${pendingImportFile?.name ?? ''}" will replace your library, collections, history, and settings with the contents of this file. A backup of your current data downloads automatically first, so you can undo this by re-importing it.`}
+        confirmLabel="Import & Replace"
+        onConfirm={runImport}
+      />
 
       {/* About */}
       <div className="glass-card rounded-2xl p-6 text-center">
@@ -335,8 +386,4 @@ export default function SettingsPage() {
       </div>
     </div>
   );
-}
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ');
 }

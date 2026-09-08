@@ -3,6 +3,7 @@
 import { forwardRef } from 'react';
 import { Heart, Star, Check, Film, Tv, BookOpen, Gamepad2, Sparkles, MoreHorizontal } from 'lucide-react';
 import { cn, truncate } from '@/lib/utils';
+import { useMediaStore } from '@/store/mediaStore';
 import type { Media } from '@/types';
 
 const typeConfig: Record<string, { icon: React.ReactNode; gradient: string }> = {
@@ -59,6 +60,12 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
   function MediaCard({ media, viewMode = 'grid', onClick, className }, ref) {
     const config = typeConfig[media.type] || typeConfig.movie;
     const isCompleted = media.status === 'completed';
+    const updateMedia = useMediaStore((s) => s.updateMedia);
+
+    const toggleDone = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      updateMedia(media.id, { status: isCompleted ? 'watching' : 'completed' });
+    };
 
     if (viewMode === 'list') {
       return (
@@ -112,12 +119,13 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
               </div>
             </div>
 
-            <button 
-              onClick={(e) => { e.stopPropagation(); }}
+            <button
+              onClick={toggleDone}
+              title={isCompleted ? 'Mark as watching' : 'Mark done'}
               className={cn(
                 'w-8 h-8 rounded-full flex items-center justify-center border transition-all',
-                isCompleted 
-                  ? 'bg-white text-black border-white' 
+                isCompleted
+                  ? 'bg-white text-black border-white'
                   : 'border-white/10 text-white/20 hover:text-white'
               )}
             >
@@ -165,12 +173,12 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
             
             {/* Quick Actions */}
             <div className="flex gap-2">
-              <button 
-                onClick={(e) => { e.stopPropagation(); }}
+              <button
+                onClick={toggleDone}
                 className={cn(
                   'flex-1 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all',
-                  isCompleted 
-                    ? 'bg-white text-black' 
+                  isCompleted
+                    ? 'bg-white text-black'
                     : 'bg-white/20 text-white hover:bg-white/30'
                 )}
               >
