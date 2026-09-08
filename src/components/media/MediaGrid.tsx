@@ -7,10 +7,17 @@ import type { Media } from '@/types';
 
 interface MediaGridProps {
   onMediaClick?: (media: Media) => void;
+  // When provided, renders this list instead of the signed-in user's own
+  // filteredMedia - used for a read-only friend's-library view. viewMode
+  // and gridSize still come from the store purely for display consistency;
+  // readOnly disables the mark-done/edit affordances on each card.
+  media?: Media[];
+  readOnly?: boolean;
 }
 
-export function MediaGrid({ onMediaClick }: MediaGridProps) {
+export function MediaGrid({ onMediaClick, media: mediaOverride, readOnly }: MediaGridProps) {
   const { filteredMedia, viewMode, gridSize } = useMediaStore();
+  const displayMedia = mediaOverride ?? filteredMedia;
 
   const gridCols = {
     1: 'grid-cols-1',
@@ -21,7 +28,7 @@ export function MediaGrid({ onMediaClick }: MediaGridProps) {
     6: 'grid-cols-3 md:grid-cols-5 lg:grid-cols-6',
   };
 
-  if (filteredMedia.length === 0) {
+  if (displayMedia.length === 0) {
     return (
       <div className="flex h-96 flex-col items-center justify-center rounded-2xl border border-dashed border-border/50 bg-card/30">
         <p className="text-lg font-medium text-muted-foreground">
@@ -44,12 +51,13 @@ export function MediaGrid({ onMediaClick }: MediaGridProps) {
       }
     >
       <AnimatePresence mode="popLayout">
-        {filteredMedia.map((media) => (
+        {displayMedia.map((media) => (
           <MediaCard
             key={media.id}
             media={media}
             viewMode={viewMode}
             onClick={() => onMediaClick?.(media)}
+            readOnly={readOnly}
           />
         ))}
       </AnimatePresence>

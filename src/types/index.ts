@@ -85,6 +85,16 @@ export interface Media {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+
+  // Local-only bookkeeping (Dexie/IndexedDB) - never a real column in
+  // Supabase, always stripped before any insert/upsert (see mediaStore's
+  // stripForSupabase). true once this exact row is confirmed to exist in
+  // Supabase; undefined/false means "created locally, not confirmed synced
+  // yet" - the distinction fetchMedia's merge needs to tell "genuinely
+  // local-only, should be uploaded" apart from "used to be synced, is now
+  // absent from a fresh fetch because it was deleted elsewhere, should be
+  // pruned locally instead of resurrected".
+  synced?: boolean;
 }
 
 export interface StreamingPlatform {
@@ -134,6 +144,66 @@ export interface FilterCriteria {
   rating?: { min?: number; max?: number };
   is_favorite?: boolean;
   is_archived?: boolean;
+}
+
+// =====================================================
+// Friends Type
+// =====================================================
+
+export type FriendshipStatus = 'pending' | 'accepted' | 'declined';
+
+export interface Friendship {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: FriendshipStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// A friendship row annotated with the other party's Clerk profile info,
+// resolved server-side (the client can't look up Clerk users directly).
+export interface FriendshipWithProfile extends Friendship {
+  otherUser: {
+    id: string;
+    name: string;
+    email: string | null;
+    imageUrl: string | null;
+  } | null;
+}
+
+// A history row belonging to an accepted friend, for the dashboard's
+// "Friends' Activity" feed - joined with both the media it's about and the
+// friend who did it.
+export interface FriendActivityEntry extends History {
+  media: Pick<Media, 'id' | 'title' | 'type' | 'poster_url'> | null;
+  friend: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+  };
+}
+
+// =====================================================
+// Collection Sharing Type
+// =====================================================
+
+export interface CollectionShare {
+  id: string;
+  collection_id: string;
+  owner_id: string;
+  shared_with_id: string;
+  created_at: string;
+}
+
+// A share row for a collection I own, annotated with who it's shared with.
+export interface CollectionShareWithProfile extends CollectionShare {
+  recipient: { id: string; name: string; imageUrl: string | null } | null;
+}
+
+// A collection someone else shared with me, annotated with who owns it.
+export interface SharedCollection extends SmartCollection {
+  owner: { id: string; name: string; imageUrl: string | null } | null;
 }
 
 // =====================================================

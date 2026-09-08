@@ -14,10 +14,19 @@ import {
   Menu,
   X,
   Film,
+  Users,
 } from 'lucide-react';
+import { UserButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSyncStore } from '@/store/syncStore';
+
+const userButtonAppearance = {
+  elements: {
+    avatarBox: 'h-9 w-9',
+    userButtonPopoverCard: 'bg-[#111118] border border-white/10',
+  },
+};
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
@@ -26,6 +35,7 @@ const navItems = [
   { href: '/analytics', icon: BarChart3, label: 'Stats' },
   { href: '/timeline', icon: Clock, label: 'Timeline' },
   { href: '/collections', icon: Sparkles, label: 'AI' },
+  { href: '/friends', icon: Users, label: 'Friends' },
 ];
 
 export function Sidebar() {
@@ -89,6 +99,11 @@ export function Sidebar() {
             <Settings className="h-5 w-5" />
           </Link>
         </div>
+
+        {/* Account */}
+        <div className="p-4 pt-0 flex items-center justify-center">
+          <UserButton appearance={userButtonAppearance} />
+        </div>
       </aside>
 
       {/* Mobile Bottom Nav */}
@@ -125,13 +140,23 @@ export function Sidebar() {
           <span className="text-lg font-black text-white tracking-tight">MEDIA MIND</span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {mounted && (
             <div className={cn(
               'w-2 h-2 rounded-full',
               is_online ? 'bg-green-500' : 'bg-yellow-500'
             )} />
           )}
+          <Link
+            href="/friends"
+            className={cn(
+              'p-1.5 rounded-lg transition-colors',
+              pathname === '/friends' ? 'text-white bg-white/10' : 'text-white/50'
+            )}
+          >
+            <Users className="h-5 w-5" />
+          </Link>
+          <UserButton appearance={userButtonAppearance} />
         </div>
       </header>
     </>

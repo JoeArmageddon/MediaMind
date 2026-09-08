@@ -46,11 +46,21 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
       // read-only pull - nothing here ever writes back to Supabase.
       if (navigator.onLine) {
         try {
-          const { data, error } = await (supabase as any)
+          // Explicitly scoped to the signed-in user - Chunk D's "select
+          // friends history" RLS policy means an unfiltered select('*')
+          // here would merge accepted friends' history into "my" activity
+          // feed instead of staying "mine only".
+          const currentUserId =
+            typeof window !== 'undefined' ? window.Clerk?.user?.id : undefined;
+          let historyQuery = (supabase as any)
             .from('history')
             .select('*')
             .order('created_at', { ascending: false })
             .limit(50);
+          if (currentUserId) {
+            historyQuery = historyQuery.or(`user_id.eq.${currentUserId},user_id.is.null`);
+          }
+          const { data, error } = await historyQuery;
 
           if (!error && data) {
             const serverRows = data as History[];

@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getSearchOrchestrator } from '@/lib/api/search';
+import { mapExternalIds } from '@/lib/api/externalId';
+import { getAIClient } from '@/lib/ai';
 import { getApiKey } from '@/lib/db/dexie';
 import { resolveApiKey } from '@/lib/api/apiKey';
 import { cn, getTypeLabel, getUnitLabel } from '@/lib/utils';
@@ -50,7 +52,7 @@ interface ManualFormData {
 
 export default function SearchPage() {
   const router = useRouter();
-  const { addMedia } = useMediaStore();
+  const { addMedia, updateMedia } = useMediaStore();
   const [mode, setMode] = useState<'single' | 'batch' | 'manual'>('single');
   
   // Single mode state
@@ -213,6 +215,7 @@ export default function SearchPage() {
 
   const handleAddResult = async (result: SearchResult) => {
     try {
+      const externalIds = mapExternalIds(result);
       const newMedia = {
         title: result.title,
         normalized_title: result.title.toLowerCase().replace(/[^a-z0-9]/g, ''),
@@ -241,15 +244,33 @@ export default function SearchPage() {
         ai_pacing: null,
         ai_darkness_level: null,
         ai_intellectual_depth: null,
-        tmdb_id: null,
-        mal_id: null,
-        rawg_id: null,
-        google_books_id: null,
+        ...externalIds,
         completed_at: null,
       };
-      
-      await addMedia(newMedia);
+
+      const added = await addMedia(newMedia);
       router.push('/');
+
+      // Fire-and-forget: the `tags` field was previously always left empty
+      // forever (nothing ever populated it). Genres already cover
+      // category, so this asks for a complementary set - mood/setting/tone
+      // keywords - and fills them in the background rather than blocking
+      // the add or requiring a separate manual step per item.
+      if (result.description) {
+        getAIClient()
+          .suggestTags({
+            title: added.title,
+            type: added.type,
+            description: added.description,
+            genres: added.genres,
+          })
+          .then((tags) => {
+            if (tags && tags.length > 0) {
+              updateMedia(added.id, { tags });
+            }
+          })
+          .catch((e) => console.warn('Background tag suggestion failed:', e));
+      }
     } catch (error) {
       console.error('Failed to add media:', error);
       setError('Failed to add to library. Please try again.');

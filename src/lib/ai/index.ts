@@ -221,6 +221,21 @@ export class AIClient {
     );
   }
 
+  // 8. Descriptive Tag Suggestions
+  async suggestTags(
+    media: Pick<Media, 'title' | 'type' | 'description' | 'genres'>
+  ): Promise<string[] | null> {
+    if (!this.primary) return null;
+    // Cached by type+title: same stable-input reasoning as analyzeMedia.
+    return withAICache('suggestTags', `${media.type}:${media.title}`, AI_CACHE_TTL.THIRTY_DAYS, () =>
+      this.callWithFallback(
+        () => this.primary!.suggestTags(media),
+        () => this.fallback!.suggestTags(media),
+        'suggestTags'
+      )
+    );
+  }
+
   // Check if AI is available
   isAvailable(): boolean {
     return this.primary !== null;

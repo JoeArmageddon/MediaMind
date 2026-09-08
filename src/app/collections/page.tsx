@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowLeft, Plus, Film, Wand2, Folder, Trash2 } from 'lucide-react';
+import { Sparkles, ArrowLeft, Plus, Film, Wand2, Folder, Trash2, Share2, Users, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,18 +12,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getAIClient } from '@/lib/ai';
 import { useMediaStore } from '@/store/mediaStore';
 import { useCollectionStore } from '@/store/collectionStore';
+import { useFriendStore } from '@/store/friendStore';
+import { supabase } from '@/lib/db/supabase';
 import { db, type AICollectionDraft } from '@/lib/db/dexie';
 import { cn, getTypeLabel } from '@/lib/utils';
-import type { AISmartCollection, SmartCollection, Media } from '@/types';
+import type { AISmartCollection, SmartCollection, SharedCollection, CollectionShareWithProfile, Media } from '@/types';
 
-function UserCollectionCard({ 
-  collection, 
-  onClick, 
-  onDelete 
-}: { 
-  collection: SmartCollection; 
+function UserCollectionCard({
+  collection,
+  onClick,
+  onDelete,
+  onShare,
+}: {
+  collection: SmartCollection;
   onClick: () => void;
   onDelete: (e: React.MouseEvent) => void;
+  onShare: (e: React.MouseEvent) => void;
 }) {
   return (
     <div
@@ -38,12 +42,21 @@ function UserCollectionCard({
             </div>
             <h3 className="text-xl font-black text-white tracking-tight">{collection.title}</h3>
           </div>
-          <button
-            onClick={onDelete}
-            className="p-2 rounded-lg hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onShare}
+              title="Share with a friend"
+              className="p-2 rounded-lg hover:bg-indigo-500/20 text-white/40 hover:text-indigo-400 transition-colors"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={onDelete}
+              className="p-2 rounded-lg hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         
         {collection.description && (
@@ -226,17 +239,274 @@ function AICollectionDetail({
   );
 }
 
+function SharedCollectionCard({
+  collection,
+  onClick,
+}: {
+  collection: SharedCollection;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className="glass-card rounded-[24px] p-6 cursor-pointer hover:border-indigo-500/50 transition-all group relative overflow-hidden"
+    >
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Folder className="h-5 w-5 text-white" />
+            </div>
+            <h3 className="text-xl font-black text-white tracking-tight">{collection.title}</h3>
+          </div>
+        </div>
+
+        {collection.description && (
+          <p className="text-white/60 text-sm mb-4 leading-relaxed">{collection.description}</p>
+        )}
+
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="bg-white/5 border-white/10 text-white/80 rounded-lg px-3 py-1">
+            {collection.media_ids.length} items
+          </Badge>
+          {collection.owner && (
+            <div className="flex items-center gap-1.5 text-xs text-white/50">
+              {collection.owner.imageUrl ? (
+                <img src={collection.owner.imageUrl} alt={collection.owner.name} className="w-4 h-4 rounded-full" />
+              ) : (
+                <Users className="h-3 w-3" />
+              )}
+              {collection.owner.name}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SharedCollectionDetail({ collection }: { collection: SharedCollection }) {
+  const [media, setMedia] = useState<Media[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    // The shared collection's media_ids point at the owner's media rows,
+    // not mine - fetched fresh rather than filtered from my own media
+    // list. RLS ("select friends media") is what actually makes this work:
+    // it only returns rows here because owner and viewer are friends.
+    (async () => {
+      if (collection.media_ids.length === 0) {
+        if (!cancelled) {
+          setMedia([]);
+          setIsLoading(false);
+        }
+        return;
+      }
+      try {
+        const { data, error } = await (supabase as any)
+          .from('media')
+          .select('*')
+          .in('id', collection.media_ids);
+        if (cancelled) return;
+        if (error) throw error;
+        setMedia((data ?? []) as Media[]);
+      } catch (e) {
+        console.warn('Failed to load shared collection media:', e);
+        if (!cancelled) setMedia([]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [collection]);
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+            <Folder className="h-4 w-4 text-white" />
+          </div>
+          {collection.title}
+        </DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-4">
+        {collection.owner && (
+          <p className="text-white/40 text-xs">Shared by {collection.owner.name}</p>
+        )}
+        {collection.description && (
+          <p className="text-white/60 text-sm leading-relaxed">{collection.description}</p>
+        )}
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">Media in collection</h4>
+          {isLoading ? (
+            <div className="text-center py-4">
+              <Loader2 className="h-5 w-5 text-white/30 mx-auto animate-spin" />
+            </div>
+          ) : media.length > 0 ? (
+            media.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10"
+              >
+                <div className="flex items-center gap-3">
+                  {item.poster_url ? (
+                    <img src={item.poster_url} alt={item.title} className="w-10 h-14 object-cover rounded-lg" />
+                  ) : (
+                    <div className="w-10 h-14 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold">
+                      {item.title[0]}
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-white font-medium text-sm">{item.title}</span>
+                    <p className="text-xs text-white/40">{getTypeLabel(item.type)}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-white/40 text-sm text-center py-4">No media in this collection.</p>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ShareCollectionDialog({
+  collection,
+  onClose,
+}: {
+  collection: SmartCollection | null;
+  onClose: () => void;
+}) {
+  const { friends, fetchFriends } = useFriendStore();
+  const { fetchSharesForCollection, shareCollection, unshareCollection } = useCollectionStore();
+  const [shares, setShares] = useState<CollectionShareWithProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [busyFriendId, setBusyFriendId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!collection) return;
+    fetchFriends();
+    setIsLoading(true);
+    fetchSharesForCollection(collection.id)
+      .then(setShares)
+      .finally(() => setIsLoading(false));
+  }, [collection, fetchFriends, fetchSharesForCollection]);
+
+  if (!collection) return null;
+
+  const sharedWithIds = new Set(shares.map((s) => s.shared_with_id));
+
+  const handleToggle = async (friendId: string) => {
+    setBusyFriendId(friendId);
+    try {
+      const existingShare = shares.find((s) => s.shared_with_id === friendId);
+      if (existingShare) {
+        await unshareCollection(existingShare.id);
+        setShares((prev) => prev.filter((s) => s.id !== existingShare.id));
+      } else {
+        const result = await shareCollection(collection.id, friendId);
+        if (result.success) {
+          const updated = await fetchSharesForCollection(collection.id);
+          setShares(updated);
+        }
+      }
+    } finally {
+      setBusyFriendId(null);
+    }
+  };
+
+  return (
+    <Dialog open={!!collection} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-black text-white flex items-center gap-2">
+            <Share2 className="h-5 w-5" />
+            Share &quot;{collection.title}&quot;
+          </DialogTitle>
+        </DialogHeader>
+        <div className="py-4">
+          {isLoading ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-5 w-5 text-white/30 mx-auto animate-spin" />
+            </div>
+          ) : friends.length === 0 ? (
+            <p className="text-white/50 text-sm text-center py-8">
+              Add friends first to share collections with them.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {friends.map((f) => {
+                const isShared = f.otherUser && sharedWithIds.has(f.otherUser.id);
+                const isBusy = busyFriendId === f.otherUser?.id;
+                return (
+                  <div
+                    key={f.id}
+                    className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {f.otherUser?.imageUrl ? (
+                        <img src={f.otherUser.imageUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center text-white text-xs font-bold">
+                          {f.otherUser?.name?.[0]?.toUpperCase() ?? '?'}
+                        </div>
+                      )}
+                      <span className="text-sm text-white truncate">{f.otherUser?.name}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={isBusy || !f.otherUser}
+                      onClick={() => f.otherUser && handleToggle(f.otherUser.id)}
+                      className={cn(
+                        'rounded-lg text-xs',
+                        isShared
+                          ? 'bg-white/10 hover:bg-red-500/20 text-white/70 hover:text-red-400'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      )}
+                    >
+                      {isBusy ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : isShared ? (
+                        <>
+                          <X className="h-3 w-3 mr-1" />
+                          Remove
+                        </>
+                      ) : (
+                        'Share'
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function CollectionsPage() {
   const router = useRouter();
   const { media } = useMediaStore();
-  const { collections, fetchCollections, addCollection, deleteCollection } = useCollectionStore();
-  
+  const { collections, sharedWithMe, fetchCollections, fetchSharedWithMe, addCollection, deleteCollection } =
+    useCollectionStore();
+
   // Generated-but-unsaved AI suggestions, persisted to db.aiCollectionDrafts
   // so they survive navigation/reload until explicitly saved or discarded.
   const [aiCollections, setAiCollections] = useState<AICollectionDraft[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedUserCollection, setSelectedUserCollection] = useState<SmartCollection | null>(null);
   const [selectedAICollection, setSelectedAICollection] = useState<AISmartCollection | null>(null);
+  const [selectedSharedCollection, setSelectedSharedCollection] = useState<SharedCollection | null>(null);
+  const [shareDialogCollection, setShareDialogCollection] = useState<SmartCollection | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [newCollectionDesc, setNewCollectionDesc] = useState('');
@@ -245,13 +515,14 @@ export default function CollectionsPage() {
 
   useEffect(() => {
     fetchCollections();
+    fetchSharedWithMe();
     db.aiCollectionDrafts
       .orderBy('created_at')
       .reverse()
       .toArray()
       .then(setAiCollections)
       .catch((e) => console.warn('Failed to load AI collection drafts:', e));
-  }, [fetchCollections]);
+  }, [fetchCollections, fetchSharedWithMe]);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -374,7 +645,7 @@ export default function CollectionsPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-2xl h-auto">
+        <TabsList className="grid w-full grid-cols-3 bg-white/5 p-1 rounded-2xl h-auto">
           <TabsTrigger value="my" className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
             <Folder className="h-4 w-4 mr-2" />
             My ({collections.length})
@@ -382,6 +653,10 @@ export default function CollectionsPage() {
           <TabsTrigger value="ai" className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
             <Sparkles className="h-4 w-4 mr-2" />
             AI ({aiCollections.length})
+          </TabsTrigger>
+          <TabsTrigger value="shared" className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
+            <Users className="h-4 w-4 mr-2" />
+            Shared ({sharedWithMe.length})
           </TabsTrigger>
         </TabsList>
 
@@ -401,6 +676,10 @@ export default function CollectionsPage() {
                   onDelete={(e) => {
                     e.stopPropagation();
                     deleteCollection(collection.id);
+                  }}
+                  onShare={(e) => {
+                    e.stopPropagation();
+                    setShareDialogCollection(collection);
                   }}
                 />
               ))}
@@ -422,6 +701,25 @@ export default function CollectionsPage() {
                   collection={draft.data}
                   onSave={() => handleSaveAICollection(draft)}
                   onDiscard={() => discardAICollection(draft.id)}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="shared" className="mt-6">
+          {sharedWithMe.length === 0 ? (
+            <div className="glass-card rounded-[28px] p-12 text-center">
+              <Users className="h-12 w-12 text-white/20 mx-auto mb-4" />
+              <p className="text-white/50">No collections shared with you yet.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {sharedWithMe.map((collection) => (
+                <SharedCollectionCard
+                  key={collection.id}
+                  collection={collection}
+                  onClick={() => setSelectedSharedCollection(collection)}
                 />
               ))}
             </div>
@@ -506,6 +804,17 @@ export default function CollectionsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!selectedSharedCollection} onOpenChange={() => setSelectedSharedCollection(null)}>
+        <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
+          {selectedSharedCollection && <SharedCollectionDetail collection={selectedSharedCollection} />}
+        </DialogContent>
+      </Dialog>
+
+      <ShareCollectionDialog
+        collection={shareDialogCollection}
+        onClose={() => setShareDialogCollection(null)}
+      />
     </div>
   );
 }

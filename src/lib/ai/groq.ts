@@ -326,6 +326,37 @@ Return JSON:
     const response = await this.generateContent(prompt);
     return this.parseJSON<{ available_on: StreamingPlatform[] }>(response);
   }
+
+  // 8. Descriptive Tag Suggestions
+  // Genres (Action, Drama, ...) already come from the source API (TMDB/
+  // Jikan/RAWG/etc) - these tags are meant to be a different, complementary
+  // axis: mood, setting, narrative device, audience - short enough to work
+  // as filter chips, not a restatement of the genre list.
+  async suggestTags(
+    media: Pick<Media, 'title' | 'type' | 'description' | 'genres'>
+  ): Promise<string[]> {
+    const prompt = `MEDIA:
+Title: ${media.title}
+Type: ${media.type}
+Genres: ${media.genres.join(', ') || 'unknown'}
+Description: ${media.description?.slice(0, 500) || 'N/A'}
+
+TASK:
+Suggest 5-8 short descriptive tags for this title - mood, setting, narrative
+device, tone, or audience. Each tag is 1-3 words, lowercase.
+
+Do NOT repeat the genres already listed above. Do NOT invent plot details
+not implied by the description.
+
+Return JSON:
+{
+  "tags": []
+}`;
+
+    const response = await this.generateContent(prompt);
+    const data = this.parseJSON<{ tags: string[] }>(response);
+    return Array.isArray(data.tags) ? data.tags.filter((t) => typeof t === 'string' && t.trim()) : [];
+  }
 }
 
 // Factory

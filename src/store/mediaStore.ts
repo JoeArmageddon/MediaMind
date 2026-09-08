@@ -43,6 +43,25 @@ interface MediaStore {
   syncWithSupabase: () => Promise<void>;
 }
 
+// Chunk D's "select friends media"/"select friends history" RLS policies
+// mean an unfiltered select('*') on these tables now also returns accepted
+// friends' rows, not just the caller's own - every "my library" query in
+// this store must filter to this explicitly rather than relying on RLS
+// alone to mean "mine".
+const getCurrentUserId = (): string | undefined =>
+  typeof window !== 'undefined' ? window.Clerk?.user?.id : undefined;
+
+// normalized_title is a Postgres GENERATED ALWAYS ... STORED column - any
+// insert/upsert that includes it is rejected outright. created_at/updated_at
+// are safe to include (plain DEFAULT NOW(), not generated) and should be
+// preserved as-is when re-uploading an existing/imported record so its real
+// history isn't overwritten with "now". `synced` is local-only bookkeeping
+// (see Media type) and has no column in Supabase at all.
+const stripForSupabase = (item: Media): Record<string, unknown> => {
+  const { normalized_title, synced, ...rest } = item as unknown as Record<string, unknown>;
+  return rest;
+};
+
 const defaultFilters: FilterState = {
   status: [],
   type: [],
@@ -125,6 +144,9 @@ export const useMediaStore = create<MediaStore>()(
             id: tempId,
             created_at: now,
             updated_at: now,
+            // Not confirmed to exist in Supabase yet - see the Media type's
+            // `synced` doc comment for why this distinction matters.
+            synced: false,
           } as Media;
 
           console.log('Adding media:', newMedia.title);
@@ -206,11 +228,12 @@ export const useMediaStore = create<MediaStore>()(
                   });
                 } else if (data) {
                   console.log('Synced to Supabase:', data.id);
+                  const syncedMedia = { ...(data as Media), synced: true };
                   // Update IndexedDB with server data (use put to update existing)
-                  await db.media.put(data as Media);
+                  await db.media.put(syncedMedia);
                   // Update state with server data
                   set((state) => ({
-                    media: state.media.map(m => m.id === tempId ? (data as Media) : m),
+                    media: state.media.map(m => m.id === tempId ? syncedMedia : m),
                   }));
                   get().applyFilters();
                 }
@@ -323,12 +346,30 @@ export const useMediaStore = create<MediaStore>()(
 
           // Sync with Supabase if online
           if (navigator.onLine) {
-            const { error } = await (supabase as any)
+            // .select() to detect a silent 0-row RLS no-op (see deleteMedia
+            // for the full explanation) - without it this update could
+            // appear to succeed while never actually reaching the row, and
+            // - unlike an explicit error - previously wasn't even queued
+            // for retry, just silently lost.
+            const { data: updatedRows, error } = await (supabase as any)
               .from('media')
               .update({ ...updates, updated_at })
-              .eq('id', id);
+              .eq('id', id)
+              .select('id');
 
-            if (error) throw error;
+            if (error || !updatedRows || updatedRows.length === 0) {
+              console.warn(
+                'Supabase update did not confirm, queuing:',
+                error ?? '0 rows affected (likely blocked by RLS on a stale token)'
+              );
+              await db.syncQueue.add({
+                id: crypto.randomUUID(),
+                table: 'media',
+                operation: 'update',
+                data: { id, ...updates },
+                created_at: updated_at,
+              });
+            }
           } else {
             // Queue for later sync
             await db.syncQueue.add({
@@ -375,6 +416,11 @@ export const useMediaStore = create<MediaStore>()(
           // Sync with Supabase if online
           if (navigator.onLine) {
             try {
+              // Delete is idempotent - 0 rows matched (nothing left to
+              // delete) is just as much "this row is gone" as 1 row
+              // matched, so only a real `error` counts as failure here
+              // (unlike update, where 0 rows means a specific change
+              // didn't land and can't be treated as a no-op success).
               const { error } = await (supabase as any).from('media').delete().eq('id', id);
               if (error) {
                 console.warn('Supabase delete failed, queuing:', error);
@@ -558,11 +604,21 @@ export const useMediaStore = create<MediaStore>()(
               // First: Push any pending local changes TO Supabase
               await get().syncWithSupabase();
 
-              // Then: Fetch from Supabase to get any new data from other devices
-              const { data, error } = await (supabase as any)
+              // Then: Fetch from Supabase to get any new data from other devices.
+              // Explicitly scoped to the signed-in user - since Chunk D, RLS
+              // also permits reading an accepted friend's rows, so an
+              // unfiltered select('*') here would merge their library into
+              // "my" media state instead of just enabling the dedicated
+              // /friends/[friendId] view to read it on request.
+              const currentUserId = getCurrentUserId();
+              let mediaQuery = (supabase as any)
                 .from('media')
                 .select('*')
                 .order('updated_at', { ascending: false });
+              if (currentUserId) {
+                mediaQuery = mediaQuery.or(`user_id.eq.${currentUserId},user_id.is.null`);
+              }
+              const { data, error } = await mediaQuery;
 
               if (error) {
                 console.warn('Supabase fetch error:', error);
@@ -571,13 +627,24 @@ export const useMediaStore = create<MediaStore>()(
                 console.log('Fetched from Supabase:', data.length, 'items');
                 
                 // SAFETY CHECK: If Supabase returns empty but we have local data,
-                // DON'T clear local data - instead try to sync local TO Supabase
+                // DON'T clear local data - instead try to sync local TO Supabase.
+                // Only items never confirmed synced get pushed - an
+                // all-empty response is exactly the ambiguous case `synced`
+                // exists for (a transient glitch vs. everything genuinely
+                // being gone), so previously-synced items are left alone
+                // here rather than either resurrected-by-reupload or
+                // deleted on what might just be a flaky response.
                 if (data.length === 0 && localMedia.length > 0) {
-                  console.log('Supabase empty but local has data - keeping local data');
-                  // Try to upload local data to Supabase
-                  for (const item of localMedia) {
+                  const neverSynced = localMedia.filter((m) => m.synced !== true);
+                  console.log(
+                    `Supabase empty but local has data - pushing ${neverSynced.length} never-synced item(s)`
+                  );
+                  for (const item of neverSynced) {
                     try {
-                      await (supabase as any).from('media').upsert(item);
+                      const { error: upsertError } = await (supabase as any)
+                        .from('media')
+                        .upsert(stripForSupabase(item));
+                      if (upsertError) console.warn('Failed to upsert item:', item.title, upsertError.message);
                     } catch (e) {
                       console.warn('Failed to upsert item:', item.title, e);
                     }
@@ -593,8 +660,8 @@ export const useMediaStore = create<MediaStore>()(
                   .toArray();
                 const pendingDeleteIds = new Set(pendingDeletes.map(q => q.data.id));
                 console.log('Pending deletions:', pendingDeleteIds.size);
-                
-                // Merge strategy: 
+
+                // Merge strategy:
                 // - Supabase data wins for same IDs (newer)
                 // - Local-only items are preserved
                 // - Items pending deletion are removed
@@ -602,14 +669,50 @@ export const useMediaStore = create<MediaStore>()(
                 const localOnlyItems = localMedia.filter(
                   m => !supabaseIds.has(m.id) && !pendingDeleteIds.has(m.id)
                 );
-                
-                // Filter Supabase data to exclude items pending deletion
-                const filteredSupabaseData = (data as Media[]).filter(
-                  m => !pendingDeleteIds.has(m.id)
-                );
-                
-                const mergedData = [...filteredSupabaseData, ...localOnlyItems];
-                
+
+                // A local-only item is one of two very different things,
+                // and conflating them was a real data-loss bug: deleting a
+                // title on one device/tab, then loading another tab whose
+                // Dexie cache hadn't heard about it yet, would see it as
+                // "local-only" and re-upload it - resurrecting a title you
+                // just deleted. `synced` (see the Media type) disambiguates:
+                // genuinely new/imported items are pushed up, but anything
+                // previously confirmed synced that's now absent from a
+                // fresh Supabase fetch was deleted elsewhere and gets
+                // pruned locally instead.
+                const unsyncedLocalOnly = localOnlyItems.filter((m) => m.synced !== true);
+                const deletedElsewhere = localOnlyItems.filter((m) => m.synced === true);
+
+                if (unsyncedLocalOnly.length > 0) {
+                  console.log(`Pushing ${unsyncedLocalOnly.length} local-only item(s) to Supabase`);
+                  for (const item of unsyncedLocalOnly) {
+                    try {
+                      const { error: pushError } = await (supabase as any)
+                        .from('media')
+                        .upsert(stripForSupabase(item));
+                      if (pushError) console.warn('Failed to push local-only item:', item.title, pushError.message);
+                    } catch (e) {
+                      console.warn('Failed to push local-only item:', item.title, e);
+                    }
+                  }
+                }
+
+                if (deletedElsewhere.length > 0) {
+                  console.log(`Pruning ${deletedElsewhere.length} item(s) deleted elsewhere`);
+                  await db.media.bulkDelete(deletedElsewhere.map((m) => m.id));
+                }
+
+                // Filter Supabase data to exclude items pending deletion.
+                // Everything freshly fetched from Supabase is, by
+                // definition, confirmed synced - stamped here so a later
+                // fetch can tell it apart from a genuinely-local item if it
+                // ever disappears.
+                const filteredSupabaseData = (data as Media[])
+                  .filter(m => !pendingDeleteIds.has(m.id))
+                  .map((m) => ({ ...m, synced: true }));
+
+                const mergedData = [...filteredSupabaseData, ...unsyncedLocalOnly];
+
                 console.log('Merged data:', mergedData.length, 'items');
                 
                 // SAFER UPDATE: Use bulkPut (upsert) instead of clear + bulkAdd
@@ -656,14 +759,23 @@ export const useMediaStore = create<MediaStore>()(
 
             try {
               let error: { message?: string } | null = null;
+              let affectedRows: unknown[] | null = null;
 
               if (change.operation === 'update') {
-                ({ error } = await (supabase as any)
+                ({ error, data: affectedRows } = await (supabase as any)
                   .from(change.table)
                   .update(change.data)
-                  .eq('id', change.data.id));
+                  .eq('id', change.data.id)
+                  .select('id'));
               } else if (change.operation === 'delete') {
-                ({ error } = await (supabase as any).from(change.table).delete().eq('id', change.data.id));
+                // Delete is idempotent - 0 rows matched is as much "this
+                // row is gone" as 1 row matched (it may have already been
+                // deleted by an earlier attempt), so no row-count check
+                // here, only `error` counts as failure.
+                ({ error } = await (supabase as any)
+                  .from(change.table)
+                  .delete()
+                  .eq('id', change.data.id));
               } else if (change.operation === 'insert') {
                 ({ error } = await (supabase as any).from(change.table).insert(change.data));
               }
@@ -673,6 +785,32 @@ export const useMediaStore = create<MediaStore>()(
               // old code never checked this, so failed writes were treated
               // as successful and their queue entries were discarded anyway.
               if (error) throw error;
+
+              // update's RLS USING clause filters which rows the operation
+              // can even see - a row it's not allowed to touch (e.g. a
+              // momentarily stale/unresolved auth token on this one
+              // request) just matches zero rows rather than erroring, so
+              // `error` alone can't tell a real success apart from a
+              // silent no-op. Insert doesn't have this blind spot - a
+              // blocked insert's WITH CHECK genuinely fails with an error.
+              if (change.operation === 'update' && (!affectedRows || affectedRows.length === 0)) {
+                throw new Error('0 rows affected - likely blocked by RLS on a stale token');
+              }
+
+              // A queued media insert that just landed is now confirmed to
+              // exist in Supabase - without this, fetchMedia's merge would
+              // keep treating it as "local-only, needs pushing" forever
+              // (harmless there since it already exists, but it also means
+              // it could never be told apart from a genuinely-new item if
+              // it were ever deleted elsewhere while this device was
+              // offline for the whole round trip).
+              if (change.table === 'media' && change.operation === 'insert' && change.data.id) {
+                try {
+                  await db.media.update(change.data.id as string, { synced: true });
+                } catch (e) {
+                  console.warn('Failed to mark media as synced after queued insert:', e);
+                }
+              }
 
               succeededIds.push(change.id);
               console.log('Synced:', change.operation, change.data.id || change.data.title);

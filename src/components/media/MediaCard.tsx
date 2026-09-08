@@ -54,16 +54,21 @@ interface MediaCardProps {
   viewMode?: 'grid' | 'list';
   onClick?: () => void;
   className?: string;
+  // Set when viewing a friend's library - this card belongs to someone
+  // else's row, so RLS would reject any write anyway; hide the affordance
+  // rather than let it fail silently.
+  readOnly?: boolean;
 }
 
 export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
-  function MediaCard({ media, viewMode = 'grid', onClick, className }, ref) {
+  function MediaCard({ media, viewMode = 'grid', onClick, className, readOnly }, ref) {
     const config = typeConfig[media.type] || typeConfig.movie;
     const isCompleted = media.status === 'completed';
     const updateMedia = useMediaStore((s) => s.updateMedia);
 
     const toggleDone = (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (readOnly) return;
       updateMedia(media.id, { status: isCompleted ? 'watching' : 'completed' });
     };
 
@@ -119,18 +124,25 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
               </div>
             </div>
 
-            <button
-              onClick={toggleDone}
-              title={isCompleted ? 'Mark as watching' : 'Mark done'}
-              className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center border transition-all',
-                isCompleted
-                  ? 'bg-white text-black border-white'
-                  : 'border-white/10 text-white/20 hover:text-white'
-              )}
-            >
-              <Check size={14} strokeWidth={3} />
-            </button>
+            {!readOnly && (
+              <button
+                onClick={toggleDone}
+                title={isCompleted ? 'Mark as watching' : 'Mark done'}
+                className={cn(
+                  'w-8 h-8 rounded-full flex items-center justify-center border transition-all',
+                  isCompleted
+                    ? 'bg-white text-black border-white'
+                    : 'border-white/10 text-white/20 hover:text-white'
+                )}
+              >
+                <Check size={14} strokeWidth={3} />
+              </button>
+            )}
+            {readOnly && isCompleted && (
+              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-black shrink-0">
+                <Check size={14} strokeWidth={3} />
+              </div>
+            )}
           </div>
         </div>
       );
@@ -172,20 +184,22 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
             </div>
             
             {/* Quick Actions */}
-            <div className="flex gap-2">
-              <button
-                onClick={toggleDone}
-                className={cn(
-                  'flex-1 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all',
-                  isCompleted
-                    ? 'bg-white text-black'
-                    : 'bg-white/20 text-white hover:bg-white/30'
-                )}
-              >
-                <Check size={12} className="mr-1" />
-                {isCompleted ? 'Completed' : 'Mark Done'}
-              </button>
-            </div>
+            {!readOnly && (
+              <div className="flex gap-2">
+                <button
+                  onClick={toggleDone}
+                  className={cn(
+                    'flex-1 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all',
+                    isCompleted
+                      ? 'bg-white text-black'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  )}
+                >
+                  <Check size={12} className="mr-1" />
+                  {isCompleted ? 'Completed' : 'Mark Done'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Status Indicator */}

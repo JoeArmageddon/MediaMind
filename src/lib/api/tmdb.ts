@@ -12,6 +12,17 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 // called directly.
 const TMDB_PROXY_URL = `${supabaseUrl}/functions/v1/tmdb-proxy`;
 
+// TMDB's search/list endpoints only return numeric genre_ids, not names -
+// resolving those to actual genre strings needs a separate call to
+// /genre/movie/list and /genre/tv/list. That call was never made; every
+// movie/TV search result had its `genres` field hardcoded to [] instead.
+// Genre lists change essentially never, so these are cached at module scope
+// (shared across every TMDBClient instance/search) rather than re-fetched
+// per search.
+let movieGenreMap: Map<number, string> | null = null;
+let tvGenreMap: Map<number, string> | null = null;
+let genreMapsLoading: Promise<void> | null = null;
+
 export class TMDBClient {
   private apiKey: string = '';
   private initialized: boolean = false;
@@ -21,6 +32,30 @@ export class TMDBClient {
 
     this.apiKey = await resolveApiKey('tmdb_key', process.env.NEXT_PUBLIC_TMDB_API_KEY);
     this.initialized = true;
+  }
+
+  private async ensureGenreMaps(): Promise<void> {
+    if (movieGenreMap && tvGenreMap) return;
+    if (genreMapsLoading) return genreMapsLoading;
+
+    genreMapsLoading = (async () => {
+      try {
+        const [movieData, tvData] = await Promise.all([
+          this.fetch<{ genres: { id: number; name: string }[] }>('/genre/movie/list?language=en-US'),
+          this.fetch<{ genres: { id: number; name: string }[] }>('/genre/tv/list?language=en-US'),
+        ]);
+        movieGenreMap = new Map((movieData?.genres ?? []).map((g) => [g.id, g.name]));
+        tvGenreMap = new Map((tvData?.genres ?? []).map((g) => [g.id, g.name]));
+      } catch (e) {
+        console.warn('Failed to load TMDB genre lists - genres will be empty:', e);
+        // Fall back to empty maps rather than retrying every single search
+        // result on a persistently failing network/key.
+        movieGenreMap = movieGenreMap ?? new Map();
+        tvGenreMap = tvGenreMap ?? new Map();
+      }
+    })();
+
+    return genreMapsLoading;
   }
 
   private async getKey(): Promise<string> {
@@ -59,10 +94,13 @@ export class TMDBClient {
 
   async searchMovies(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
     console.log('TMDB searchMovies:', query);
-    const data = await this.fetch<{ results: TMDBResult[] }>(
-      `/search/movie?query=${encodeURIComponent(query)}&language=en-US&page=1&include_adult=false`,
-      signal
-    );
+    const [data] = await Promise.all([
+      this.fetch<{ results: TMDBResult[] }>(
+        `/search/movie?query=${encodeURIComponent(query)}&language=en-US&page=1&include_adult=false`,
+        signal
+      ),
+      this.ensureGenreMaps(),
+    ]);
 
     if (!data?.results) return [];
     return data.results.map((item) => this.normalizeMovie(item));
@@ -70,10 +108,13 @@ export class TMDBClient {
 
   async searchTV(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
     console.log('TMDB searchTV:', query);
-    const data = await this.fetch<{ results: TMDBResult[] }>(
-      `/search/tv?query=${encodeURIComponent(query)}&language=en-US&page=1&include_adult=false`,
-      signal
-    );
+    const [data] = await Promise.all([
+      this.fetch<{ results: TMDBResult[] }>(
+        `/search/tv?query=${encodeURIComponent(query)}&language=en-US&page=1&include_adult=false`,
+        signal
+      ),
+      this.ensureGenreMaps(),
+    ]);
 
     if (!data?.results) return [];
     return data.results.map((item) => this.normalizeTV(item));
@@ -100,6 +141,9 @@ export class TMDBClient {
   }
 
   private normalizeMovie(item: TMDBResult): SearchResult {
+    const genres = (item.genre_ids ?? [])
+      .map((id) => movieGenreMap?.get(id))
+      .filter((g): g is string => !!g);
     return {
       title: item.title || 'Unknown',
       type: 'movie',
@@ -107,7 +151,7 @@ export class TMDBClient {
       description: item.overview || null,
       release_year: item.release_date ? parseInt(item.release_date.split('-')[0]) : null,
       api_rating: item.vote_average || null,
-      genres: [],
+      genres,
       total_units: 1,
       external_id: item.id,
       confidence: item.vote_average ? Math.min(item.vote_average / 10, 1) : 0.5,
@@ -115,6 +159,9 @@ export class TMDBClient {
   }
 
   private normalizeTV(item: TMDBResult): SearchResult {
+    const genres = (item.genre_ids ?? [])
+      .map((id) => tvGenreMap?.get(id))
+      .filter((g): g is string => !!g);
     return {
       title: item.name || 'Unknown',
       type: 'tv',
@@ -122,7 +169,7 @@ export class TMDBClient {
       description: item.overview || null,
       release_year: item.first_air_date ? parseInt(item.first_air_date.split('-')[0]) : null,
       api_rating: item.vote_average || null,
-      genres: [],
+      genres,
       total_units: 0,
       external_id: item.id,
       confidence: item.vote_average ? Math.min(item.vote_average / 10, 1) : 0.5,
