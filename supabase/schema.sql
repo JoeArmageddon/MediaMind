@@ -108,7 +108,13 @@ CREATE TABLE media (
   completed_at TIMESTAMPTZ,
   
   -- Constraints
-  CONSTRAINT unique_title_type UNIQUE (normalized_title, type),
+  -- Scoped to (user_id, normalized_title, type), not just (normalized_title,
+  -- type) - the latter was a leftover from before the Phase 2 multi-user
+  -- migration and meant no two different accounts could ever track the same
+  -- title (whoever added it first silently "won" it; every other account's
+  -- insert 23505'd). Fixed live via the scope_media_uniqueness_to_user
+  -- migration - this keeps a fresh deploy from reintroducing it.
+  CONSTRAINT unique_user_title_type UNIQUE (user_id, normalized_title, type),
   CONSTRAINT progress_non_negative CHECK (progress >= 0),
   CONSTRAINT total_units_non_negative CHECK (total_units >= 0),
   CONSTRAINT user_rating_range CHECK (user_rating IS NULL OR (user_rating >= 0 AND user_rating <= 10))
