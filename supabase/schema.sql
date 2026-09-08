@@ -549,3 +549,25 @@ CREATE POLICY "select shared collections" ON smart_collections FOR SELECT
         AND shared_with_id = auth.jwt()->>'sub'
     )
   );
+
+-- Shared collections are genuinely collaborative, not read-only: anyone
+-- the collection is shared with can update it (in practice, the app only
+-- ever uses this to add/remove media_ids entries, but RLS can't cheaply
+-- restrict to just that one column, so this trusts collaborators the same
+-- way being invited to edit a shared doc would - reasonable for a
+-- personal friends app, not a public one).
+CREATE POLICY "collaborators update shared collections" ON smart_collections FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM collection_shares
+      WHERE collection_id = smart_collections.id
+        AND shared_with_id = auth.jwt()->>'sub'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM collection_shares
+      WHERE collection_id = smart_collections.id
+        AND shared_with_id = auth.jwt()->>'sub'
+    )
+  );

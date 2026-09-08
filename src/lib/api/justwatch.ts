@@ -1,19 +1,36 @@
 import type { StreamingPlatform } from '@/types';
 import { fetchWithTimeout } from './http';
+import { supabaseUrl, supabaseAnonKey } from '@/lib/db/supabase';
 
-const JUSTWATCH_BASE_URL = 'https://apis.justwatch.com/graphql';
+// Routed through a Supabase Edge Function (see supabase/functions/
+// justwatch-proxy), same pattern as tmdb.ts - apis.justwatch.com/graphql
+// sends no Access-Control-Allow-Origin header at all on its CORS
+// preflight (confirmed directly), so the browser blocks every direct
+// request to it regardless of query correctness. Server-to-server calls
+// (this function -> JustWatch) aren't subject to CORS.
+const JUSTWATCH_PROXY_URL = `${supabaseUrl}/functions/v1/justwatch-proxy`;
 
-// JustWatch GraphQL queries
+// JustWatch GraphQL queries.
+//
+// This previously used getSearchTitles/searchTitlesFilter and lowercase
+// monetizationType values - JustWatch changed their schema (confirmed by
+// querying it directly: the old query now fails validation outright,
+// meaning "Find streaming" had a 100% failure rate, not an intermittent
+// one). Current shape: searchTitles(filter, source), content/
+// watchNowOffer/offers now each require their own country (+
+// language/platform) arguments, and monetizationType values are
+// UPPERCASE (FLATRATE/RENT/BUY) instead of lowercase.
 const SEARCH_QUERY = `
-  query GetSearchTitles($search: String!, $country: String!) {
-    getSearchTitles(
-      searchTitlesFilter: { searchQuery: $search }
+  query GetSearchTitles($search: String!, $country: Country!, $language: Language!, $platform: Platform!) {
+    searchTitles(
+      filter: { searchQuery: $search }
       country: $country
+      source: "SEARCH_BAR"
       first: 5
     ) {
       edges {
         node {
-          content {
+          content(country: $country, language: $language) {
             title
             fullPath
             originalReleaseYear
@@ -21,7 +38,7 @@ const SEARCH_QUERY = `
               imdbId
             }
           }
-          watchNowOffer {
+          watchNowOffer(country: $country, platform: $platform) {
             standardWebURL
             package {
               clearName
@@ -30,7 +47,7 @@ const SEARCH_QUERY = `
             presentationType
             monetizationType
           }
-          offers {
+          offers(country: $country, platform: $platform) {
             standardWebURL
             package {
               clearName
@@ -52,7 +69,7 @@ export interface JustWatchOffer {
     packageId: number;
   };
   presentationType: string;
-  monetizationType: 'flatrate' | 'rent' | 'buy' | 'free';
+  monetizationType: string;
 }
 
 export interface JustWatchResult {
@@ -77,18 +94,21 @@ export class JustWatchClient {
 
   async search(title: string, year?: number, signal?: AbortSignal): Promise<JustWatchResult | null> {
     try {
-      const response = await fetchWithTimeout(JUSTWATCH_BASE_URL, 15000, 'JustWatch', {
+      const response = await fetchWithTimeout(JUSTWATCH_PROXY_URL, 15000, 'JustWatch', {
         method: 'POST',
         signal,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          Authorization: `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify({
           query: SEARCH_QUERY,
           variables: {
             search: title,
             country: this.country,
+            language: 'en',
+            platform: 'WEB',
           },
         }),
       });
@@ -98,16 +118,19 @@ export class JustWatchClient {
       }
 
       const data = await response.json();
-      const edges = data?.data?.getSearchTitles?.edges || [];
+      if (data?.errors) {
+        throw new Error(`JustWatch GraphQL error: ${data.errors[0]?.message || 'unknown'}`);
+      }
+      const edges = data?.data?.searchTitles?.edges || [];
 
       if (edges.length === 0) return null;
 
       // Find best match
       let bestMatch = edges[0].node;
-      
+
       if (year) {
         const exactMatch = edges.find(
-          (edge: { node: JustWatchResult }) => 
+          (edge: { node: JustWatchResult }) =>
             edge.node.content.originalReleaseYear === year
         );
         if (exactMatch) {
@@ -128,7 +151,7 @@ export class JustWatchClient {
     signal?: AbortSignal
   ): Promise<StreamingPlatform[]> {
     const result = await this.search(title, year, signal);
-    
+
     if (!result) return [];
 
     const platforms = new Map<string, StreamingPlatform>();
@@ -159,13 +182,16 @@ export class JustWatchClient {
   private mapMonetizationType(
     type: string
   ): 'subscription' | 'rent' | 'buy' {
-    switch (type) {
-      case 'flatrate':
-      case 'free':
+    // JustWatch's current schema returns these UPPERCASE (FLATRATE/RENT/
+    // BUY/FREE) - normalize case defensively rather than assume it stays
+    // this way, since it already changed once.
+    switch (type.toUpperCase()) {
+      case 'FLATRATE':
+      case 'FREE':
         return 'subscription';
-      case 'rent':
+      case 'RENT':
         return 'rent';
-      case 'buy':
+      case 'BUY':
         return 'buy';
       default:
         return 'subscription';

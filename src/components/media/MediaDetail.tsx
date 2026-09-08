@@ -32,10 +32,16 @@ const NOTES_DEBOUNCE_MS = 600;
 
 interface MediaDetailProps {
   media: Media;
-  onUpdate: (updates: Partial<Media>) => void;
-  onDelete: () => void;
+  onUpdate?: (updates: Partial<Media>) => void;
+  onDelete?: () => void;
   onClose?: () => void;
   className?: string;
+  // Set when viewing someone else's media (a friend's library, or another
+  // collaborator's item in a shared collection) - RLS would reject any
+  // write anyway, so every mutating control is hidden rather than left to
+  // fail silently. Informational content (description, existing AI
+  // analysis, streaming info, notes) still renders normally.
+  readOnly?: boolean;
 }
 
 export function MediaDetail({
@@ -44,6 +50,7 @@ export function MediaDetail({
   onDelete,
   onClose,
   className,
+  readOnly = false,
 }: MediaDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
@@ -53,6 +60,7 @@ export function MediaDetail({
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const analyzeTone = async () => {
+    if (readOnly) return;
     setIsAnalyzing(true);
     setAnalysisError(null);
     try {
@@ -62,7 +70,7 @@ export function MediaDetail({
         genres: media.genres,
       });
       if (analysis) {
-        onUpdate({
+        onUpdate?.({
           ai_primary_tone: analysis.primary_tone,
           ai_secondary_tone: analysis.secondary_tone,
           ai_core_themes: analysis.core_themes,
@@ -82,6 +90,7 @@ export function MediaDetail({
   };
 
   const findStreaming = async () => {
+    if (readOnly) return;
     setIsFindingStreaming(true);
     setStreamingError(null);
     try {
@@ -92,7 +101,7 @@ export function MediaDetail({
       if (platforms.length === 0) {
         setStreamingError('No streaming availability found for this title in India.');
       } else {
-        onUpdate({ streaming_platforms: platforms });
+        onUpdate?.({ streaming_platforms: platforms });
       }
     } catch (e) {
       setStreamingError(e instanceof Error ? e.message : 'Failed to look up streaming availability.');
@@ -112,20 +121,22 @@ export function MediaDetail({
   }, [media.id, media.notes]);
 
   const scheduleNotesUpdate = (value: string) => {
+    if (readOnly) return;
     setNotesDraft(value);
     if (notesTimer.current) clearTimeout(notesTimer.current);
     notesTimer.current = setTimeout(() => {
-      onUpdate({ notes: value });
+      onUpdate?.({ notes: value });
     }, NOTES_DEBOUNCE_MS);
   };
 
   const flushNotesUpdate = () => {
+    if (readOnly) return;
     if (notesTimer.current) {
       clearTimeout(notesTimer.current);
       notesTimer.current = null;
     }
     if (notesDraft !== (media.notes || '')) {
-      onUpdate({ notes: notesDraft });
+      onUpdate?.({ notes: notesDraft });
     }
   };
 
@@ -136,7 +147,7 @@ export function MediaDetail({
   }, []);
 
   const handleDelete = () => {
-    onDelete();
+    onDelete?.();
     setShowDeleteConfirm(false);
   };
 
@@ -179,32 +190,34 @@ export function MediaDetail({
             )}
 
             {/* Top actions */}
-            <div className="absolute top-3 left-3 flex gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onUpdate({ is_favorite: !media.is_favorite })}
-                className={cn(
-                  'rounded-full bg-black/50 hover:bg-black/70 h-9 w-9',
-                  media.is_favorite && 'bg-pink-500/80'
-                )}
-              >
-                <Heart
+            {!readOnly && (
+              <div className="absolute top-3 left-3 flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onUpdate?.({ is_favorite: !media.is_favorite })}
                   className={cn(
-                    'h-4 w-4 lg:h-5 lg:w-5',
-                    media.is_favorite ? 'fill-white text-white' : 'text-white'
+                    'rounded-full bg-black/50 hover:bg-black/70 h-9 w-9',
+                    media.is_favorite && 'bg-pink-500/80'
                   )}
-                />
-              </Button>
-            </div>
+                >
+                  <Heart
+                    className={cn(
+                      'h-4 w-4 lg:h-5 lg:w-5',
+                      media.is_favorite ? 'fill-white text-white' : 'text-white'
+                    )}
+                  />
+                </Button>
+              </div>
+            )}
 
             {/* Bottom actions - Mobile optimized */}
             <div className="absolute bottom-3 left-3 right-3">
-              {!showDeleteConfirm ? (
+              {readOnly ? null : !showDeleteConfirm ? (
                 <div className="flex gap-2">
                   <Button
                     className="flex-1 bg-violet-600 hover:bg-violet-500 h-10 text-sm"
-                    onClick={() => onUpdate({ status: media.status === 'watching' ? 'completed' : 'watching' })}
+                    onClick={() => onUpdate?.({ status: media.status === 'watching' ? 'completed' : 'watching' })}
                   >
                     <Play className="mr-2 h-4 w-4" />
                     {media.status === 'watching' ? 'Complete' : 'Watch'}
@@ -212,7 +225,7 @@ export function MediaDetail({
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => onUpdate({ is_archived: !media.is_archived })}
+                    onClick={() => onUpdate?.({ is_archived: !media.is_archived })}
                     className="border-white/20 bg-black/50 hover:bg-white/10 h-10 w-10"
                   >
                     <Archive className="h-4 w-4" />
@@ -337,39 +350,56 @@ export function MediaDetail({
                 <div className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-white/70">Status</span>
-                    <StatusSelect
-                      value={media.status}
-                      onChange={(status) => onUpdate({ status })}
-                    />
+                    {readOnly ? (
+                      <Badge variant="secondary" className="bg-white/5 border-white/10 capitalize">
+                        {media.status.replace('_', ' ')}
+                      </Badge>
+                    ) : (
+                      <StatusSelect
+                        value={media.status}
+                        onChange={(status) => onUpdate?.({ status })}
+                      />
+                    )}
                   </div>
 
-                  <ProgressControl
-                    media={media}
-                    onUpdate={(progress) => onUpdate({ progress })}
-                  />
+                  {readOnly ? (
+                    <div className="text-sm text-white/70">
+                      Progress: {media.progress}
+                      {media.total_units > 0 ? ` / ${media.total_units}` : ''}
+                    </div>
+                  ) : (
+                    <ProgressControl
+                      media={media}
+                      onUpdate={(progress) => onUpdate?.({ progress })}
+                    />
+                  )}
                 </div>
 
-                <Button
-                  variant="outline"
-                  className="w-full border-violet-500/30 bg-violet-500/5 h-10 text-sm"
-                  onClick={() => setShowAISuggestions(true)}
-                >
-                  <Sparkles className="mr-2 h-4 w-4 text-violet-400" />
-                  AI Suggestions
-                </Button>
+                {!readOnly && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-violet-500/30 bg-violet-500/5 h-10 text-sm"
+                    onClick={() => setShowAISuggestions(true)}
+                  >
+                    <Sparkles className="mr-2 h-4 w-4 text-violet-400" />
+                    AI Suggestions
+                  </Button>
+                )}
 
                 {/* Thematic Analysis */}
                 {media.ai_primary_tone ? (
                   <div className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-white/40 uppercase tracking-wider">Thematic Analysis</span>
-                      <button
-                        onClick={analyzeTone}
-                        disabled={isAnalyzing}
-                        className="text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-50"
-                      >
-                        {isAnalyzing ? 'Re-analyzing...' : 'Re-analyze'}
-                      </button>
+                      {!readOnly && (
+                        <button
+                          onClick={analyzeTone}
+                          disabled={isAnalyzing}
+                          className="text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-50"
+                        >
+                          {isAnalyzing ? 'Re-analyzing...' : 'Re-analyze'}
+                        </button>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       <Badge variant="secondary" className="bg-white/5 border-white/10 text-xs">
@@ -404,7 +434,7 @@ export function MediaDetail({
                       </div>
                     </div>
                   </div>
-                ) : (
+                ) : !readOnly ? (
                   <Button
                     variant="outline"
                     className="w-full border-white/10 bg-white/5 h-10 text-sm"
@@ -418,7 +448,7 @@ export function MediaDetail({
                     )}
                     Analyze Tone & Themes
                   </Button>
-                )}
+                ) : null}
                 {analysisError && <p className="text-xs text-red-400 text-center">{analysisError}</p>}
               </TabsContent>
 
@@ -463,29 +493,37 @@ export function MediaDetail({
                   <p className="text-xs text-red-400 text-center">{streamingError}</p>
                 )}
 
-                <Button
-                  variant="outline"
-                  className="w-full border-violet-500/30 bg-violet-500/5 h-10 text-sm"
-                  onClick={findStreaming}
-                  disabled={isFindingStreaming}
-                >
-                  {isFindingStreaming ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin text-violet-400" />
-                  ) : (
-                    <Tv2 className="mr-2 h-4 w-4 text-violet-400" />
-                  )}
-                  {media.streaming_platforms?.length > 0 ? 'Refresh streaming info' : 'Find streaming'}
-                </Button>
+                {!readOnly && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-violet-500/30 bg-violet-500/5 h-10 text-sm"
+                    onClick={findStreaming}
+                    disabled={isFindingStreaming}
+                  >
+                    {isFindingStreaming ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-violet-400" />
+                    ) : (
+                      <Tv2 className="mr-2 h-4 w-4 text-violet-400" />
+                    )}
+                    {media.streaming_platforms?.length > 0 ? 'Refresh streaming info' : 'Find streaming'}
+                  </Button>
+                )}
               </TabsContent>
 
               <TabsContent value="notes" className="mt-3">
-                <textarea
-                  className="w-full min-h-[120px] lg:min-h-[150px] rounded-lg bg-white/5 border border-white/10 p-3 text-sm resize-none focus:outline-none focus:border-violet-500/50 text-white"
-                  placeholder="Add your notes..."
-                  value={notesDraft}
-                  onChange={(e) => scheduleNotesUpdate(e.target.value)}
-                  onBlur={flushNotesUpdate}
-                />
+                {readOnly ? (
+                  <p className="w-full min-h-[80px] rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-white/70 whitespace-pre-wrap">
+                    {notesDraft || 'No notes.'}
+                  </p>
+                ) : (
+                  <textarea
+                    className="w-full min-h-[120px] lg:min-h-[150px] rounded-lg bg-white/5 border border-white/10 p-3 text-sm resize-none focus:outline-none focus:border-violet-500/50 text-white"
+                    placeholder="Add your notes..."
+                    value={notesDraft}
+                    onChange={(e) => scheduleNotesUpdate(e.target.value)}
+                    onBlur={flushNotesUpdate}
+                  />
+                )}
               </TabsContent>
             </Tabs>
 

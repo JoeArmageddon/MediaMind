@@ -25,6 +25,8 @@ interface CollectionStore {
   fetchSharesForCollection: (collectionId: string) => Promise<CollectionShareWithProfile[]>;
   shareCollection: (collectionId: string, friendUserId: string) => Promise<{ success: boolean; message: string }>;
   unshareCollection: (shareId: string) => Promise<void>;
+  addMediaToSharedCollection: (collectionId: string, mediaId: string) => Promise<void>;
+  removeMediaFromSharedCollection: (collectionId: string, mediaId: string) => Promise<void>;
 }
 
 // Queues a write for later retry - picked up generically by
@@ -359,6 +361,48 @@ export const useCollectionStore = create<CollectionStore>()(
         } catch (e) {
           console.error('unshareCollection failed:', e);
         }
+      },
+
+      // A shared collection isn't cached in Dexie the way "my" collections
+      // are (see fetchSharedWithMe) - these write straight to Supabase and
+      // patch the in-memory sharedWithMe entry, relying on the
+      // "collaborators update shared collections" RLS policy to allow it.
+      addMediaToSharedCollection: async (collectionId, mediaId) => {
+        const target = get().sharedWithMe.find((c) => c.id === collectionId);
+        if (!target || target.media_ids.includes(mediaId)) return;
+
+        const updatedMediaIds = [...target.media_ids, mediaId];
+        const updated_at = new Date().toISOString();
+        const { error } = await (supabase as any)
+          .from(TABLE)
+          .update({ media_ids: updatedMediaIds, updated_at })
+          .eq('id', collectionId);
+        if (error) throw error;
+
+        set((state) => ({
+          sharedWithMe: state.sharedWithMe.map((c) =>
+            c.id === collectionId ? { ...c, media_ids: updatedMediaIds, updated_at } : c
+          ),
+        }));
+      },
+
+      removeMediaFromSharedCollection: async (collectionId, mediaId) => {
+        const target = get().sharedWithMe.find((c) => c.id === collectionId);
+        if (!target) return;
+
+        const updatedMediaIds = target.media_ids.filter((id) => id !== mediaId);
+        const updated_at = new Date().toISOString();
+        const { error } = await (supabase as any)
+          .from(TABLE)
+          .update({ media_ids: updatedMediaIds, updated_at })
+          .eq('id', collectionId);
+        if (error) throw error;
+
+        set((state) => ({
+          sharedWithMe: state.sharedWithMe.map((c) =>
+            c.id === collectionId ? { ...c, media_ids: updatedMediaIds, updated_at } : c
+          ),
+        }));
       },
     }),
     {
