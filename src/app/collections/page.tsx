@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getAIClient } from '@/lib/ai';
+import { MediaDetail } from '@/components/media/MediaDetail';
 import { useMediaStore } from '@/store/mediaStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useFriendStore } from '@/store/friendStore';
@@ -142,15 +143,21 @@ function AICollectionCard({
   );
 }
 
-function UserCollectionDetail({ 
-  collection, 
-  media 
-}: { 
-  collection: SmartCollection; 
+function UserCollectionDetail({
+  collection,
+  media,
+  onExpandMedia,
+  onAddMedia,
+  onRemoveMedia,
+}: {
+  collection: SmartCollection;
   media: Media[];
+  onExpandMedia: (item: Media, readOnly: boolean) => void;
+  onAddMedia: () => void;
+  onRemoveMedia: (mediaId: string) => void;
 }) {
   const collMedia = media.filter((m) => collection.media_ids.includes(m.id));
-  
+
   return (
     <>
       <DialogHeader>
@@ -166,26 +173,45 @@ function UserCollectionDetail({
           <p className="text-white/60 text-sm leading-relaxed">{collection.description}</p>
         )}
         <div className="space-y-2">
-          <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">Media in collection</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">Media in collection</h4>
+            <button
+              onClick={onAddMedia}
+              className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add
+            </button>
+          </div>
           {collMedia.length > 0 ? (
             collMedia.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10"
+                onClick={() => onExpandMedia(item, false)}
+                className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 cursor-pointer transition-colors"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   {item.poster_url ? (
-                    <img src={item.poster_url} alt={item.title} className="w-10 h-14 object-cover rounded-lg" />
+                    <img src={item.poster_url} alt={item.title} className="w-10 h-14 object-cover rounded-lg shrink-0" />
                   ) : (
-                    <div className="w-10 h-14 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold">
+                    <div className="w-10 h-14 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
                       {item.title[0]}
                     </div>
                   )}
-                  <div>
-                    <span className="text-white font-medium text-sm">{item.title}</span>
+                  <div className="min-w-0">
+                    <span className="text-white font-medium text-sm truncate block">{item.title}</span>
                     <p className="text-xs text-white/40">{getTypeLabel(item.type)}</p>
                   </div>
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveMedia(item.id);
+                  }}
+                  className="p-2 rounded-lg hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             ))
           ) : (
@@ -285,9 +311,20 @@ function SharedCollectionCard({
   );
 }
 
-function SharedCollectionDetail({ collection }: { collection: SharedCollection }) {
+function SharedCollectionDetail({
+  collection,
+  onExpandMedia,
+  onAddMedia,
+  onRemoveMedia,
+}: {
+  collection: SharedCollection;
+  onExpandMedia: (item: Media, readOnly: boolean) => void;
+  onAddMedia: () => void;
+  onRemoveMedia: (mediaId: string) => void;
+}) {
   const [media, setMedia] = useState<Media[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const currentUserId = typeof window !== 'undefined' ? window.Clerk?.user?.id : undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -342,32 +379,58 @@ function SharedCollectionDetail({ collection }: { collection: SharedCollection }
           <p className="text-white/60 text-sm leading-relaxed">{collection.description}</p>
         )}
         <div className="space-y-2">
-          <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">Media in collection</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">Media in collection</h4>
+            <button
+              onClick={onAddMedia}
+              className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add
+            </button>
+          </div>
           {isLoading ? (
             <div className="text-center py-4">
               <Loader2 className="h-5 w-5 text-white/30 mx-auto animate-spin" />
             </div>
           ) : media.length > 0 ? (
-            media.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10"
-              >
-                <div className="flex items-center gap-3">
-                  {item.poster_url ? (
-                    <img src={item.poster_url} alt={item.title} className="w-10 h-14 object-cover rounded-lg" />
-                  ) : (
-                    <div className="w-10 h-14 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold">
-                      {item.title[0]}
+            media.map((item) => {
+              // Any collaborator's write to media itself is blocked by RLS
+              // regardless (only the owning account can edit its own media
+              // row) - only expand into the fully editable MediaDetail when
+              // this item is actually mine.
+              const isMine = (item as unknown as { user_id?: string }).user_id === currentUserId;
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => onExpandMedia(item, !isMine)}
+                  className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {item.poster_url ? (
+                      <img src={item.poster_url} alt={item.title} className="w-10 h-14 object-cover rounded-lg shrink-0" />
+                    ) : (
+                      <div className="w-10 h-14 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
+                        {item.title[0]}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <span className="text-white font-medium text-sm truncate block">{item.title}</span>
+                      <p className="text-xs text-white/40">{getTypeLabel(item.type)}</p>
                     </div>
-                  )}
-                  <div>
-                    <span className="text-white font-medium text-sm">{item.title}</span>
-                    <p className="text-xs text-white/40">{getTypeLabel(item.type)}</p>
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveMedia(item.id);
+                    }}
+                    className="p-2 rounded-lg hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <p className="text-white/40 text-sm text-center py-4">No media in this collection.</p>
           )}
@@ -493,11 +556,107 @@ function ShareCollectionDialog({
   );
 }
 
+function AddMediaPickerDialog({
+  open,
+  onClose,
+  pool,
+  excludeIds,
+  onAdd,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pool: Media[];
+  excludeIds: string[];
+  onAdd: (mediaId: string) => Promise<void> | void;
+}) {
+  const [search, setSearch] = useState('');
+  const [addingId, setAddingId] = useState<string | null>(null);
+
+  const available = pool.filter((m) => !excludeIds.includes(m.id));
+  const filtered = search.trim()
+    ? available.filter((m) => m.title.toLowerCase().includes(search.trim().toLowerCase()))
+    : available;
+
+  const handleAdd = async (mediaId: string) => {
+    setAddingId(mediaId);
+    try {
+      await onAdd(mediaId);
+    } finally {
+      setAddingId(null);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-black text-white">Add Media</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search your library..."
+            className="bg-black border-white/10 rounded-xl h-11"
+          />
+          <div className="max-h-80 overflow-y-auto space-y-2">
+            {filtered.length === 0 ? (
+              <p className="text-white/40 text-sm text-center py-6">
+                {available.length === 0 ? "Everything's already in this collection." : 'No matches.'}
+              </p>
+            ) : (
+              filtered.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {item.poster_url ? (
+                      <img src={item.poster_url} alt={item.title} className="w-9 h-12 object-cover rounded-lg shrink-0" />
+                    ) : (
+                      <div className="w-9 h-12 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
+                        {item.title[0]}
+                      </div>
+                    )}
+                    <span className="text-white text-sm truncate">{item.title}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={addingId === item.id}
+                    onClick={() => handleAdd(item.id)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shrink-0"
+                  >
+                    {addingId === item.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function CollectionsPage() {
   const router = useRouter();
-  const { media } = useMediaStore();
-  const { collections, sharedWithMe, fetchCollections, fetchSharedWithMe, addCollection, deleteCollection } =
-    useCollectionStore();
+  const { media, updateMedia, deleteMedia } = useMediaStore();
+  const {
+    collections,
+    sharedWithMe,
+    fetchCollections,
+    fetchSharedWithMe,
+    addCollection,
+    deleteCollection,
+    addMediaToCollection,
+    removeMediaFromCollection,
+    addMediaToSharedCollection,
+    removeMediaFromSharedCollection,
+  } = useCollectionStore();
 
   // Generated-but-unsaved AI suggestions, persisted to db.aiCollectionDrafts
   // so they survive navigation/reload until explicitly saved or discarded.
@@ -512,6 +671,15 @@ export default function CollectionsPage() {
   const [newCollectionDesc, setNewCollectionDesc] = useState('');
   const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('my');
+
+  // "Expand" a media row from inside a collection's detail view - editable
+  // (readOnly false) for your own collection's items, or when a shared
+  // collection's item happens to be one of yours; read-only otherwise.
+  const [expandedMedia, setExpandedMedia] = useState<{ item: Media; readOnly: boolean } | null>(null);
+  // Which collection an "Add Media" picker is currently targeting, and
+  // whether it's one of mine or one shared with me (they call different
+  // store actions - own collections vs. collaborative shared ones).
+  const [addMediaTarget, setAddMediaTarget] = useState<{ id: string; kind: 'own' | 'shared' } | null>(null);
 
   useEffect(() => {
     fetchCollections();
@@ -606,6 +774,43 @@ export default function CollectionsPage() {
     await discardAICollection(draft.id);
 
     alert(`"${aiCollection.title}" saved!`);
+  };
+
+  const handleAddToOwnCollection = async (mediaId: string) => {
+    if (!addMediaTarget) return;
+    await addMediaToCollection(addMediaTarget.id, mediaId);
+    // Keep the open detail dialog's list in sync without closing it.
+    setSelectedUserCollection((prev) =>
+      prev && prev.id === addMediaTarget.id
+        ? { ...prev, media_ids: [...prev.media_ids, mediaId] }
+        : prev
+    );
+  };
+
+  const handleAddToSharedCollection = async (mediaId: string) => {
+    if (!addMediaTarget) return;
+    await addMediaToSharedCollection(addMediaTarget.id, mediaId);
+    setSelectedSharedCollection((prev) =>
+      prev && prev.id === addMediaTarget.id
+        ? { ...prev, media_ids: [...prev.media_ids, mediaId] }
+        : prev
+    );
+  };
+
+  const handleRemoveFromOwnCollection = async (mediaId: string) => {
+    if (!selectedUserCollection) return;
+    await removeMediaFromCollection(selectedUserCollection.id, mediaId);
+    setSelectedUserCollection((prev) =>
+      prev ? { ...prev, media_ids: prev.media_ids.filter((id) => id !== mediaId) } : prev
+    );
+  };
+
+  const handleRemoveFromSharedCollection = async (mediaId: string) => {
+    if (!selectedSharedCollection) return;
+    await removeMediaFromSharedCollection(selectedSharedCollection.id, mediaId);
+    setSelectedSharedCollection((prev) =>
+      prev ? { ...prev, media_ids: prev.media_ids.filter((id) => id !== mediaId) } : prev
+    );
   };
 
   return (
@@ -792,7 +997,13 @@ export default function CollectionsPage() {
       <Dialog open={!!selectedUserCollection} onOpenChange={() => setSelectedUserCollection(null)}>
         <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
           {selectedUserCollection && (
-            <UserCollectionDetail collection={selectedUserCollection} media={media} />
+            <UserCollectionDetail
+              collection={selectedUserCollection}
+              media={media}
+              onExpandMedia={(item, readOnly) => setExpandedMedia({ item, readOnly })}
+              onAddMedia={() => setAddMediaTarget({ id: selectedUserCollection.id, kind: 'own' })}
+              onRemoveMedia={handleRemoveFromOwnCollection}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -807,7 +1018,14 @@ export default function CollectionsPage() {
 
       <Dialog open={!!selectedSharedCollection} onOpenChange={() => setSelectedSharedCollection(null)}>
         <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
-          {selectedSharedCollection && <SharedCollectionDetail collection={selectedSharedCollection} />}
+          {selectedSharedCollection && (
+            <SharedCollectionDetail
+              collection={selectedSharedCollection}
+              onExpandMedia={(item, readOnly) => setExpandedMedia({ item, readOnly })}
+              onAddMedia={() => setAddMediaTarget({ id: selectedSharedCollection.id, kind: 'shared' })}
+              onRemoveMedia={handleRemoveFromSharedCollection}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -815,6 +1033,46 @@ export default function CollectionsPage() {
         collection={shareDialogCollection}
         onClose={() => setShareDialogCollection(null)}
       />
+
+      <AddMediaPickerDialog
+        open={!!addMediaTarget}
+        onClose={() => setAddMediaTarget(null)}
+        pool={media}
+        excludeIds={
+          addMediaTarget?.kind === 'own'
+            ? selectedUserCollection?.media_ids ?? []
+            : selectedSharedCollection?.media_ids ?? []
+        }
+        onAdd={addMediaTarget?.kind === 'own' ? handleAddToOwnCollection : handleAddToSharedCollection}
+      />
+
+      <Dialog open={!!expandedMedia} onOpenChange={() => setExpandedMedia(null)}>
+        <DialogContent hideCloseButton className="max-w-4xl h-[90vh] lg:h-auto lg:max-h-[90vh] overflow-hidden bg-[#0a0a0a] border-white/10 p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Media Details</DialogTitle>
+          </DialogHeader>
+          {expandedMedia && (
+            <MediaDetail
+              media={expandedMedia.item}
+              readOnly={expandedMedia.readOnly}
+              onUpdate={
+                expandedMedia.readOnly
+                  ? undefined
+                  : (updates) => updateMedia(expandedMedia.item.id, updates)
+              }
+              onDelete={
+                expandedMedia.readOnly
+                  ? undefined
+                  : () => {
+                      deleteMedia(expandedMedia.item.id);
+                      setExpandedMedia(null);
+                    }
+              }
+              onClose={() => setExpandedMedia(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
