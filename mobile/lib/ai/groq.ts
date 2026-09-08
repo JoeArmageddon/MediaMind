@@ -1,5 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { resolveApiKey } from '@/lib/api/apiKey';
+import { resolveApiKey } from '../apiKeys';
 import { buildSmartCollectionsPrompt, SMART_COLLECTIONS_TEMPERATURE } from './collectionPrompt';
 import type {
   AISuggestion,
@@ -9,9 +8,16 @@ import type {
   AIMediaAnalysis,
   AIFallbackClassification,
   Media,
-  History,
+  HistoryEntry,
   StreamingPlatform,
-} from '@/types';
+} from '../types';
+
+// Ported from src/lib/ai/groq.ts, prompts unchanged - but called via plain
+// fetch against Groq's OpenAI-compatible REST endpoint instead of the
+// groq-sdk Node package (the original Phase 3 plan's call: avoids any
+// React Native/Node-API compatibility risk from a Node-targeted SDK, and
+// this is already just JSON-in/JSON-out).
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const SYSTEM_PROMPT = `You are an AI Media Intelligence Engine.
 
@@ -31,62 +37,69 @@ Focus on: Themes, Mood, Genre patterns, Narrative depth, Audience fit, Emotional
 
 If unsure, infer intelligently.`;
 
-export class GeminiClient {
-  private client: GoogleGenerativeAI | null = null;
-  // gemini-2.0-flash-lite was retired ("no longer available to new users");
-  // this is Google's own recommended direct replacement, confirmed working.
-  private model: string = 'gemini-3.5-flash-lite';
+export class GroqClient {
+  // llama-3.3-70b-versatile was decommissioned from Groq's lineup; this is
+  // the closest current equivalent (large, general-purpose, confirmed
+  // working). Note it's a reasoning model - it spends some of its output
+  // budget on hidden chain-of-thought before the actual JSON answer, which
+  // is why generateContent() below uses a larger max_tokens than a
+  // non-reasoning model would need.
+  private model: string = 'openai/gpt-oss-120b';
   private apiKey: string = '';
   private initialized: boolean = false;
 
   async init() {
     if (this.initialized) return;
-    
-    const key = await resolveApiKey('gemini_key', process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-
-    this.apiKey = key;
-    if (key) {
-      this.client = new GoogleGenerativeAI(key);
-    }
-    
+    this.apiKey = await resolveApiKey('groq_key', process.env.EXPO_PUBLIC_GROQ_API_KEY);
     this.initialized = true;
   }
 
   private async generateContent(prompt: string, opts?: { temperature?: number }): Promise<string> {
     await this.init();
 
-    if (!this.client) {
-      throw new Error('Gemini client not initialized - API key missing');
+    if (!this.apiKey) {
+      throw new Error('Groq client not initialized - API key missing');
     }
 
-    try {
-      const model = this.client.getGenerativeModel({ model: this.model });
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + prompt }] }],
-        generationConfig: {
-          temperature: opts?.temperature ?? 0.7,
-          maxOutputTokens: 2000,
-          // Forces raw JSON output instead of relying on prompt instructions
-          // alone - matches Groq's response_format:'json_object' reliability.
-          // parseJSON()'s markdown-fence stripping stays as a fallback for
-          // any older/unsupported model that ignores this.
-          responseMimeType: 'application/json',
-        },
-      });
+    const res = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: prompt },
+        ],
+        temperature: opts?.temperature ?? 0.7,
+        // gpt-oss-120b is a reasoning model - even a trivial prompt used
+        // 70-190 hidden "reasoning" tokens before the actual answer in
+        // testing, and this app's real prompts (multi-item JSON schemas)
+        // need more. 2000 was tight enough to truncate mid-JSON and fail
+        // parsing; this leaves real headroom.
+        max_tokens: 4000,
+        response_format: { type: 'json_object' },
+      }),
+    });
 
-      const response = result.response;
-      return response.text();
-    } catch (error) {
-      console.error('Gemini API error:', error);
-      throw error;
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.error('Groq API error:', res.status, body);
+      throw new Error(`Groq API error (${res.status})`);
     }
+
+    const json = await res.json();
+    return json?.choices?.[0]?.message?.content || '';
   }
 
   private parseJSON<T>(text: string): T {
-    // Try to extract JSON from markdown code blocks
+    // response_format:'json_object' should already guarantee raw JSON, but
+    // strip markdown code fences defensively in case a future model ignores it.
     const codeBlockMatch = text.match(/```(?:json)?\n?([\s\S]*?)```/);
     const cleanText = codeBlockMatch ? codeBlockMatch[1].trim() : text.trim();
-    
+
     try {
       return JSON.parse(cleanText) as T;
     } catch (error) {
@@ -144,13 +157,13 @@ Rules:
     const prompt = `USER MEDIA LIBRARY SUMMARY:
 
 Current Watching:
-${currentWatching.map(m => `- ${m.title} (${m.type})`).join('\n') || 'None'}
+${currentWatching.map((m) => `- ${m.title} (${m.type})`).join('\n') || 'None'}
 
 Planned:
-${planned.map(m => `- ${m.title} (${m.type}) [${m.genres.join(', ')}]`).join('\n') || 'None'}
+${planned.map((m) => `- ${m.title} (${m.type}) [${m.genres.join(', ')}]`).join('\n') || 'None'}
 
 Recently Completed:
-${recentlyCompleted.map(m => `- ${m.title} (${m.type})`).join('\n') || 'None'}
+${recentlyCompleted.map((m) => `- ${m.title} (${m.type})`).join('\n') || 'None'}
 
 Most Watched Genres:
 ${topGenres.join(', ')}
@@ -188,12 +201,9 @@ Rules:
   }
 
   // 3. Burnout Detection
-  async detectBurnout(
-    recentHistory: History[],
-    genreCounts: Record<string, number>
-  ): Promise<AIBurnoutResult> {
+  async detectBurnout(recentHistory: HistoryEntry[], genreCounts: Record<string, number>): Promise<AIBurnoutResult> {
     const prompt = `USER WATCH HISTORY (last 30 items):
-${recentHistory.map(h => `- ${h.action_type}: ${JSON.stringify(h.value)}`).join('\n')}
+${recentHistory.map((h) => `- ${h.action_type}: ${JSON.stringify(h.value)}`).join('\n')}
 
 Genre Distribution:
 ${Object.entries(genreCounts).map(([g, c]) => `- ${g}: ${c}`).join('\n')}
@@ -226,9 +236,7 @@ Return JSON:
   }
 
   // 5. Media Thematic Analysis
-  async analyzeMedia(
-    media: Pick<Media, 'title' | 'description' | 'genres'>
-  ): Promise<AIMediaAnalysis> {
+  async analyzeMedia(media: Pick<Media, 'title' | 'description' | 'genres'>): Promise<AIMediaAnalysis> {
     const prompt = `MEDIA:
 Title: ${media.title}
 Description: ${media.description?.slice(0, 500) || 'N/A'}
@@ -276,9 +284,7 @@ Use "misc" for anything that doesn't fit the other categories.`;
   }
 
   // 7. Streaming Availability Summary
-  async summarizeStreamingData(
-    rawData: string
-  ): Promise<{ available_on: StreamingPlatform[] }> {
+  async summarizeStreamingData(rawData: string): Promise<{ available_on: StreamingPlatform[] }> {
     const prompt = `RAW STREAMING DATA (India):
 ${rawData}
 
@@ -300,13 +306,7 @@ Return JSON:
   }
 
   // 8. Descriptive Tag Suggestions
-  // Genres (Action, Drama, ...) already come from the source API (TMDB/
-  // Jikan/RAWG/etc) - these tags are meant to be a different, complementary
-  // axis: mood, setting, narrative device, audience - short enough to work
-  // as filter chips, not a restatement of the genre list.
-  async suggestTags(
-    media: Pick<Media, 'title' | 'type' | 'description' | 'genres'>
-  ): Promise<string[]> {
+  async suggestTags(media: Pick<Media, 'title' | 'type' | 'description' | 'genres'>): Promise<string[]> {
     const prompt = `MEDIA:
 Title: ${media.title}
 Type: ${media.type}
@@ -331,7 +331,4 @@ Return JSON:
   }
 }
 
-// Factory
-export const createGeminiClient = () => {
-  return new GeminiClient();
-};
+export const createGroqClient = () => new GroqClient();

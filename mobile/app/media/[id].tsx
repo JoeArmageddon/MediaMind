@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMediaStore } from '../../store/mediaStore';
+import { getAIClient } from '../../lib/ai';
 import { useTheme } from '../../lib/ThemeContext';
 import type { ThemePalette } from '../../lib/theme';
 import type { MediaStatus } from '../../lib/types';
@@ -41,6 +42,8 @@ export default function MediaDetailScreen() {
   const [notes, setNotes] = useState(item?.notes ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   if (!item) {
     return (
@@ -78,6 +81,35 @@ export default function MediaDetailScreen() {
       Alert.alert('Failed to save', e?.message || 'Something went wrong.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const analyzeTone = async () => {
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    try {
+      const analysis = await getAIClient().analyzeMedia({
+        title: item.title,
+        description: item.description,
+        genres: item.genres,
+      });
+      if (analysis) {
+        await updateMedia(item.id, {
+          ai_primary_tone: analysis.primary_tone,
+          ai_secondary_tone: analysis.secondary_tone,
+          ai_core_themes: analysis.core_themes,
+          ai_emotional_intensity: analysis.emotional_intensity,
+          ai_pacing: analysis.pacing,
+          ai_darkness_level: analysis.darkness_level,
+          ai_intellectual_depth: analysis.intellectual_depth,
+        });
+      } else {
+        setAnalysisError('Analysis is unavailable right now - check that a Groq or Gemini API key is set in Settings.');
+      }
+    } catch (e: any) {
+      setAnalysisError(e?.message || 'Failed to analyze this title.');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -144,6 +176,60 @@ export default function MediaDetailScreen() {
 
       {item.description && <Text style={styles.description}>{item.description}</Text>}
 
+      <Text style={styles.sectionLabel}>AI Analysis</Text>
+      {item.ai_primary_tone ? (
+        <View style={styles.analysisBox}>
+          <View style={styles.chipRow}>
+            <View style={[styles.chip, styles.toneChip]}>
+              <Text style={styles.toneChipText}>{item.ai_primary_tone}</Text>
+            </View>
+            {item.ai_secondary_tone && (
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>{item.ai_secondary_tone}</Text>
+              </View>
+            )}
+            {item.ai_pacing && (
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>{item.ai_pacing} pacing</Text>
+              </View>
+            )}
+          </View>
+          {item.ai_core_themes.length > 0 && (
+            <Text style={styles.analysisThemes}>{item.ai_core_themes.join(' · ')}</Text>
+          )}
+          <View style={styles.metricRow}>
+            {item.ai_emotional_intensity != null && (
+              <AnalysisMeter label="Emotional intensity" value={item.ai_emotional_intensity} theme={theme} />
+            )}
+            {item.ai_darkness_level != null && (
+              <AnalysisMeter label="Darkness" value={item.ai_darkness_level} theme={theme} />
+            )}
+            {item.ai_intellectual_depth != null && (
+              <AnalysisMeter label="Intellectual depth" value={item.ai_intellectual_depth} theme={theme} />
+            )}
+          </View>
+          <Pressable style={styles.reanalyzeButton} onPress={analyzeTone} disabled={isAnalyzing}>
+            {isAnalyzing ? (
+              <ActivityIndicator size="small" color={theme.textMuted} />
+            ) : (
+              <Text style={styles.reanalyzeButtonText}>Re-analyze</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable style={styles.analyzeButton} onPress={analyzeTone} disabled={isAnalyzing}>
+          {isAnalyzing ? (
+            <ActivityIndicator color={theme.primaryText} />
+          ) : (
+            <>
+              <Ionicons name="sparkles" size={16} color={theme.primaryText} />
+              <Text style={styles.analyzeButtonText}>Analyze Tone &amp; Themes</Text>
+            </>
+          )}
+        </Pressable>
+      )}
+      {analysisError && <Text style={styles.analysisErrorText}>{analysisError}</Text>}
+
       <Text style={styles.sectionLabel}>Status</Text>
       <View style={styles.statusRow}>
         {STATUS_OPTIONS.map((opt) => (
@@ -191,6 +277,30 @@ export default function MediaDetailScreen() {
         )}
       </Pressable>
     </ScrollView>
+  );
+}
+
+// A single 0-100 metric as a labeled bar - used for the AI analysis's
+// emotional intensity / darkness / intellectual depth scores.
+function AnalysisMeter({ label, value, theme }: { label: string; value: number; theme: ThemePalette }) {
+  const clamped = Math.max(0, Math.min(100, value));
+  return (
+    <View style={{ marginBottom: 8 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+        <Text style={{ color: theme.textMuted, fontSize: 10 }}>{label}</Text>
+        <Text style={{ color: theme.textFaint, fontSize: 10 }}>{Math.round(clamped)}</Text>
+      </View>
+      <View
+        style={{
+          height: 5,
+          borderRadius: 3,
+          backgroundColor: theme.isManga ? 'rgba(22,19,17,0.1)' : 'rgba(255,255,255,0.08)',
+          overflow: 'hidden',
+        }}
+      >
+        <View style={{ width: `${clamped}%`, height: '100%', backgroundColor: theme.primary, borderRadius: 3 }} />
+      </View>
+    </View>
   );
 }
 
@@ -337,6 +447,60 @@ function makeStyles(theme: ThemePalette) {
       color: theme.danger,
       fontSize: 13,
       fontWeight: '600',
+    },
+    analyzeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: theme.isManga ? theme.primary : theme.accent,
+      borderRadius: 12,
+      paddingVertical: 13,
+    },
+    analyzeButtonText: {
+      color: theme.primaryText,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    analysisBox: {
+      backgroundColor: theme.card,
+      borderWidth: theme.borderWidth,
+      borderColor: theme.cardBorder,
+      borderRadius: 14,
+      padding: 14,
+    },
+    toneChip: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    toneChipText: {
+      color: theme.primaryText,
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'capitalize',
+    },
+    analysisThemes: {
+      color: theme.textMuted,
+      fontSize: 12,
+      marginTop: 10,
+      fontStyle: 'italic',
+    },
+    metricRow: {
+      marginTop: 14,
+    },
+    reanalyzeButton: {
+      marginTop: 6,
+      alignSelf: 'flex-start',
+    },
+    reanalyzeButtonText: {
+      color: theme.textFaint,
+      fontSize: 11,
+      textDecorationLine: 'underline',
+    },
+    analysisErrorText: {
+      color: theme.danger,
+      fontSize: 12,
+      marginTop: 8,
     },
   });
 }

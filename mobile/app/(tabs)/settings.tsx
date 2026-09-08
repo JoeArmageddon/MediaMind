@@ -13,11 +13,16 @@ export default function SettingsScreen() {
 
   const [tmdbKey, setTmdbKey] = useState('');
   const [rawgKey, setRawgKey] = useState('');
+  const [groqKey, setGroqKey] = useState('');
+  const [geminiKey, setGeminiKey] = useState('');
   const [saved, setSaved] = useState(false);
+  const [aiSaved, setAiSaved] = useState(false);
 
   useEffect(() => {
     getStoredApiKey('tmdb_key').then(setTmdbKey);
     getStoredApiKey('rawg_key').then(setRawgKey);
+    getStoredApiKey('groq_key').then(setGroqKey);
+    getStoredApiKey('gemini_key').then(setGeminiKey);
   }, []);
 
   const handleSaveKeys = async () => {
@@ -25,6 +30,13 @@ export default function SettingsScreen() {
     await saveApiKey('rawg_key', rawgKey);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleSaveAIKeys = async () => {
+    await saveApiKey('groq_key', groqKey);
+    await saveApiKey('gemini_key', geminiKey);
+    setAiSaved(true);
+    setTimeout(() => setAiSaved(false), 2000);
   };
 
   const handleSignOut = () => {
@@ -88,6 +100,39 @@ export default function SettingsScreen() {
 
         <Pressable style={styles.saveButton} onPress={handleSaveKeys}>
           <Text style={styles.saveButtonText}>{saved ? 'Saved' : 'Save Keys'}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardLabel}>AI (Groq / Gemini)</Text>
+        <Text style={styles.cardHint}>
+          Powers recommendations, burnout check, AI collections, and title analysis. A bundled Gemini
+          key is included by default - add your own for higher rate limits, or a Groq key (used first
+          when set) for faster responses.
+        </Text>
+
+        <Text style={styles.fieldLabel}>Groq API Key</Text>
+        <TextInput
+          style={styles.input}
+          value={groqKey}
+          onChangeText={setGroqKey}
+          placeholder="Optional - no bundled default"
+          placeholderTextColor={theme.textFaint}
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.fieldLabel}>Gemini API Key</Text>
+        <TextInput
+          style={styles.input}
+          value={geminiKey}
+          onChangeText={setGeminiKey}
+          placeholder="Leave blank to use the default"
+          placeholderTextColor={theme.textFaint}
+          autoCapitalize="none"
+        />
+
+        <Pressable style={styles.saveButton} onPress={handleSaveAIKeys}>
+          <Text style={styles.saveButtonText}>{aiSaved ? 'Saved' : 'Save AI Keys'}</Text>
         </Pressable>
       </View>
     </ScrollView>

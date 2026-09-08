@@ -1,5 +1,6 @@
 import Groq from 'groq-sdk';
 import { resolveApiKey } from '@/lib/api/apiKey';
+import { buildSmartCollectionsPrompt, SMART_COLLECTIONS_TEMPERATURE } from './collectionPrompt';
 import type {
   AISuggestion,
   AIRecommendation,
@@ -58,13 +59,13 @@ export class GroqClient {
     this.initialized = true;
   }
 
-  private async generateContent(prompt: string): Promise<string> {
+  private async generateContent(prompt: string, opts?: { temperature?: number }): Promise<string> {
     await this.init();
-    
+
     if (!this.client) {
       throw new Error('Groq client not initialized - API key missing');
     }
-    
+
     try {
       const response = await this.client.chat.completions.create({
         model: this.model,
@@ -72,7 +73,7 @@ export class GroqClient {
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: prompt },
         ],
-        temperature: 0.7,
+        temperature: opts?.temperature ?? 0.7,
         // gpt-oss-120b is a reasoning model - even a trivial prompt used
         // 70-190 hidden "reasoning" tokens before the actual answer in
         // testing, and this app's real prompts (multi-item JSON schemas)
@@ -224,31 +225,11 @@ Return JSON:
 
   // 4. Smart Collection Generator
   async generateSmartCollections(
-    allMedia: Pick<Media, 'title' | 'type' | 'genres' | 'ai_primary_tone'>[]
+    allMedia: Pick<Media, 'title' | 'type' | 'genres' | 'ai_primary_tone'>[],
+    avoidTitles: string[] = []
   ): Promise<AISmartCollection[]> {
-    const prompt = `USER FULL LIBRARY DATA:
-${allMedia.map(m => `- ${m.title} (${m.type}) [${m.genres.join(', ')}]${m.ai_primary_tone ? ` Tone: ${m.ai_primary_tone}` : ''}`).join('\n')}
-
-TASK:
-Create 3 intelligent thematic collections.
-
-Return JSON:
-{
-  "collections": [
-    {
-      "title": "",
-      "description": "",
-      "media_titles": []
-    }
-  ]
-}
-
-Rules:
-- Titles must feel premium and cinematic.
-- Group by theme or narrative energy.
-- Avoid generic labels like "Action Stuff".`;
-
-    const response = await this.generateContent(prompt);
+    const prompt = buildSmartCollectionsPrompt(allMedia, avoidTitles);
+    const response = await this.generateContent(prompt, { temperature: SMART_COLLECTIONS_TEMPERATURE });
     const data = this.parseJSON<{ collections: AISmartCollection[] }>(response);
     return data.collections;
   }

@@ -6,20 +6,16 @@ import {
   FlatList,
   Pressable,
   TextInput,
-  Modal,
-  ScrollView,
   RefreshControl,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useFriendStore } from '../../store/friendStore';
-import { useMediaStore } from '../../store/mediaStore';
 import { MediaCard } from '../../components/MediaCard';
+import { ReadOnlyMediaSheet } from '../../components/ReadOnlyMediaSheet';
 import { useTheme } from '../../lib/ThemeContext';
 import type { ThemePalette } from '../../lib/theme';
 import type { Media } from '../../lib/types';
@@ -30,12 +26,10 @@ import type { Media } from '../../lib/types';
 // accepted friendship exists between the caller and this user_id, so an
 // unfriended/revoked id just comes back empty rather than erroring.
 export default function FriendLibraryScreen() {
-  const insets = useSafeAreaInsets();
   const { friendId } = useLocalSearchParams<{ friendId: string }>();
   const { theme } = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { friends, fetchFriends } = useFriendStore();
-  const { media: myMedia, fetchMedia, addMedia } = useMediaStore();
 
   const [media, setMedia] = useState<Media[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,89 +37,14 @@ export default function FriendLibraryScreen() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Media | null>(null);
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const [justAddedIds, setJustAddedIds] = useState<Set<string>>(new Set());
   const cancelledRef = useRef(false);
-
-  // Title+type match against your own already-fetched library - the same
-  // check search.tsx relies on before hitting the (now correctly
-  // per-user-scoped) unique constraint, so this can show "In Your Library"
-  // up front instead of only after a failed add attempt.
-  const alreadyMine = useCallback(
-    (item: Media) =>
-      myMedia.some(
-        (m) => m.type === item.type && m.title.trim().toLowerCase() === item.title.trim().toLowerCase()
-      ),
-    [myMedia]
-  );
-
-  const handleAddToMyLibrary = async (item: Media) => {
-    setAddingId(item.id);
-    try {
-      await addMedia({
-        title: item.title,
-        type: item.type,
-        poster_url: item.poster_url,
-        backdrop_url: item.backdrop_url,
-        description: item.description,
-        release_year: item.release_year,
-        api_rating: item.api_rating,
-        genres: item.genres,
-        tags: item.tags,
-        studios: item.studios,
-        total_units: item.total_units,
-        // Personal tracking state resets - you're starting fresh, not
-        // inheriting your friend's progress/status/rating/notes.
-        progress: 0,
-        completion_percent: 0,
-        status: 'planned',
-        is_favorite: false,
-        is_archived: false,
-        notes: null,
-        user_rating: null,
-        completed_at: null,
-        // Factual/content fields (where to stream it, AI content analysis,
-        // external ids) describe the title itself, not your relationship
-        // to it - worth carrying over so it doesn't need re-resolving.
-        streaming_platforms: item.streaming_platforms,
-        ai_primary_tone: item.ai_primary_tone,
-        ai_secondary_tone: item.ai_secondary_tone,
-        ai_core_themes: item.ai_core_themes,
-        ai_emotional_intensity: item.ai_emotional_intensity,
-        ai_pacing: item.ai_pacing,
-        ai_darkness_level: item.ai_darkness_level,
-        ai_intellectual_depth: item.ai_intellectual_depth,
-        tmdb_id: item.tmdb_id,
-        mal_id: item.mal_id,
-        rawg_id: item.rawg_id,
-        google_books_id: item.google_books_id,
-      });
-      setJustAddedIds((prev) => new Set(prev).add(item.id));
-    } catch (e: any) {
-      // 23505 = already have this title+type in your own library (the
-      // unique constraint is per-user - see supabase/schema.sql) - treat
-      // that as success rather than an error, since the end state (it's in
-      // your library) is exactly what "add" was trying to achieve.
-      if (e?.code === '23505') {
-        setJustAddedIds((prev) => new Set(prev).add(item.id));
-      } else {
-        Alert.alert('Failed to add', e?.message || 'Something went wrong.');
-      }
-    } finally {
-      setAddingId(null);
-    }
-  };
 
   // The friends list is usually already loaded from the Friends tab, but a
   // direct navigation here could land with an empty store - load it either
   // way rather than assuming.
   useEffect(() => {
     fetchFriends();
-    // Needed for the "In Your Library" / already-added check below - this
-    // screen can be reached without ever visiting the dashboard/library
-    // first, which is normally what populates it.
-    fetchMedia();
-  }, [fetchFriends, fetchMedia]);
+  }, [fetchFriends]);
 
   const friendship = useMemo(
     () => friends.find((f) => f.otherUser?.id === friendId),
@@ -263,86 +182,7 @@ export default function FriendLibraryScreen() {
         />
       )}
 
-      <Modal
-        visible={!!selected}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setSelected(null)}
-      >
-        {selected && (
-          <ScrollView
-            style={{ backgroundColor: theme.bg }}
-            contentContainerStyle={[styles.sheetContent, { paddingTop: insets.top + 16 }]}
-          >
-            <Pressable style={styles.sheetClose} onPress={() => setSelected(null)}>
-              <Ionicons name="close" size={20} color={theme.text} />
-            </Pressable>
-            <View style={styles.sheetHeader}>
-              {selected.poster_url ? (
-                <Image source={{ uri: selected.poster_url }} style={styles.sheetPoster} />
-              ) : (
-                <View style={[styles.sheetPoster, styles.avatarFallback]}>
-                  <Text style={{ color: theme.textFaint, fontSize: 36, fontWeight: '900' }}>
-                    {selected.title.charAt(0)}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.sheetHeaderInfo}>
-                <Text style={styles.sheetTitle}>{selected.title}</Text>
-                {selected.release_year != null && <Text style={styles.sheetMeta}>{selected.release_year}</Text>}
-                <Text style={styles.sheetMeta}>{selected.type.toUpperCase()}</Text>
-                <View style={styles.sheetStatusBadge}>
-                  <Text style={styles.sheetStatusBadgeText}>{selected.status.replace('_', ' ')}</Text>
-                </View>
-              </View>
-            </View>
-
-            {selected.genres.length > 0 && (
-              <View style={styles.chipRow}>
-                {selected.genres.map((g) => (
-                  <View key={g} style={styles.chip}>
-                    <Text style={styles.chipText}>{g}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {selected.description && <Text style={styles.sheetDescription}>{selected.description}</Text>}
-
-            {selected.total_units > 0 && (
-              <Text style={styles.sheetProgress}>
-                Progress: {selected.progress} / {selected.total_units}
-              </Text>
-            )}
-
-            {(() => {
-              const inMine = justAddedIds.has(selected.id) || alreadyMine(selected);
-              return (
-                <Pressable
-                  style={[styles.addToMineButton, inMine && styles.addToMineButtonDone]}
-                  onPress={() => !inMine && handleAddToMyLibrary(selected)}
-                  disabled={inMine || addingId === selected.id}
-                >
-                  {addingId === selected.id ? (
-                    <ActivityIndicator color={theme.primaryText} />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name={inMine ? 'checkmark' : 'add'}
-                        size={16}
-                        color={theme.primaryText}
-                      />
-                      <Text style={styles.addToMineButtonText}>
-                        {inMine ? 'In Your Library' : 'Add to My Library'}
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
-              );
-            })()}
-          </ScrollView>
-        )}
-      </Modal>
+      <ReadOnlyMediaSheet media={selected} onClose={() => setSelected(null)} />
     </View>
   );
 }
@@ -429,106 +269,6 @@ function makeStyles(theme: ThemePalette) {
     },
     cell: {
       width: '31%',
-    },
-    sheetContent: {
-      padding: 20,
-      paddingBottom: 40,
-    },
-    sheetClose: {
-      alignSelf: 'flex-end',
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: theme.card,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 8,
-    },
-    sheetHeader: {
-      flexDirection: 'row',
-      gap: 14,
-    },
-    sheetPoster: {
-      width: 100,
-      height: 142,
-      borderRadius: 14,
-    },
-    sheetHeaderInfo: {
-      flex: 1,
-      justifyContent: 'center',
-      gap: 4,
-    },
-    sheetTitle: {
-      color: theme.text,
-      fontSize: 19,
-      fontWeight: '800',
-    },
-    sheetMeta: {
-      color: theme.textMuted,
-      fontSize: 12,
-    },
-    sheetStatusBadge: {
-      alignSelf: 'flex-start',
-      backgroundColor: theme.primary,
-      borderRadius: 999,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      marginTop: 8,
-    },
-    sheetStatusBadgeText: {
-      color: theme.primaryText,
-      fontSize: 10,
-      fontWeight: '800',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    chipRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 6,
-      marginTop: 16,
-    },
-    chip: {
-      backgroundColor: theme.card,
-      borderWidth: theme.borderWidth,
-      borderColor: theme.cardBorder,
-      borderRadius: 999,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-    },
-    chipText: {
-      color: theme.textMuted,
-      fontSize: 11,
-    },
-    sheetDescription: {
-      color: theme.textMuted,
-      fontSize: 13,
-      lineHeight: 19,
-      marginTop: 14,
-    },
-    sheetProgress: {
-      color: theme.text,
-      fontSize: 13,
-      fontWeight: '600',
-      marginTop: 16,
-    },
-    addToMineButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      marginTop: 20,
-      backgroundColor: theme.primary,
-      borderRadius: 12,
-      paddingVertical: 14,
-    },
-    addToMineButtonDone: {
-      backgroundColor: theme.success,
-    },
-    addToMineButtonText: {
-      color: theme.primaryText,
-      fontSize: 14,
-      fontWeight: '700',
     },
   });
 }

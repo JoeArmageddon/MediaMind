@@ -1,13 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  Image,
-  StyleSheet,
-  Alert,
-} from 'react-native';
+import { View, Text, ScrollView, Pressable, Image, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -69,18 +61,6 @@ export default function DashboardScreen() {
     [media]
   );
 
-  const handleDiscover = () => {
-    if (media.length === 0) {
-      Alert.alert('Nothing to discover yet', 'Add a few titles to your library first.');
-      return;
-    }
-    const pick = media[Math.floor(Math.random() * media.length)];
-    router.push(`/media/${pick.id}`);
-  };
-
-  const handleAIComingSoon = () => {
-    Alert.alert('Coming soon', 'AI collections and recommendations are on the way for the app.');
-  };
 
   const CardGlass = ({ children, style }: { children: React.ReactNode; style?: object }) =>
     theme.isManga ? (
@@ -204,10 +184,10 @@ export default function DashboardScreen() {
         </View>
       </Pressable>
 
-      {/* Bento row: AI Collections + Add */}
+      {/* Bento row: Collections + Add */}
       <View style={styles.bentoRow}>
         <Pressable
-          onPress={handleAIComingSoon}
+          onPress={() => router.push('/collections')}
           style={({ pressed }) => [styles.aiCardOuter, pressed && styles.pressedCard]}
         >
           <LinearGradient
@@ -216,8 +196,8 @@ export default function DashboardScreen() {
           >
             {theme.isManga && <MangaHatch color={theme.primary} opacity={0.18} spacing={6} />}
             <Ionicons name="sparkles" size={20} color={theme.isManga ? theme.primary : theme.accent} />
-            <Text style={styles.aiCardTitle}>AI{'\n'}COLLECTIONS</Text>
-            <Text style={styles.aiCardSub}>SMART GROUPING</Text>
+            <Text style={styles.aiCardTitle}>COLLECTIONS</Text>
+            <Text style={styles.aiCardSub}>MANUAL + SHARED</Text>
           </LinearGradient>
         </Pressable>
         <Pressable
@@ -233,7 +213,7 @@ export default function DashboardScreen() {
       <CardGlass style={styles.rowCard}>
         <Pressable
           style={({ pressed }) => [styles.rowCardPressable, pressed && styles.pressedRow]}
-          onPress={handleDiscover}
+          onPress={() => router.push('/discover')}
         >
           <View style={[styles.rowCardStripe, { backgroundColor: theme.primary }]} />
           <View style={styles.rowCardIcon}>
@@ -241,7 +221,7 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.rowCardText}>
             <Text style={styles.rowCardTitle}>DISCOVER</Text>
-            <Text style={styles.rowCardSub}>RANDOM PICK FROM YOUR LIBRARY</Text>
+            <Text style={styles.rowCardSub}>RANDOM PICK OR AI RECOMMENDATIONS</Text>
           </View>
           <Ionicons name="arrow-forward" size={16} color={theme.textMuted} />
         </Pressable>

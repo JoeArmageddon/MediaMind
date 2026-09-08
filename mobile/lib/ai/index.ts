@@ -9,47 +9,37 @@ import type {
   AIMediaAnalysis,
   AIFallbackClassification,
   Media,
-  History,
+  HistoryEntry,
   StreamingPlatform,
-} from '@/types';
+} from '../types';
 
-// Unified AI Client with Groq as primary
+// Ported from src/lib/ai/index.ts - same Groq-primary/Gemini-fallback
+// logic. The web version's "AI disabled: offline mode" pre-check
+// (navigator.onLine) doesn't have a direct RN equivalent without adding
+// @react-native-community/netinfo (not installed - Chunk A explicitly
+// deferred full offline handling); dropped here rather than added as a
+// half-measure - a genuinely offline device just fails the fetch itself
+// and callWithFallback below handles that the same way it handles any
+// other AI request failure.
 export class AIClient {
   private primary: GroqClient | null = null;
   private fallback: GeminiClient | null = null;
-  private primaryType: 'gemini' | 'groq' = 'groq';
 
   constructor() {
-    // Try Groq first (primary)
     try {
       this.primary = createGroqClient();
-      this.primaryType = 'groq';
-      console.log('✓ Groq AI initialized (primary)');
-    } catch (error) {
-      console.warn('Groq not configured, will try Gemini as primary');
+    } catch {
       this.primary = null;
     }
 
-    // Try Gemini as fallback (or primary if Groq failed)
     try {
       this.fallback = createGeminiClient();
-      console.log('✓ Gemini AI initialized (fallback)');
-      
-      // If Groq failed, use Gemini as primary
       if (!this.primary) {
         this.primary = this.fallback as unknown as GroqClient;
-        this.primaryType = 'gemini';
         this.fallback = null;
-        console.log('Using Gemini as primary AI');
       }
-    } catch (error) {
-      console.warn('Gemini not configured');
+    } catch {
       this.fallback = null;
-      
-      // If both failed, we have no AI
-      if (!this.primary) {
-        console.error('No AI service configured. Please add GROQ_API_KEY or GEMINI_API_KEY to .env.local');
-      }
     }
   }
 
@@ -58,31 +48,21 @@ export class AIClient {
     fallbackFn: () => Promise<T>,
     featureName: string
   ): Promise<T | null> {
-    // Check if AI is enabled (online only)
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('AI disabled: offline mode');
-      return null;
-    }
-
-    // Check if any AI is available
     if (!this.primary && !this.fallback) {
       console.warn('No AI service available');
       return null;
     }
 
-    // Try primary
     if (this.primary) {
       try {
         return await primaryFn();
       } catch (error: any) {
-        // Check if it's a rate limit error
         if (error?.message?.includes('429') || error?.message?.includes('quota')) {
           console.warn(`${featureName} rate limited, trying fallback...`);
         } else {
           console.warn(`${featureName} primary failed:`, error?.message || error);
         }
-        
-        // Try fallback if available
+
         if (this.fallback) {
           try {
             return await fallbackFn();
@@ -95,7 +75,6 @@ export class AIClient {
       }
     }
 
-    // No primary, try fallback directly
     if (this.fallback) {
       try {
         return await fallbackFn();
@@ -113,8 +92,6 @@ export class AIClient {
     media: Pick<Media, 'title' | 'type' | 'genres' | 'description' | 'release_year'>
   ): Promise<AISuggestion[] | null> {
     if (!this.primary) return null;
-    // Cached by title+type: stable input, and worth sharing across devices
-    // (aiStore's Map cache is per-browser and cleared on reload).
     return withAICache('getSuggestions', `${media.type}:${media.title}`, AI_CACHE_TTL.THIRTY_DAYS, () =>
       this.callWithFallback(
         () => this.primary!.getSuggestions(media),
@@ -135,29 +112,15 @@ export class AIClient {
   ): Promise<AIRecommendation[] | null> {
     if (!this.primary) return null;
     return this.callWithFallback(
-      () => this.primary!.getRecommendations(
-        currentWatching,
-        planned,
-        recentlyCompleted,
-        topGenres,
-        mood,
-        minutes
-      ),
-      () => this.fallback!.getRecommendations(
-        currentWatching,
-        planned,
-        recentlyCompleted,
-        topGenres,
-        mood,
-        minutes
-      ),
+      () => this.primary!.getRecommendations(currentWatching, planned, recentlyCompleted, topGenres, mood, minutes),
+      () => this.fallback!.getRecommendations(currentWatching, planned, recentlyCompleted, topGenres, mood, minutes),
       'getRecommendations'
     );
   }
 
   // 3. Burnout Detection
   async detectBurnout(
-    recentHistory: History[],
+    recentHistory: HistoryEntry[],
     genreCounts: Record<string, number>
   ): Promise<AIBurnoutResult | null> {
     if (!this.primary) return null;
@@ -182,13 +145,8 @@ export class AIClient {
   }
 
   // 5. Media Thematic Analysis
-  async analyzeMedia(
-    media: Pick<Media, 'title' | 'description' | 'genres'>
-  ): Promise<AIMediaAnalysis | null> {
+  async analyzeMedia(media: Pick<Media, 'title' | 'description' | 'genres'>): Promise<AIMediaAnalysis | null> {
     if (!this.primary) return null;
-    // Cached by title: this analysis only depends on stable metadata, so a
-    // second lookup for the same title (even from a different device/entry)
-    // shouldn't cost another Groq/Gemini call.
     return withAICache('analyzeMedia', media.title, AI_CACHE_TTL.THIRTY_DAYS, () =>
       this.callWithFallback(
         () => this.primary!.analyzeMedia(media),
@@ -211,9 +169,7 @@ export class AIClient {
   }
 
   // 7. Streaming Availability Summary
-  async summarizeStreamingData(
-    rawData: string
-  ): Promise<{ available_on: StreamingPlatform[] } | null> {
+  async summarizeStreamingData(rawData: string): Promise<{ available_on: StreamingPlatform[] } | null> {
     if (!this.primary) return null;
     return this.callWithFallback(
       () => this.primary!.summarizeStreamingData(rawData),
@@ -223,11 +179,8 @@ export class AIClient {
   }
 
   // 8. Descriptive Tag Suggestions
-  async suggestTags(
-    media: Pick<Media, 'title' | 'type' | 'description' | 'genres'>
-  ): Promise<string[] | null> {
+  async suggestTags(media: Pick<Media, 'title' | 'type' | 'description' | 'genres'>): Promise<string[] | null> {
     if (!this.primary) return null;
-    // Cached by type+title: same stable-input reasoning as analyzeMedia.
     return withAICache('suggestTags', `${media.type}:${media.title}`, AI_CACHE_TTL.THIRTY_DAYS, () =>
       this.callWithFallback(
         () => this.primary!.suggestTags(media),
@@ -237,13 +190,10 @@ export class AIClient {
     );
   }
 
-  // Check if AI is available
   isAvailable(): boolean {
     return this.primary !== null;
   }
 }
 
-// Create fresh AI client each time to pick up new keys from localStorage
-export const getAIClient = (): AIClient => {
-  return new AIClient();
-};
+// Create fresh AI client each time to pick up new keys from SecureStore.
+export const getAIClient = (): AIClient => new AIClient();

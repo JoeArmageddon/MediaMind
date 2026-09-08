@@ -696,13 +696,19 @@ export default function CollectionsPage() {
     setIsGenerating(true);
     try {
       const ai = getAIClient();
+      // Existing saved collections plus whatever drafts are still on
+      // screen from a previous generate (about to be cleared below) - both
+      // count as "already have this", so a re-generate doesn't just
+      // reproduce the same groupings under a slightly different title.
+      const avoidTitles = [...collections.map((c) => c.title), ...aiCollections.map((d) => d.data.title)];
       const newCollections = await ai.generateSmartCollections(
         media.map((m) => ({
           title: m.title,
           type: m.type,
           genres: m.genres,
           ai_primary_tone: m.ai_primary_tone,
-        }))
+        })),
+        avoidTitles
       );
       if (newCollections) {
         const now = new Date().toISOString();

@@ -215,3 +215,85 @@ export interface FriendActivityEntry extends HistoryEntry {
     imageUrl: string | null;
   };
 }
+
+// =====================================================
+// Collections (ported from src/types/index.ts) - manual
+// collections + sharing. AI-generated collections need the AI clients,
+// which are still Chunk C's scope on mobile - this covers "my" and
+// "shared" collections only, not the generate-with-AI flow.
+// =====================================================
+
+export interface SmartCollection {
+  id: string;
+  title: string;
+  description: string | null;
+  media_ids: string[];
+  filter_criteria: unknown | null;
+  is_auto_generated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CollectionShare {
+  id: string;
+  collection_id: string;
+  owner_id: string;
+  shared_with_id: string;
+  created_at: string;
+}
+
+// A share row for a collection I own, annotated with who it's shared with.
+export interface CollectionShareWithProfile extends CollectionShare {
+  recipient: { id: string; name: string; imageUrl: string | null } | null;
+}
+
+// A collection someone else shared with me, annotated with who owns it.
+export interface SharedCollection extends SmartCollection {
+  owner: { id: string; name: string; imageUrl: string | null } | null;
+}
+
+// =====================================================
+// AI (ported from src/types/index.ts) - Chunk C
+// =====================================================
+
+export interface AISuggestion {
+  title: string;
+  reason: string;
+  similarity_score: number;
+}
+
+export interface AIRecommendation {
+  title: string;
+  reason: string;
+  fit_score: number;
+}
+
+export interface AIBurnoutResult {
+  burnout_detected: boolean;
+  dominant_pattern: string;
+  risk_level: 'low' | 'medium' | 'high';
+  suggested_shift: string;
+  recommended_genre_direction: string;
+}
+
+export interface AISmartCollection {
+  title: string;
+  description: string;
+  media_titles: string[];
+}
+
+export interface AIMediaAnalysis {
+  primary_tone: string;
+  secondary_tone: string;
+  core_themes: string[];
+  emotional_intensity: number;
+  pacing: Pacing;
+  darkness_level: number;
+  intellectual_depth: number;
+}
+
+export interface AIFallbackClassification {
+  detected_type: MediaType;
+  likely_genres: string[];
+  confidence: number;
+}
