@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import dynamic from 'next/dynamic';
+import { ClerkProvider } from '@clerk/nextjs';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -34,6 +35,10 @@ const MediaProvider = dynamic(
   () => import('@/providers/MediaProvider').then((mod) => mod.MediaProvider),
   { ssr: false }
 );
+const AuthSync = dynamic(
+  () => import('@/providers/AuthSync').then((mod) => mod.AuthSync),
+  { ssr: false }
+);
 
 export default function RootLayout({
   children,
@@ -41,10 +46,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={inter.className}>
-        <MediaProvider>{children}</MediaProvider>
-      </body>
-    </html>
+    <ClerkProvider
+      appearance={{
+        variables: {
+          colorPrimary: '#7C5CFF',
+          colorBackground: '#111118',
+          colorInputBackground: '#0B0B0F',
+          colorText: '#ffffff',
+          borderRadius: '0.75rem',
+        },
+      }}
+    >
+      <html lang="en" className="dark">
+        <body className={inter.className}>
+          <AuthSync />
+          <MediaProvider>{children}</MediaProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

@@ -9,8 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useMediaStore } from '@/store/mediaStore';
 import { useSyncStore } from '@/store/syncStore';
-import { exportDatabase, importDatabase, getApiKey, saveApiKey } from '@/lib/db/dexie';
+import { exportDatabase, importDatabase, getApiKey, saveApiKey, db } from '@/lib/db/dexie';
 import { resolveApiKey } from '@/lib/api/apiKey';
+import { createTMDBClient } from '@/lib/api/tmdb';
+import { withTimeout, fetchWithTimeout } from '@/lib/api/http';
+import { supabase } from '@/lib/db/supabase';
 import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
@@ -21,6 +24,43 @@ export default function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [claimResult, setClaimResult] = useState<string | null>(null);
+
+  // One-time migration for data created before accounts existed: claims any
+  // row nobody owns yet (user_id IS NULL) as the signed-in user's own. RLS
+  // (see supabase/schema.sql) only allows this for currently-unclaimed rows,
+  // so it can't be used to take someone else's data.
+  const claimExistingLibrary = async () => {
+    setIsClaiming(true);
+    setClaimResult(null);
+    try {
+      const clerkUserId = typeof window !== 'undefined' ? window.Clerk?.user?.id : undefined;
+      if (!clerkUserId) throw new Error('Not signed in.');
+
+      const tables = ['media', 'history', 'smart_collections'] as const;
+      let claimedTotal = 0;
+      for (const table of tables) {
+        const { data, error } = await (supabase as any)
+          .from(table)
+          .update({ user_id: clerkUserId })
+          .is('user_id', null)
+          .select('id');
+        if (error) throw error;
+        claimedTotal += data?.length ?? 0;
+      }
+      setClaimResult(
+        claimedTotal > 0
+          ? `Claimed ${claimedTotal} item${claimedTotal === 1 ? '' : 's'} - refresh to see them.`
+          : 'Nothing to claim - your library is already yours.'
+      );
+    } catch (e) {
+      console.error('Claim failed:', e);
+      setClaimResult(e instanceof Error ? `Failed: ${e.message}` : 'Failed to claim existing data.');
+    } finally {
+      setIsClaiming(false);
+    }
+  };
   const [includeApiKeysInExport, setIncludeApiKeysInExport] = useState(false);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,39 +180,38 @@ export default function SettingsPage() {
   const testApiKeys = async () => {
     console.log('Testing API keys...');
     setTestResults({ tmdb: 'loading', rawg: 'loading' });
-    
-    // Test TMDB with actual API call
+
+    // Test TMDB through the same proxy real searches use (see
+    // src/lib/api/tmdb.ts) - a raw direct fetch to api.themoviedb.org here
+    // would hang/fail on any network that blocks that domain, exactly like
+    // real search did before the proxy existed, giving a misleading result.
     try {
-      const tmdbKey = await resolveApiKey('tmdb_key', process.env.NEXT_PUBLIC_TMDB_API_KEY);
-      console.log('TMDB key found:', !!tmdbKey);
-      if (tmdbKey) {
-        const response = await fetch(
-          `https://api.themoviedb.org/3/movie/550?api_key=${tmdbKey}`
-        );
-        console.log('TMDB test response:', response.status);
-        setTestResults(prev => ({ ...prev, tmdb: response.ok }));
-      } else {
-        setTestResults(prev => ({ ...prev, tmdb: false }));
-      }
+      const tmdb = createTMDBClient();
+      const results = await withTimeout(tmdb.searchMovies('inception'), 15000, 'TMDB test');
+      setTestResults(prev => ({ ...prev, tmdb: results.length > 0 }));
     } catch (e) {
       console.error('TMDB test error:', e);
       setTestResults(prev => ({ ...prev, tmdb: false }));
     }
-    
-    // Test RAWG with actual API call
+
+    // Test RAWG with a timeout - a hung request here previously looked
+    // exactly like "stuck", with no way to tell it apart from a real failure.
     try {
       const rawgKey = await resolveApiKey('rawg_key', process.env.NEXT_PUBLIC_RAWG_API_KEY);
       console.log('RAWG key found:', !!rawgKey);
       if (rawgKey) {
-        const response = await fetch(
-          `https://api.rawg.io/api/games?key=${rawgKey}&page_size=1`
+        const response = await fetchWithTimeout(
+          `https://api.rawg.io/api/games?key=${rawgKey}&page_size=1`,
+          15000,
+          'RAWG test'
         );
         console.log('RAWG test response:', response.status);
         setTestResults(prev => ({ ...prev, rawg: response.ok }));
       } else {
         setTestResults(prev => ({ ...prev, rawg: false }));
       }
-    } catch {
+    } catch (e) {
+      console.error('RAWG test error:', e);
       setTestResults(prev => ({ ...prev, rawg: false }));
     }
   };
@@ -201,9 +240,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleSync}
           disabled={isSyncing || !is_online}
           className="border-white/10 hover:bg-white/5"
@@ -211,6 +250,28 @@ export default function SettingsPage() {
           <RefreshCw className={cn('h-4 w-4 mr-2', isSyncing && 'animate-spin')} />
           Sync
         </Button>
+      </div>
+
+      {/* Claim pre-account data */}
+      <div className="glass-card rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="font-bold text-white text-sm">Claim existing library</div>
+            <div className="text-xs text-white/50">
+              One-time: assigns any data created before accounts existed to you.
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={claimExistingLibrary}
+            disabled={isClaiming || !is_online}
+            className="border-white/10 hover:bg-white/5 flex-shrink-0"
+          >
+            {isClaiming ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Claim'}
+          </Button>
+        </div>
+        {claimResult && <p className="text-xs text-white/60 mt-2">{claimResult}</p>}
       </div>
 
       {/* API Keys */}

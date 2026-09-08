@@ -43,6 +43,16 @@ interface MediaStore {
   syncWithSupabase: () => Promise<void>;
 }
 
+// normalized_title is a Postgres GENERATED ALWAYS ... STORED column - any
+// insert/upsert that includes it is rejected outright. created_at/updated_at
+// are safe to include (plain DEFAULT NOW(), not generated) and should be
+// preserved as-is when re-uploading an existing/imported record so its real
+// history isn't overwritten with "now".
+const stripForSupabase = (item: Media): Record<string, unknown> => {
+  const { normalized_title, ...rest } = item as unknown as Record<string, unknown>;
+  return rest;
+};
+
 const defaultFilters: FilterState = {
   status: [],
   type: [],
@@ -577,7 +587,10 @@ export const useMediaStore = create<MediaStore>()(
                   // Try to upload local data to Supabase
                   for (const item of localMedia) {
                     try {
-                      await (supabase as any).from('media').upsert(item);
+                      const { error: upsertError } = await (supabase as any)
+                        .from('media')
+                        .upsert(stripForSupabase(item));
+                      if (upsertError) console.warn('Failed to upsert item:', item.title, upsertError.message);
                     } catch (e) {
                       console.warn('Failed to upsert item:', item.title, e);
                     }
@@ -602,7 +615,28 @@ export const useMediaStore = create<MediaStore>()(
                 const localOnlyItems = localMedia.filter(
                   m => !supabaseIds.has(m.id) && !pendingDeleteIds.has(m.id)
                 );
-                
+
+                // Items that only exist locally (e.g. just restored from a
+                // backup import) were previously kept visible in this
+                // browser forever but never actually reached Supabase -
+                // meaning a cleared browser/reinstall would silently lose
+                // them again. Push them up now (best-effort, id conflicts
+                // or the unique title+type constraint just get skipped and
+                // logged rather than blocking the rest).
+                if (localOnlyItems.length > 0) {
+                  console.log(`Pushing ${localOnlyItems.length} local-only item(s) to Supabase`);
+                  for (const item of localOnlyItems) {
+                    try {
+                      const { error: pushError } = await (supabase as any)
+                        .from('media')
+                        .upsert(stripForSupabase(item));
+                      if (pushError) console.warn('Failed to push local-only item:', item.title, pushError.message);
+                    } catch (e) {
+                      console.warn('Failed to push local-only item:', item.title, e);
+                    }
+                  }
+                }
+
                 // Filter Supabase data to exclude items pending deletion
                 const filteredSupabaseData = (data as Media[]).filter(
                   m => !pendingDeleteIds.has(m.id)

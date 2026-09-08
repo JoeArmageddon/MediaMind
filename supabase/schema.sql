@@ -309,15 +309,91 @@ ALTER TABLE smart_collections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 
--- Create policies (allow all for single-user setup)
-CREATE POLICY "Allow all" ON media FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON history FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON smart_collections FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON ai_cache FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON app_settings FOR ALL USING (true) WITH CHECK (true);
+-- Original single-user policies - superseded by the Phase 2 migration below
+-- (kept here only as a historical record of the initial schema).
+-- CREATE POLICY "Allow all" ON media FOR ALL USING (true) WITH CHECK (true);
+-- CREATE POLICY "Allow all" ON history FOR ALL USING (true) WITH CHECK (true);
+-- CREATE POLICY "Allow all" ON smart_collections FOR ALL USING (true) WITH CHECK (true);
+-- CREATE POLICY "Allow all" ON ai_cache FOR ALL USING (true) WITH CHECK (true);
+-- CREATE POLICY "Allow all" ON app_settings FOR ALL USING (true) WITH CHECK (true);
 
 -- =====================================================
 -- INITIAL DATA
 -- =====================================================
 
 INSERT INTO app_settings (id) VALUES (1) ON CONFLICT DO NOTHING;
+
+-- =====================================================
+-- PHASE 2 MIGRATION: Clerk auth + per-user ownership
+-- (applied live via Supabase MCP as migration "add_clerk_user_id_and_rls";
+-- mirrored here so schema.sql reflects the actual live schema)
+-- =====================================================
+
+-- Clerk is a third-party auth provider for this project (see Supabase
+-- dashboard -> Authentication -> Sign In / Providers). auth.jwt()->>'sub'
+-- resolves to the signed-in Clerk user's id once that integration is
+-- enabled; NOT a Postgres/Supabase Auth uid.
+
+ALTER TABLE media ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT (auth.jwt()->>'sub');
+CREATE INDEX IF NOT EXISTS idx_media_user_id ON media(user_id);
+
+DROP POLICY IF EXISTS "Allow all" ON media;
+CREATE POLICY "select own or unclaimed media" ON media FOR SELECT
+  USING (auth.jwt()->>'sub' = user_id OR user_id IS NULL);
+CREATE POLICY "insert own media" ON media FOR INSERT
+  WITH CHECK (auth.jwt()->>'sub' = user_id);
+-- The "OR user_id IS NULL" half of USING lets a signed-in user claim
+-- pre-auth (orphaned) rows via `UPDATE ... SET user_id = ... WHERE user_id
+-- IS NULL` - WITH CHECK still requires the new value to be their own id.
+CREATE POLICY "update own or claim unclaimed media" ON media FOR UPDATE
+  USING (auth.jwt()->>'sub' = user_id OR user_id IS NULL)
+  WITH CHECK (auth.jwt()->>'sub' = user_id);
+CREATE POLICY "delete own media" ON media FOR DELETE
+  USING (auth.jwt()->>'sub' = user_id);
+
+ALTER TABLE history ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT (auth.jwt()->>'sub');
+CREATE INDEX IF NOT EXISTS idx_history_user_id ON history(user_id);
+
+DROP POLICY IF EXISTS "Allow all" ON history;
+CREATE POLICY "select own or unclaimed history" ON history FOR SELECT
+  USING (auth.jwt()->>'sub' = user_id OR user_id IS NULL);
+CREATE POLICY "insert own history" ON history FOR INSERT
+  WITH CHECK (auth.jwt()->>'sub' = user_id);
+CREATE POLICY "update own or claim unclaimed history" ON history FOR UPDATE
+  USING (auth.jwt()->>'sub' = user_id OR user_id IS NULL)
+  WITH CHECK (auth.jwt()->>'sub' = user_id);
+CREATE POLICY "delete own history" ON history FOR DELETE
+  USING (auth.jwt()->>'sub' = user_id);
+
+ALTER TABLE smart_collections ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT (auth.jwt()->>'sub');
+CREATE INDEX IF NOT EXISTS idx_smart_collections_user_id ON smart_collections(user_id);
+
+DROP POLICY IF EXISTS "Allow all" ON smart_collections;
+CREATE POLICY "select own or unclaimed collections" ON smart_collections FOR SELECT
+  USING (auth.jwt()->>'sub' = user_id OR user_id IS NULL);
+CREATE POLICY "insert own collections" ON smart_collections FOR INSERT
+  WITH CHECK (auth.jwt()->>'sub' = user_id);
+CREATE POLICY "update own or claim unclaimed collections" ON smart_collections FOR UPDATE
+  USING (auth.jwt()->>'sub' = user_id OR user_id IS NULL)
+  WITH CHECK (auth.jwt()->>'sub' = user_id);
+CREATE POLICY "delete own collections" ON smart_collections FOR DELETE
+  USING (auth.jwt()->>'sub' = user_id);
+
+-- ai_cache stays a shared cache across all users (the point of it is to
+-- avoid redundant AI calls for the same title regardless of who looks it
+-- up) - just no longer open to fully anonymous/public access.
+DROP POLICY IF EXISTS "Allow all" ON ai_cache;
+CREATE POLICY "authenticated read/write ai_cache" ON ai_cache FOR ALL
+  TO authenticated USING (true) WITH CHECK (true);
+
+-- app_settings is not currently read/written by any app code (it's a
+-- leftover from before the app switched to a local-only Dexie settings
+-- table), but locked down for consistency rather than left fully open.
+-- Named clerk_user_id (not user_id) since the table already has an unused
+-- `user_id UUID` column from the original single-user schema.
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS clerk_user_id TEXT;
+DROP POLICY IF EXISTS "Allow all" ON app_settings;
+CREATE POLICY "own app_settings" ON app_settings FOR ALL
+  TO authenticated
+  USING (auth.jwt()->>'sub' = clerk_user_id OR clerk_user_id IS NULL)
+  WITH CHECK (auth.jwt()->>'sub' = clerk_user_id);

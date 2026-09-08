@@ -11,10 +11,36 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
+// Clerk (not Supabase Auth) owns the session now - RLS policies read the
+// signed-in user's id via auth.jwt()->>'sub' (see supabase/schema.sql).
+// This callback runs before every request and must return a fresh Clerk
+// session token. window.Clerk is Clerk's documented global instance,
+// populated once <ClerkProvider> has mounted; since every store that calls
+// Supabase only ever runs client-side after mount, it's reliably available
+// by the time any real request happens. Returning null (signed out, or
+// Clerk not yet loaded) just falls back to the anon role - RLS then denies
+// anything requiring a real user_id, which is the correct behavior.
+declare global {
+  interface Window {
+    Clerk?: {
+      session?: {
+        getToken: () => Promise<string | null>;
+      } | null;
+      user?: {
+        id: string;
+      } | null;
+    };
+  }
+}
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
+  async accessToken() {
+    if (typeof window === 'undefined') return null;
+    try {
+      return (await window.Clerk?.session?.getToken()) ?? null;
+    } catch {
+      return null;
+    }
   },
   db: {
     schema: 'public',
