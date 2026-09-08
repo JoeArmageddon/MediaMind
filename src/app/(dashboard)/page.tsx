@@ -10,6 +10,7 @@ import { MediaGrid } from '@/components/media/MediaGrid';
 import { MediaDetail } from '@/components/media/MediaDetail';
 import { DiscoverDialog } from '@/components/media/DiscoverDialog';
 import { FilterDrawer } from '@/components/layout/FilterDrawer';
+import { FriendsActivityFeed } from '@/components/friends/FriendsActivityFeed';
 import { useMediaStore } from '@/store/mediaStore';
 import { cn } from '@/lib/utils';
 import type { Media } from '@/types';
@@ -211,6 +212,8 @@ export default function DashboardPage() {
           <Settings size={18} className="text-slate-500 group-hover:rotate-90 transition-transform duration-500" />
         </button>
       </div>
+
+      <FriendsActivityFeed />
 
       {/* Recent Items Section */}
       <div className="pt-4">

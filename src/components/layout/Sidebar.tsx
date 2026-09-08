@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Film,
+  Users,
 } from 'lucide-react';
 import { UserButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ const navItems = [
   { href: '/analytics', icon: BarChart3, label: 'Stats' },
   { href: '/timeline', icon: Clock, label: 'Timeline' },
   { href: '/collections', icon: Sparkles, label: 'AI' },
+  { href: '/friends', icon: Users, label: 'Friends' },
 ];
 
 export function Sidebar() {
@@ -145,6 +147,15 @@ export function Sidebar() {
               is_online ? 'bg-green-500' : 'bg-yellow-500'
             )} />
           )}
+          <Link
+            href="/friends"
+            className={cn(
+              'p-1.5 rounded-lg transition-colors',
+              pathname === '/friends' ? 'text-white bg-white/10' : 'text-white/50'
+            )}
+          >
+            <Users className="h-5 w-5" />
+          </Link>
           <UserButton appearance={userButtonAppearance} />
         </div>
       </header>

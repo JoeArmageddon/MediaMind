@@ -115,9 +115,20 @@ CREATE TABLE media (
 );
 
 -- History/Audit Trail
+--
+-- media_id intentionally has NO foreign key to media(id) (see the
+-- fix_history_fk_blocking_deletes migration, applied 2026-09-08). It
+-- originally did, which is a schema bug that silently broke every delete
+-- ever attempted, for the entire lifetime of this app: media_history_log's
+-- AFTER DELETE trigger inserts a 'deleted' row referencing the media_id
+-- that was *just* removed, which a FK requiring that id to still exist
+-- always rejected - rolling back the delete itself along with it. An
+-- orphaned media_id on a 'deleted' history row is the correct, expected
+-- shape for an audit log (that's the point of a deletion record), not an
+-- integrity violation to prevent.
 CREATE TABLE history (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  media_id UUID REFERENCES media(id) ON DELETE CASCADE,
+  media_id UUID,
   action_type history_action NOT NULL,
   value JSONB,
   previous_value JSONB,
@@ -397,3 +408,144 @@ CREATE POLICY "own app_settings" ON app_settings FOR ALL
   TO authenticated
   USING (auth.jwt()->>'sub' = clerk_user_id OR clerk_user_id IS NULL)
   WITH CHECK (auth.jwt()->>'sub' = clerk_user_id);
+
+-- ============================================================
+-- PHASE 2 CHUNK C: Friends (request/accept)
+-- ============================================================
+
+CREATE TABLE friendships (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  requester_id TEXT NOT NULL,
+  addressee_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT no_self_friend CHECK (requester_id <> addressee_id),
+  CONSTRAINT unique_friendship UNIQUE (requester_id, addressee_id)
+);
+
+CREATE INDEX idx_friendships_requester ON friendships(requester_id);
+CREATE INDEX idx_friendships_addressee ON friendships(addressee_id);
+CREATE INDEX idx_friendships_status ON friendships(status);
+
+CREATE TRIGGER update_friendships_updated_at
+  BEFORE UPDATE ON friendships
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE friendships ENABLE ROW LEVEL SECURITY;
+
+-- Either party can see a friendship row (pending or accepted) involving them.
+CREATE POLICY "select own friendships" ON friendships FOR SELECT
+  USING (auth.jwt()->>'sub' = requester_id OR auth.jwt()->>'sub' = addressee_id);
+
+-- Only the requester can create a request, and only as themselves.
+CREATE POLICY "insert own friend request" ON friendships FOR INSERT
+  WITH CHECK (auth.jwt()->>'sub' = requester_id);
+
+-- Only the addressee can accept/decline (status transition); the requester
+-- cannot unilaterally flip their own outgoing request to accepted.
+CREATE POLICY "addressee updates status" ON friendships FOR UPDATE
+  USING (auth.jwt()->>'sub' = addressee_id)
+  WITH CHECK (auth.jwt()->>'sub' = addressee_id);
+
+-- Either party can delete (cancel a pending request, or unfriend/remove
+-- a declined one).
+CREATE POLICY "either party deletes friendship" ON friendships FOR DELETE
+  USING (auth.jwt()->>'sub' = requester_id OR auth.jwt()->>'sub' = addressee_id);
+
+-- ============================================================
+-- PHASE 2 CHUNK D: Shared visibility (read-only, accepted friends only)
+-- ============================================================
+
+-- Extend media/history SELECT so an accepted friend can read (never write)
+-- each other's library. Kept as a separate additional policy (Postgres ORs
+-- multiple permissive policies together) rather than editing the existing
+-- "select own or unclaimed" policy, so the ownership/claim logic stays
+-- untouched and this is easy to revert independently.
+
+CREATE POLICY "select friends media" ON media FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM friendships
+      WHERE status = 'accepted'
+        AND (
+          (requester_id = auth.jwt()->>'sub' AND addressee_id = media.user_id)
+          OR (addressee_id = auth.jwt()->>'sub' AND requester_id = media.user_id)
+        )
+    )
+  );
+
+CREATE POLICY "select friends history" ON history FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM friendships
+      WHERE status = 'accepted'
+        AND (
+          (requester_id = auth.jwt()->>'sub' AND addressee_id = history.user_id)
+          OR (addressee_id = auth.jwt()->>'sub' AND requester_id = history.user_id)
+        )
+    )
+  );
+
+-- ============================================================
+-- PHASE 2 CHUNK E: Shared collections (owner shares a specific collection
+-- with a specific friend, rather than their whole library)
+-- ============================================================
+
+CREATE TABLE collection_shares (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  collection_id UUID NOT NULL REFERENCES smart_collections(id) ON DELETE CASCADE,
+  owner_id TEXT NOT NULL,
+  shared_with_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT no_self_share CHECK (owner_id <> shared_with_id),
+  CONSTRAINT unique_collection_share UNIQUE (collection_id, shared_with_id)
+);
+
+CREATE INDEX idx_collection_shares_owner ON collection_shares(owner_id);
+CREATE INDEX idx_collection_shares_shared_with ON collection_shares(shared_with_id);
+CREATE INDEX idx_collection_shares_collection ON collection_shares(collection_id);
+
+ALTER TABLE collection_shares ENABLE ROW LEVEL SECURITY;
+
+-- Either party can see the share row itself (owner needs it to manage
+-- shares, recipient needs it to know what's been shared with them).
+CREATE POLICY "select own collection shares" ON collection_shares FOR SELECT
+  USING (auth.jwt()->>'sub' = owner_id OR auth.jwt()->>'sub' = shared_with_id);
+
+-- Only the actual owner of the collection can share it, and only with an
+-- accepted friend - both checked here rather than trusted from the client.
+CREATE POLICY "owner shares own collection with a friend" ON collection_shares FOR INSERT
+  WITH CHECK (
+    auth.jwt()->>'sub' = owner_id
+    AND EXISTS (
+      SELECT 1 FROM smart_collections
+      WHERE id = collection_id AND user_id = auth.jwt()->>'sub'
+    )
+    AND EXISTS (
+      SELECT 1 FROM friendships
+      WHERE status = 'accepted'
+        AND (
+          (requester_id = auth.jwt()->>'sub' AND addressee_id = shared_with_id)
+          OR (addressee_id = auth.jwt()->>'sub' AND requester_id = shared_with_id)
+        )
+    )
+  );
+
+-- Either the owner (revoke) or the recipient (leave/remove from their view)
+-- can delete a share.
+CREATE POLICY "owner or recipient deletes collection share" ON collection_shares FOR DELETE
+  USING (auth.jwt()->>'sub' = owner_id OR auth.jwt()->>'sub' = shared_with_id);
+
+-- Extend smart_collections SELECT so a share recipient can read the
+-- collection row itself (title/description/media_ids) - kept as an
+-- additional permissive policy, same pattern as Chunk D's friend-media
+-- policy, so the existing owner/unclaimed logic is untouched.
+CREATE POLICY "select shared collections" ON smart_collections FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM collection_shares
+      WHERE collection_id = smart_collections.id
+        AND shared_with_id = auth.jwt()->>'sub'
+    )
+  );

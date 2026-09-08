@@ -14,18 +14,22 @@ import { resolveApiKey } from '@/lib/api/apiKey';
 import { createTMDBClient } from '@/lib/api/tmdb';
 import { withTimeout, fetchWithTimeout } from '@/lib/api/http';
 import { supabase } from '@/lib/db/supabase';
+import { getAIClient } from '@/lib/ai';
 import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { syncWithSupabase } = useMediaStore();
+  const { syncWithSupabase, updateMedia } = useMediaStore();
   const { is_online, pending_changes } = useSyncStore();
-  
+
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimResult, setClaimResult] = useState<string | null>(null);
+  const [isFixingTags, setIsFixingTags] = useState(false);
+  const [fixTagsProgress, setFixTagsProgress] = useState<{ done: number; total: number } | null>(null);
+  const [fixTagsResult, setFixTagsResult] = useState<string | null>(null);
 
   // One-time migration for data created before accounts existed: claims any
   // row nobody owns yet (user_id IS NULL) as the signed-in user's own. RLS
@@ -61,6 +65,97 @@ export default function SettingsPage() {
       setIsClaiming(false);
     }
   };
+
+  // Bulk backfill for the "current tags are a shitshow" gap: for years,
+  // TMDB search results had their genres hardcoded to [] (the genre_ids
+  // TMDB returns were never resolved to names - fixed in tmdb.ts), and the
+  // `tags` field was never populated by anything at all, from any source.
+  // Existing library items have no stored tmdb_id/mal_id/etc to re-look-up
+  // by id (also just fixed, but only for future adds) - so this uses AI
+  // classification/tag-suggestion from title+description instead, which
+  // works for whatever's already here regardless of source.
+  const fixTagsAndGenres = async () => {
+    setIsFixingTags(true);
+    setFixTagsResult(null);
+    setFixTagsProgress(null);
+    try {
+      const allMedia = await db.media.toArray();
+      const needsWork = allMedia.filter((m) => m.genres.length === 0 || m.tags.length === 0);
+
+      if (needsWork.length === 0) {
+        setFixTagsResult('Everything already has genres and tags.');
+        return;
+      }
+
+      const ai = getAIClient();
+      if (!ai.isAvailable()) {
+        setFixTagsResult('No AI configured - add a Groq or Gemini key below first.');
+        return;
+      }
+
+      setFixTagsProgress({ done: 0, total: needsWork.length });
+      let fixed = 0;
+      let failed = 0;
+      let doneCount = 0;
+
+      // Modest concurrency - fast enough for ~200 items to finish in a
+      // couple of minutes, without hammering the AI provider hard enough to
+      // trigger sustained rate-limiting (callWithFallback already recovers
+      // from an occasional 429 by falling back to the other provider).
+      const CONCURRENCY = 3;
+      let cursor = 0;
+      const worker = async () => {
+        while (cursor < needsWork.length) {
+          const item = needsWork[cursor++];
+          try {
+            let genres = item.genres;
+            if (genres.length === 0) {
+              const classification = await ai.classifyMedia(item.title);
+              if (classification?.likely_genres?.length) {
+                genres = classification.likely_genres;
+              }
+            }
+
+            let tags = item.tags;
+            if (tags.length === 0) {
+              const suggested = await ai.suggestTags({
+                title: item.title,
+                type: item.type,
+                description: item.description,
+                genres,
+              });
+              if (suggested && suggested.length > 0) {
+                tags = suggested;
+              }
+            }
+
+            if (genres !== item.genres || tags !== item.tags) {
+              await updateMedia(item.id, { genres, tags });
+              fixed++;
+            }
+          } catch (e) {
+            console.warn('Failed to fix tags/genres for', item.title, e);
+            failed++;
+          } finally {
+            doneCount++;
+            setFixTagsProgress({ done: doneCount, total: needsWork.length });
+          }
+        }
+      };
+
+      await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
+      setFixTagsResult(
+        `Fixed ${fixed} item${fixed === 1 ? '' : 's'}${failed > 0 ? ` - ${failed} failed` : ''}.`
+      );
+    } catch (e) {
+      console.error('fixTagsAndGenres failed:', e);
+      setFixTagsResult(e instanceof Error ? `Failed: ${e.message}` : 'Failed to fix tags.');
+    } finally {
+      setIsFixingTags(false);
+    }
+  };
+
   const [includeApiKeysInExport, setIncludeApiKeysInExport] = useState(false);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -272,6 +367,33 @@ export default function SettingsPage() {
           </Button>
         </div>
         {claimResult && <p className="text-xs text-white/60 mt-2">{claimResult}</p>}
+      </div>
+
+      {/* Fix tags/genres */}
+      <div className="glass-card rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="font-bold text-white text-sm">Fix tags &amp; genres</div>
+            <div className="text-xs text-white/50">
+              AI-fills missing genres and descriptive tags across your whole library.
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fixTagsAndGenres}
+            disabled={isFixingTags || !is_online}
+            className="border-white/10 hover:bg-white/5 flex-shrink-0"
+          >
+            {isFixingTags ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Fix'}
+          </Button>
+        </div>
+        {isFixingTags && fixTagsProgress && (
+          <p className="text-xs text-white/60 mt-2">
+            {fixTagsProgress.done} / {fixTagsProgress.total}
+          </p>
+        )}
+        {fixTagsResult && <p className="text-xs text-white/60 mt-2">{fixTagsResult}</p>}
       </div>
 
       {/* API Keys */}
