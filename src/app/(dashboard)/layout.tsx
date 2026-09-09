@@ -23,7 +23,12 @@ export default function DashboardLayout({
   }, [fetchMedia, updateSyncStatus]);
 
   return (
-    <div className="min-h-screen bg-[#050505]">
+    // No transition-colors here - verified live that a background-color
+    // transition tied to the data-theme attribute change never actually
+    // completes on a persistently-mounted top-level element (see
+    // globals.css's body rule comment for the same finding); an instant
+    // swap is correct and safe rather than a transition that gets stuck.
+    <div className="min-h-screen bg-[var(--mm-bg)]">
       <AmbientBackground />
       {/* Noise texture overlay */}
       <div className="fixed inset-0 noise pointer-events-none z-0" />

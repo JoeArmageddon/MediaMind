@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle, Loader2, BookOpen, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useMediaStore } from '@/store/mediaStore';
 import { useSyncStore } from '@/store/syncStore';
+import { useThemeStore } from '@/store/themeStore';
 import { exportDatabase, importDatabase, getApiKey, saveApiKey, db } from '@/lib/db/dexie';
 import { resolveApiKey } from '@/lib/api/apiKey';
 import { createTMDBClient } from '@/lib/api/tmdb';
@@ -21,6 +23,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { syncWithSupabase, updateMedia } = useMediaStore();
   const { is_online, pending_changes } = useSyncStore();
+  const { theme, toggleTheme } = useThemeStore();
 
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -315,13 +318,31 @@ export default function SettingsPage() {
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-white/10 rounded-xl">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg)] rounded-xl">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter">SYSTEM</h1>
-          <p className="text-sm text-white/50 font-mono">設定</p>
+          <h1 className="text-3xl font-black text-[var(--mm-text)] tracking-tighter">SYSTEM</h1>
+          <p className="text-sm text-[var(--mm-text-50)] font-mono">設定</p>
         </div>
+      </div>
+
+      {/* Appearance */}
+      <div className="glass-card rounded-2xl p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {theme === 'manga' ? (
+            <BookOpen className="h-5 w-5 text-[var(--mm-primary)]" />
+          ) : (
+            <Moon className="h-5 w-5 text-[var(--mm-primary)]" />
+          )}
+          <div>
+            <div className="font-bold text-[var(--mm-text)] text-sm">Manga mode</div>
+            <div className="text-xs text-[var(--mm-text-50)]">
+              {theme === 'manga' ? 'Paper white, bold ink borders - like a manga page.' : 'Off - the dark "liquid glass" theme.'}
+            </div>
+          </div>
+        </div>
+        <Switch checked={theme === 'manga'} onCheckedChange={toggleTheme} />
       </div>
 
       {/* Status Card */}
@@ -329,8 +350,8 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3">
           <div className={is_online ? 'w-3 h-3 bg-green-500 rounded-full animate-pulse' : 'w-3 h-3 bg-red-500 rounded-full'} />
           <div>
-            <div className="font-bold text-white">{is_online ? 'ONLINE' : 'OFFLINE'}</div>
-            <div className="text-xs text-white/50 font-mono">
+            <div className="font-bold text-[var(--mm-text)]">{is_online ? 'ONLINE' : 'OFFLINE'}</div>
+            <div className="text-xs text-[var(--mm-text-50)] font-mono">
               {pending_changes > 0 ? `${pending_changes} pending changes` : 'Sync up to date'}
             </div>
           </div>
@@ -340,7 +361,7 @@ export default function SettingsPage() {
           size="sm"
           onClick={handleSync}
           disabled={isSyncing || !is_online}
-          className="border-white/10 hover:bg-white/5"
+          className="border-[var(--mm-card-border)] hover:bg-[var(--mm-hover-bg)]"
         >
           <RefreshCw className={cn('h-4 w-4 mr-2', isSyncing && 'animate-spin')} />
           Sync

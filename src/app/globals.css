@@ -2,23 +2,107 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===================================================================
+   Theme tokens - two full palettes (dark "liquid glass" / manga paper),
+   not a light tint of one palette. Mirrors the native app's
+   mobile/lib/theme.ts token names/values so the two apps read as the same
+   product. ThemeSync.tsx sets data-theme="manga" on <html>; everything
+   below is what actually responds to it. Components should reach for
+   these vars (var(--mm-*)) instead of hardcoding white/black - anything
+   still hardcoded only ever shows the dark-theme look regardless of the
+   toggle, which is exactly the gap this pass is closing incrementally
+   (app shell + shared primitives + Dashboard first; see the roadmap
+   memory for what's left).
+   =================================================================== */
 :root {
   --bg-primary: #050505;
   --bg-secondary: #0a0a0a;
   --bg-card: #111111;
   --bg-elevated: #1a1a1a;
+
+  --mm-bg: #050505;
+  --mm-bg-alt: #0b0b0f;
+  --mm-card-bg: rgba(26, 26, 26, 0.4);
+  --mm-card-border: rgba(255, 255, 255, 0.1);
+  --mm-card-border-hover: rgba(255, 255, 255, 0.2);
+  --mm-input-bg: #000000;
+  --mm-input-border: rgba(255, 255, 255, 0.1);
+  --mm-text: #ffffff;
+  --mm-text-70: rgba(255, 255, 255, 0.7);
+  --mm-text-60: rgba(255, 255, 255, 0.6);
+  --mm-text-50: rgba(255, 255, 255, 0.5);
+  --mm-text-40: rgba(255, 255, 255, 0.4);
+  --mm-text-30: rgba(255, 255, 255, 0.3);
+  --mm-text-20: rgba(255, 255, 255, 0.2);
+  --mm-hover-bg: rgba(255, 255, 255, 0.05);
+  --mm-hover-bg-strong: rgba(255, 255, 255, 0.1);
+  --mm-primary: #7c3aed;
+  --mm-primary-hover: #6d28d9;
+  --mm-indigo: #4f46e5;
+  --mm-indigo-hover: #4338ca;
+  --mm-danger: #ef4444;
+  --mm-success: #22c55e;
+  --mm-border-width: 1px;
+  --mm-blur: blur(20px);
+  --mm-radius-boost: 0px;
+  --mm-shadow: 0 0 30px -5px rgba(0, 0, 0, 0.5);
+}
+
+/* Paper-white background, near-black ink text/borders, a single bold red
+   accent - deliberately restrained rather than colorful (see
+   mobile/lib/theme.ts's mangaTheme comment). Flat and un-blurred on
+   purpose: --mm-blur: none and a heavier --mm-border-width are what make
+   this read as ink linework instead of "light mode". */
+:root[data-theme='manga'] {
+  --mm-bg: #f2efe4;
+  --mm-bg-alt: #ffffff;
+  --mm-card-bg: #fffdf7;
+  --mm-card-border: #161311;
+  --mm-card-border-hover: #161311;
+  --mm-input-bg: #ffffff;
+  --mm-input-border: #161311;
+  --mm-text: #161311;
+  --mm-text-70: rgba(22, 19, 17, 0.75);
+  --mm-text-60: rgba(22, 19, 17, 0.65);
+  --mm-text-50: rgba(22, 19, 17, 0.55);
+  --mm-text-40: rgba(22, 19, 17, 0.45);
+  --mm-text-30: rgba(22, 19, 17, 0.35);
+  --mm-text-20: rgba(22, 19, 17, 0.25);
+  --mm-hover-bg: rgba(22, 19, 17, 0.06);
+  --mm-hover-bg-strong: rgba(22, 19, 17, 0.12);
+  --mm-primary: #d91e36;
+  --mm-primary-hover: #b81830;
+  --mm-indigo: #d91e36;
+  --mm-indigo-hover: #b81830;
+  --mm-danger: #b00020;
+  --mm-success: #1b7a3d;
+  --mm-border-width: 2px;
+  --mm-blur: none;
+  --mm-shadow: 0 2px 0 0 rgba(22, 19, 17, 0.15);
 }
 
 @layer base {
   * {
-    @apply border-white/10;
+    border-color: var(--mm-card-border);
   }
-  
+
   body {
-    @apply bg-[#050505] text-white antialiased;
+    @apply antialiased;
+    background: var(--mm-bg);
+    color: var(--mm-text);
     font-family: system-ui, -apple-system, sans-serif;
+    /* No transition here on purpose - verified live (via getComputedStyle
+       against a real running instance) that a background-color/color
+       transition on <body> specifically never actually completes: it
+       stays visually pinned at whatever it was on first paint even
+       seconds after the data-theme attribute changes, though the
+       underlying CSS variable itself updates correctly. Root cause not
+       fully pinned down, but every other themed element (glass-card,
+       Sidebar, per-page bg-[var(--mm-bg)] elements) transitions fine, so
+       this is scoped to body specifically rather than removing
+       transitions everywhere. */
   }
-  
+
   html {
     scroll-behavior: smooth;
   }
@@ -33,28 +117,34 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #333;
+    background: var(--mm-text-30);
     border-radius: 2px;
   }
 }
 
 @layer components {
-  /* Glass Card Style */
+  /* Glass Card Style - "glass" only in dark mode; manga mode flattens it
+     (no blur, ink border, flat drop shadow instead of a glow) per the
+     native theme's isManga contract. */
   .glass-card {
     @apply relative overflow-hidden;
-    background: rgba(26, 26, 26, 0.4);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--mm-card-bg);
+    backdrop-filter: var(--mm-blur);
+    border: var(--mm-border-width) solid var(--mm-card-border);
     box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
     /* The hover state below changed border/shadow with no transition at
        all - instant, not "smoother feel". Every card/dialog in the app
        uses this class, so this one line is a wide, low-risk win. */
-    transition: border-color 250ms ease, box-shadow 250ms ease, transform 250ms ease;
+    transition: background-color 300ms ease, border-color 250ms ease, box-shadow 250ms ease, transform 250ms ease;
+  }
+
+  :root[data-theme='manga'] .glass-card {
+    box-shadow: none;
   }
 
   .glass-card:hover {
-    @apply border-white/20;
-    box-shadow: 0 0 30px -5px rgba(0, 0, 0, 0.5);
+    border-color: var(--mm-card-border-hover);
+    box-shadow: var(--mm-shadow);
   }
 
   /* Category Gradients */
@@ -70,10 +160,15 @@
     @apply bg-clip-text text-transparent;
   }
 
-  /* Noise texture */
+  /* Noise texture - a dark-mode "liquid glass" touch, not part of the flat
+     ink-on-paper manga look. */
   .noise {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     opacity: 0.03;
+  }
+
+  :root[data-theme='manga'] .noise {
+    opacity: 0;
   }
 }
 
@@ -110,6 +205,12 @@
   .ambient-blob {
     animation: none !important;
   }
+}
+
+/* Flat ink-on-paper is the point of manga mode - no glowing gradient
+   wash behind it. */
+:root[data-theme='manga'] .ambient-blob {
+  display: none;
 }
 
 /* Hide scrollbar utility */

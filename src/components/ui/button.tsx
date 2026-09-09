@@ -8,12 +8,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-violet-600 text-white hover:bg-violet-700',
-        destructive: 'bg-red-600 text-white hover:bg-red-700',
-        outline: 'border border-white/20 bg-transparent text-white hover:bg-white/5 hover:border-violet-600',
-        secondary: 'bg-white/10 text-white hover:bg-white/15',
-        ghost: 'text-white/70 hover:bg-white/5 hover:text-white',
-        link: 'text-violet-400 hover:text-violet-300 underline-offset-4 hover:underline',
+        default: 'bg-[var(--mm-primary)] text-white hover:bg-[var(--mm-primary-hover)]',
+        destructive: 'bg-[var(--mm-danger)] text-white hover:brightness-90',
+        outline:
+          'border border-[var(--mm-card-border)] bg-transparent text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg)] hover:border-[var(--mm-primary)]',
+        secondary: 'bg-[var(--mm-hover-bg-strong)] text-[var(--mm-text)] hover:brightness-125',
+        ghost: 'text-[var(--mm-text-70)] hover:bg-[var(--mm-hover-bg)] hover:text-[var(--mm-text)]',
+        link: 'text-[var(--mm-primary)] hover:opacity-80 underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-9 px-4 py-2',

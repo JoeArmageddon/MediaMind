@@ -39,6 +39,10 @@ const AuthSync = dynamic(
   () => import('@/providers/AuthSync').then((mod) => mod.AuthSync),
   { ssr: false }
 );
+const ThemeSync = dynamic(
+  () => import('@/providers/ThemeSync').then((mod) => mod.ThemeSync),
+  { ssr: false }
+);
 
 export default function RootLayout({
   children,
@@ -60,6 +64,7 @@ export default function RootLayout({
       <html lang="en" className="dark">
         <body className={inter.className}>
           <AuthSync />
+          <ThemeSync />
           <MediaProvider>{children}</MediaProvider>
         </body>
       </html>

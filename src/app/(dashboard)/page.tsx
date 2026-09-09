@@ -64,13 +64,13 @@ export default function DashboardPage() {
     <div className="space-y-6 pb-20">
       {/* Hero Section */}
       <div className="relative mb-8">
-        <div className="absolute -top-10 -left-10 w-40 h-40 bg-indigo-500/20 rounded-full blur-[80px]" />
-        <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter leading-[0.85] mb-2 relative z-10">
+        <div className="absolute -top-10 -left-10 w-40 h-40 bg-[var(--mm-primary)]/20 rounded-full blur-[80px]" />
+        <h1 className="text-5xl sm:text-6xl font-black text-[var(--mm-text)] tracking-tighter leading-[0.85] mb-2 relative z-10">
           MEDIA<br/>MIND
         </h1>
-        <div className="flex items-center gap-3 text-indigo-400 font-mono text-xs tracking-[0.2em] uppercase">
+        <div className="flex items-center gap-3 text-[var(--mm-primary)] font-mono text-xs tracking-[0.2em] uppercase">
           <span>v2.0</span>
-          <div className="h-px w-12 bg-indigo-500/50" />
+          <div className="h-px w-12 bg-[var(--mm-primary)]/50" />
           <span>INTELLIGENCE</span>
         </div>
       </div>
@@ -78,17 +78,17 @@ export default function DashboardPage() {
       {/* Stats Ticker */}
       <div className="flex gap-3 mb-6 overflow-x-auto no-scrollbar">
         <div className="flex-none glass-card px-4 py-3 rounded-xl flex items-center gap-3 min-w-[120px]">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <div className="w-2 h-2 bg-[var(--mm-success)] rounded-full animate-pulse" />
           <div>
-            <div className="text-[10px] text-slate-400 uppercase tracking-wider">Total</div>
-            <div className="text-xl font-bold font-mono">{totalCount}</div>
+            <div className="text-[10px] text-[var(--mm-text-40)] uppercase tracking-wider">Total</div>
+            <div className="text-xl font-bold font-mono text-[var(--mm-text)]">{totalCount}</div>
           </div>
         </div>
         <div className="flex-none glass-card px-4 py-3 rounded-xl flex items-center gap-3 min-w-[120px]">
-          <div className="w-2 h-2 bg-indigo-500 rounded-full" />
+          <div className="w-2 h-2 bg-[var(--mm-primary)] rounded-full" />
           <div>
-            <div className="text-[10px] text-slate-400 uppercase tracking-wider">Watched</div>
-            <div className="text-xl font-bold font-mono">{completedCount}</div>
+            <div className="text-[10px] text-[var(--mm-text-40)] uppercase tracking-wider">Watched</div>
+            <div className="text-xl font-bold font-mono text-[var(--mm-text)]">{completedCount}</div>
           </div>
         </div>
       </div>
@@ -97,9 +97,9 @@ export default function DashboardPage() {
       <div className="grid grid-cols-12 gap-4">
         
         {/* Library Card - Large with Posters */}
-        <button 
+        <button
           onClick={() => router.push('/library')}
-          className="col-span-12 h-56 relative group rounded-[28px] overflow-hidden border border-white/10 bg-[#0a0a0a] text-left"
+          className="col-span-12 h-56 relative group rounded-[28px] overflow-hidden border border-[var(--mm-card-border)] bg-[var(--mm-card-bg)] text-left"
         >
           {/* Poster Grid Background */}
           <div className="absolute inset-0 grid grid-cols-4 grid-rows-2 gap-1 p-1">
@@ -150,19 +150,19 @@ export default function DashboardPage() {
         </button>
 
         {/* AI Suggestions */}
-        <button 
+        <button
           onClick={() => router.push('/collections')}
-          className="col-span-7 h-40 bg-[#0a0a0a] rounded-[28px] relative overflow-hidden group border border-white/10 flex flex-col justify-between p-5 text-left"
+          className="col-span-7 h-40 bg-[var(--mm-card-bg)] rounded-[28px] relative overflow-hidden group border border-[var(--mm-card-border)] flex flex-col justify-between p-5 text-left"
         >
           <div className="absolute top-0 right-0 p-4 opacity-20">
             <Sparkles size={56} className="text-fuchsia-500" />
           </div>
-          
+
           <div className="z-10 bg-fuchsia-500/20 w-fit p-2 rounded-lg backdrop-blur-md border border-fuchsia-500/20">
             <Sparkles size={20} className="text-fuchsia-300" />
           </div>
           <div className="z-10">
-            <h3 className="text-xl font-bold text-white leading-none">AI<br/>COLLECTIONS</h3>
+            <h3 className="text-xl font-bold text-[var(--mm-text)] leading-none">AI<br/>COLLECTIONS</h3>
             <p className="text-[10px] text-fuchsia-400/80 font-mono mt-2 uppercase tracking-wider">Smart Grouping</p>
           </div>
         </button>
@@ -170,7 +170,7 @@ export default function DashboardPage() {
         {/* Add Button */}
         <button
           onClick={() => router.push('/search')}
-          className="col-span-5 h-40 bg-white rounded-[28px] relative overflow-hidden group border border-white/10 flex flex-col justify-center items-center p-4 hover:bg-slate-200 transition-colors"
+          className="col-span-5 h-40 bg-white rounded-[28px] relative overflow-hidden group border border-[var(--mm-card-border)] flex flex-col justify-center items-center p-4 hover:bg-slate-200 transition-colors"
         >
           <Plus size={40} className="text-black mb-2 group-hover:scale-125 transition-transform duration-300" strokeWidth={3} />
           <span className="text-black font-black text-sm uppercase tracking-widest">ADD</span>
@@ -179,37 +179,37 @@ export default function DashboardPage() {
         {/* Discover (Random pick / AI recommendations) */}
         <button
           onClick={() => setDiscoverOpen(true)}
-          className="col-span-12 bg-[#111] border border-white/5 rounded-[24px] p-4 flex items-center justify-between group hover:border-indigo-500/30 transition-colors relative overflow-hidden"
+          className="col-span-12 bg-[var(--mm-card-bg)] border border-[var(--mm-card-border)] rounded-[24px] p-4 flex items-center justify-between group hover:border-[var(--mm-primary)]/50 transition-colors relative overflow-hidden"
         >
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-fuchsia-500" />
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--mm-primary)]" />
           <div className="flex items-center gap-4 z-10">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/20 rounded-lg flex items-center justify-center border border-white/10">
-              <Shuffle size={18} className="text-indigo-300" />
+            <div className="w-10 h-10 bg-[var(--mm-primary)]/10 rounded-lg flex items-center justify-center border border-[var(--mm-card-border)]">
+              <Shuffle size={18} className="text-[var(--mm-primary)]" />
             </div>
             <div className="text-left">
-              <div className="font-bold text-slate-200 text-sm">DISCOVER</div>
-              <div className="text-[10px] text-slate-500 font-mono">RANDOM PICK OR AI RECOMMENDATIONS</div>
+              <div className="font-bold text-[var(--mm-text-70)] text-sm">DISCOVER</div>
+              <div className="text-[10px] text-[var(--mm-text-40)] font-mono">RANDOM PICK OR AI RECOMMENDATIONS</div>
             </div>
           </div>
-          <ArrowRight size={18} className="text-slate-500 group-hover:translate-x-1 transition-transform" />
+          <ArrowRight size={18} className="text-[var(--mm-text-40)] group-hover:translate-x-1 transition-transform" />
         </button>
 
         {/* Settings */}
-        <button 
+        <button
           onClick={() => router.push('/settings')}
-          className="col-span-12 bg-[#111] border border-white/5 rounded-[24px] p-4 flex items-center justify-between group hover:border-white/20 transition-colors relative overflow-hidden"
+          className="col-span-12 bg-[var(--mm-card-bg)] border border-[var(--mm-card-border)] rounded-[24px] p-4 flex items-center justify-between group hover:border-[var(--mm-card-border-hover)] transition-colors relative overflow-hidden"
         >
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--mm-primary)]" />
           <div className="flex items-center gap-4 z-10">
-            <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg flex items-center justify-center font-mono text-xs text-white border border-white/10">
+            <div className="w-10 h-10 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center font-mono text-xs text-[var(--mm-text)] border border-[var(--mm-card-border)]">
               ID
             </div>
             <div className="text-left">
-              <div className="font-bold text-slate-200 text-sm">SYSTEM CONFIG</div>
-              <div className="text-[10px] text-slate-500 font-mono">STATUS: ONLINE</div>
+              <div className="font-bold text-[var(--mm-text-70)] text-sm">SYSTEM CONFIG</div>
+              <div className="text-[10px] text-[var(--mm-text-40)] font-mono">STATUS: ONLINE</div>
             </div>
           </div>
-          <Settings size={18} className="text-slate-500 group-hover:rotate-90 transition-transform duration-500" />
+          <Settings size={18} className="text-[var(--mm-text-40)] group-hover:rotate-90 transition-transform duration-500" />
         </button>
       </div>
 
@@ -218,13 +218,13 @@ export default function DashboardPage() {
       {/* Recent Items Section */}
       <div className="pt-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white tracking-tight">Recent</h2>
+          <h2 className="text-lg font-bold text-[var(--mm-text)] tracking-tight">Recent</h2>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={() => setViewMode('grid')}
-              className={cn(viewMode === 'grid' && 'bg-white/10')}
+              className={cn(viewMode === 'grid' && 'bg-[var(--mm-hover-bg-strong)]')}
             >
               <Grid3X3 className="h-4 w-4" />
             </Button>
@@ -232,7 +232,7 @@ export default function DashboardPage() {
               variant="ghost"
               size="icon-sm"
               onClick={() => setViewMode('list')}
-              className={cn(viewMode === 'list' && 'bg-white/10')}
+              className={cn(viewMode === 'list' && 'bg-[var(--mm-hover-bg-strong)]')}
             >
               <List className="h-4 w-4" />
             </Button>
@@ -245,7 +245,7 @@ export default function DashboardPage() {
 
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent hideCloseButton className="max-w-4xl h-[90vh] lg:h-auto lg:max-h-[90vh] overflow-hidden bg-[#0a0a0a] border-white/10 p-0">
+        <DialogContent hideCloseButton className="max-w-4xl h-[90vh] lg:h-auto lg:max-h-[90vh] overflow-hidden bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] p-0">
           <DialogHeader className="sr-only">
             <DialogTitle>Media Details</DialogTitle>
           </DialogHeader>

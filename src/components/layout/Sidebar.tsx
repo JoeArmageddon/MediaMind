@@ -15,11 +15,14 @@ import {
   X,
   Film,
   Users,
+  BookOpen,
+  Moon,
 } from 'lucide-react';
 import { UserButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSyncStore } from '@/store/syncStore';
+import { useThemeStore } from '@/store/themeStore';
 
 const userButtonAppearance = {
   elements: {
@@ -38,6 +41,24 @@ const navItems = [
   { href: '/friends', icon: Users, label: 'Friends' },
 ];
 
+function ThemeToggle({ className }: { className?: string }) {
+  const { theme, toggleTheme } = useThemeStore();
+  const isManga = theme === 'manga';
+  return (
+    <button
+      onClick={toggleTheme}
+      title={isManga ? 'Switch to dark mode' : 'Switch to manga mode'}
+      className={cn(
+        'w-12 h-12 rounded-xl flex items-center justify-center transition-all',
+        'text-[var(--mm-text-40)] hover:bg-[var(--mm-hover-bg)] hover:text-[var(--mm-text)]',
+        className
+      )}
+    >
+      {isManga ? <Moon className="h-5 w-5" /> : <BookOpen className="h-5 w-5" />}
+    </button>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -51,11 +72,11 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-20 flex-col bg-[#050505] border-r border-white/5 lg:flex">
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-20 flex-col bg-[var(--mm-bg)] border-r border-[var(--mm-card-border)] lg:flex">
         {/* Logo */}
-        <div className="flex h-20 items-center justify-center border-b border-white/5">
+        <div className="flex h-20 items-center justify-center border-b border-[var(--mm-card-border)]">
           <Link href="/" className="flex items-center justify-center">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[var(--mm-indigo)] flex items-center justify-center">
               <Film className="h-5 w-5 text-white" />
             </div>
           </Link>
@@ -72,28 +93,29 @@ export function Sidebar() {
                 className={cn(
                   'w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative',
                   isActive
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/40 hover:bg-white/5 hover:text-white'
+                    ? 'bg-[var(--mm-hover-bg-strong)] text-[var(--mm-text)]'
+                    : 'text-[var(--mm-text-40)] hover:bg-[var(--mm-hover-bg)] hover:text-[var(--mm-text)]'
                 )}
               >
                 <item.icon className="h-5 w-5" />
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-500 rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--mm-indigo)] rounded-r-full" />
                 )}
               </Link>
             );
           })}
         </nav>
 
-        {/* Settings at bottom */}
-        <div className="p-4 border-t border-white/5">
+        {/* Theme toggle + Settings at bottom */}
+        <div className="p-4 border-t border-[var(--mm-card-border)] flex flex-col items-center gap-1">
+          <ThemeToggle />
           <Link
             href="/settings"
             className={cn(
               'w-12 h-12 rounded-xl flex items-center justify-center transition-all',
               pathname === '/settings'
-                ? 'bg-white/10 text-white'
-                : 'text-white/40 hover:bg-white/5 hover:text-white'
+                ? 'bg-[var(--mm-hover-bg-strong)] text-[var(--mm-text)]'
+                : 'text-[var(--mm-text-40)] hover:bg-[var(--mm-hover-bg)] hover:text-[var(--mm-text)]'
             )}
           >
             <Settings className="h-5 w-5" />
@@ -107,7 +129,7 @@ export function Sidebar() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 bg-[#050505]/95 backdrop-blur-xl border-t border-white/5 lg:hidden flex items-center justify-around px-2">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 bg-[var(--mm-bg)]/95 backdrop-blur-xl border-t border-[var(--mm-card-border)] lg:hidden flex items-center justify-around px-2">
         {navItems.slice(0, 5).map((item) => {
           const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
           return (
@@ -116,15 +138,13 @@ export function Sidebar() {
               href={item.href}
               className={cn(
                 'flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all',
-                isActive
-                  ? 'text-white'
-                  : 'text-white/40'
+                isActive ? 'text-[var(--mm-text)]' : 'text-[var(--mm-text-40)]'
               )}
             >
               <item.icon className="h-5 w-5 mb-1" />
               <span className="text-[10px] font-medium">{item.label}</span>
               {isActive && (
-                <div className="absolute bottom-1 w-1 h-1 bg-indigo-500 rounded-full" />
+                <div className="absolute bottom-1 w-1 h-1 bg-[var(--mm-indigo)] rounded-full" />
               )}
             </Link>
           );
@@ -132,12 +152,12 @@ export function Sidebar() {
       </nav>
 
       {/* Mobile Header */}
-      <header className="fixed left-0 right-0 top-0 z-50 h-14 flex items-center justify-between px-4 lg:hidden bg-[#050505]/95 backdrop-blur border-b border-white/5">
+      <header className="fixed left-0 right-0 top-0 z-50 h-14 flex items-center justify-between px-4 lg:hidden bg-[var(--mm-bg)]/95 backdrop-blur border-b border-[var(--mm-card-border)]">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[var(--mm-indigo)] flex items-center justify-center">
             <Film className="h-4 w-4 text-white" />
           </div>
-          <span className="text-lg font-black text-white tracking-tight">MEDIA MIND</span>
+          <span className="text-lg font-black text-[var(--mm-text)] tracking-tight">MEDIA MIND</span>
         </Link>
 
         <div className="flex items-center gap-3">
@@ -147,11 +167,12 @@ export function Sidebar() {
               is_online ? 'bg-green-500' : 'bg-yellow-500'
             )} />
           )}
+          <ThemeToggle className="w-8 h-8" />
           <Link
             href="/friends"
             className={cn(
               'p-1.5 rounded-lg transition-colors',
-              pathname === '/friends' ? 'text-white bg-white/10' : 'text-white/50'
+              pathname === '/friends' ? 'text-[var(--mm-text)] bg-[var(--mm-hover-bg-strong)]' : 'text-[var(--mm-text-50)]'
             )}
           >
             <Users className="h-5 w-5" />

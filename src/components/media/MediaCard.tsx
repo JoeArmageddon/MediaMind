@@ -97,26 +97,26 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
           onClick={onClick}
           className={cn(
             'group relative overflow-hidden rounded-2xl mb-2 cursor-pointer',
-            'bg-[#1a1a1a]/40 backdrop-blur-xl border border-white/10',
-            'hover:border-white/20 transition-colors duration-300',
+            'bg-[var(--mm-card-bg)] backdrop-blur-xl border border-[var(--mm-card-border)]',
+            'hover:border-[var(--mm-card-border-hover)] transition-colors duration-300',
             'min-h-[80px]',
             className
           )}
         >
           <div className={cn('absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b', config.gradient)} />
-          
+
           <div className="p-4 flex gap-4 items-center relative z-10">
             {/* Poster Thumbnail for List */}
-            <div className="w-12 h-16 rounded-lg overflow-hidden bg-black flex-shrink-0 border border-white/10">
+            <div className="w-12 h-16 rounded-lg overflow-hidden bg-[var(--mm-input-bg)] flex-shrink-0 border border-[var(--mm-card-border)]">
               {media.poster_url ? (
-                <img 
-                  src={media.poster_url} 
+                <img
+                  src={media.poster_url}
                   alt={media.title}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/10 to-white/5">
-                  <span className="text-lg font-black text-white/30">{media.title.charAt(0)}</span>
+                <div className="w-full h-full flex items-center justify-center bg-[var(--mm-hover-bg)]">
+                  <span className="text-lg font-black text-[var(--mm-text-30)]">{media.title.charAt(0)}</span>
                 </div>
               )}
             </div>
@@ -124,18 +124,18 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
                 <h3 className={cn(
-                  'font-bold text-base text-white/90 truncate pr-4',
+                  'font-bold text-base text-[var(--mm-text)] truncate pr-4',
                   isCompleted && 'line-through opacity-50'
                 )}>
                   {media.title}
                 </h3>
-                <span className="text-[10px] font-bold text-slate-500 border border-white/5 px-2 py-0.5 rounded bg-black/40">
+                <span className="text-[10px] font-bold text-[var(--mm-text-40)] border border-[var(--mm-card-border)] px-2 py-0.5 rounded bg-[var(--mm-hover-bg)]">
                   {media.release_year || 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2 overflow-hidden">
                 {media.genres.slice(0, 3).map((tag, i) => (
-                  <span key={i} className="text-[10px] text-white/40 uppercase tracking-wider font-medium">
+                  <span key={i} className="text-[10px] text-[var(--mm-text-40)] uppercase tracking-wider font-medium">
                     {tag}
                   </span>
                 ))}
@@ -149,15 +149,15 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
                 className={cn(
                   'w-8 h-8 rounded-full flex items-center justify-center border transition-all',
                   isCompleted
-                    ? 'bg-white text-black border-white'
-                    : 'border-white/10 text-white/20 hover:text-white'
+                    ? 'bg-[var(--mm-primary)] text-white border-[var(--mm-primary)]'
+                    : 'border-[var(--mm-card-border)] text-[var(--mm-text-20)] hover:text-[var(--mm-text)]'
                 )}
               >
                 <Check size={14} strokeWidth={3} />
               </button>
             )}
             {readOnly && isCompleted && (
-              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-black shrink-0">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--mm-primary)] text-white shrink-0">
                 <Check size={14} strokeWidth={3} />
               </div>
             )}
@@ -184,17 +184,17 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
         )}
       >
         {/* Poster Container */}
-        <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-[#1a1a1a] border border-white/10 group-hover:border-white/20 transition-all duration-300">
+        <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-[var(--mm-card-bg)] border border-[var(--mm-card-border)] group-hover:border-[var(--mm-card-border-hover)] transition-all duration-300">
           {/* Poster Image */}
           {media.poster_url ? (
-            <img 
-              src={media.poster_url} 
+            <img
+              src={media.poster_url}
               alt={media.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/10 to-white/5">
-              <span className="text-6xl font-black text-white/20">{media.title.charAt(0)}</span>
+            <div className="w-full h-full flex items-center justify-center bg-[var(--mm-hover-bg)]">
+              <span className="text-6xl font-black text-[var(--mm-text-20)]">{media.title.charAt(0)}</span>
             </div>
           )}
           
@@ -216,7 +216,7 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
                   className={cn(
                     'flex-1 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all',
                     isCompleted
-                      ? 'bg-white text-black'
+                      ? 'bg-[var(--mm-primary)] text-white'
                       : 'bg-white/20 text-white hover:bg-white/30'
                   )}
                 >
@@ -229,8 +229,8 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
 
           {/* Status Indicator */}
           {isCompleted && (
-            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white flex items-center justify-center">
-              <Check size={14} className="text-black" strokeWidth={3} />
+            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[var(--mm-primary)] flex items-center justify-center">
+              <Check size={14} className="text-white" strokeWidth={3} />
             </div>
           )}
 
@@ -246,17 +246,17 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
         {/* Title Below Poster */}
         <div className="px-1">
           <h3 className={cn(
-            'font-bold text-sm text-white leading-tight line-clamp-2',
+            'font-bold text-sm text-[var(--mm-text)] leading-tight line-clamp-2',
             isCompleted && 'line-through opacity-50'
           )}>
             {truncate(media.title, 50)}
           </h3>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] text-white/50">{media.release_year || 'N/A'}</span>
+            <span className="text-[10px] text-[var(--mm-text-50)]">{media.release_year || 'N/A'}</span>
             {media.genres.length > 0 && (
               <>
-                <span className="text-[10px] text-white/30">•</span>
-                <span className="text-[10px] text-white/50 truncate">{media.genres[0]}</span>
+                <span className="text-[10px] text-[var(--mm-text-30)]">•</span>
+                <span className="text-[10px] text-[var(--mm-text-50)] truncate">{media.genres[0]}</span>
               </>
             )}
           </div>
