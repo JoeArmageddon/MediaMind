@@ -42,7 +42,16 @@ export class GeminiClient {
   async init() {
     if (this.initialized) return;
     
-    const key = await resolveApiKey('gemini_key', process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+    // No NEXT_PUBLIC_ fallback here on purpose - this client runs entirely
+    // in the browser (GoogleGenerativeAI is instantiated client-side,
+    // making direct requests to Google's API from the user's own
+    // network tab), so any env var read here ships inlined into the
+    // public JS bundle and is trivially extractable by anyone. A
+    // NEXT_PUBLIC_GEMINI_API_KEY was previously set in Vercel's env vars
+    // and was exposed this way - rotated and removed. Gemini features now
+    // require each user's own key (Settings), same as the resolve order
+    // already prioritized.
+    const key = await resolveApiKey('gemini_key', undefined);
 
     this.apiKey = key;
     if (key) {

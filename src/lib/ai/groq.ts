@@ -46,10 +46,12 @@ export class GroqClient {
   async init() {
     if (this.initialized) return;
     
-    // Note: process.env.GROQ_API_KEY (no NEXT_PUBLIC_ prefix) is never
-    // actually available here - Next.js only inlines NEXT_PUBLIC_* vars
-    // into client-side code - kept only as a harmless no-op fallback.
-    const key = await resolveApiKey('groq_key', process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY);
+    // No env-var fallback here on purpose (see gemini.ts's init() for the
+    // full reasoning) - this client runs entirely in the browser
+    // (dangerouslyAllowBrowser: true below), so a NEXT_PUBLIC_GROQ_API_KEY
+    // would ship inlined into the public JS bundle, extractable by anyone.
+    // Groq features require each user's own key (Settings).
+    const key = await resolveApiKey('groq_key', undefined);
 
     this.apiKey = key;
     if (key) {
