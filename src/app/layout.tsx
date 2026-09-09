@@ -43,6 +43,14 @@ const ThemeSync = dynamic(
   () => import('@/providers/ThemeSync').then((mod) => mod.ThemeSync),
   { ssr: false }
 );
+const TutorialAutoOpen = dynamic(
+  () => import('@/components/onboarding/TutorialAutoOpen').then((mod) => mod.TutorialAutoOpen),
+  { ssr: false }
+);
+const TutorialModal = dynamic(
+  () => import('@/components/onboarding/TutorialModal').then((mod) => mod.TutorialModal),
+  { ssr: false }
+);
 
 export default function RootLayout({
   children,
@@ -65,6 +73,8 @@ export default function RootLayout({
         <body className={inter.className}>
           <AuthSync />
           <ThemeSync />
+          <TutorialAutoOpen />
+          <TutorialModal />
           <MediaProvider>{children}</MediaProvider>
         </body>
       </html>

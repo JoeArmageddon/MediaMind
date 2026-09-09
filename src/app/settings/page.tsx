@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle, Loader2, BookOpen, Moon, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle, Loader2, BookOpen, Moon, HelpCircle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useMediaStore } from '@/store/mediaStore';
 import { useSyncStore } from '@/store/syncStore';
 import { useThemeStore } from '@/store/themeStore';
+import { useOnboardingStore } from '@/store/onboardingStore';
 import { exportDatabase, importDatabase, getApiKey, saveApiKey, db } from '@/lib/db/dexie';
 import { resolveApiKey } from '@/lib/api/apiKey';
 import { createTMDBClient } from '@/lib/api/tmdb';
@@ -25,6 +26,7 @@ export default function SettingsPage() {
   const { syncWithSupabase, updateMedia } = useMediaStore();
   const { is_online, pending_changes } = useSyncStore();
   const { theme, toggleTheme } = useThemeStore();
+  const { openTutorial } = useOnboardingStore();
 
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -360,6 +362,21 @@ export default function SettingsPage() {
           </div>
         </div>
       </Link>
+
+      {/* Replay tutorial */}
+      <button onClick={openTutorial} className="w-full text-left">
+        <div className="glass-card rounded-2xl p-4 flex items-center justify-between hover:border-[var(--mm-card-border-hover)] transition-colors">
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-[var(--mm-primary)]" />
+            <div>
+              <div className="font-bold text-[var(--mm-text)] text-sm">Replay tutorial</div>
+              <div className="text-xs text-[var(--mm-text-50)]">
+                The quick feature tour shown on your first visit.
+              </div>
+            </div>
+          </div>
+        </div>
+      </button>
 
       {/* Status Card */}
       <div className="glass-card rounded-2xl p-4 flex items-center justify-between">
