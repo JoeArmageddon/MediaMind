@@ -10,13 +10,22 @@ function getCurrentUserId(): string | undefined {
   return typeof window !== 'undefined' ? window.Clerk?.user?.id : undefined;
 }
 
+export interface InvitePreview {
+  id: string;
+  name: string;
+  email: string | null;
+  imageUrl: string | null;
+}
+
 interface FriendStore {
   friends: FriendshipWithProfile[];
   incomingRequests: FriendshipWithProfile[];
   outgoingRequests: FriendshipWithProfile[];
   activity: FriendActivityEntry[];
+  myInviteCode: string | null;
   isLoading: boolean;
   isLoadingActivity: boolean;
+  isLoadingCode: boolean;
   error: string | null;
   fetchFriends: () => Promise<void>;
   fetchFriendsActivity: () => Promise<void>;
@@ -24,6 +33,24 @@ interface FriendStore {
   acceptRequest: (friendshipId: string) => Promise<void>;
   declineRequest: (friendshipId: string) => Promise<void>;
   removeFriend: (friendshipId: string) => Promise<void>;
+  fetchMyInviteCode: () => Promise<void>;
+  regenerateInviteCode: () => Promise<void>;
+  previewInviteCode: (code: string) => Promise<{ success: boolean; profile?: InvitePreview; message?: string }>;
+  redeemInviteCode: (code: string) => Promise<{ success: boolean; message: string }>;
+}
+
+// 8 unambiguous, case-insensitive-safe characters (no 0/O, 1/I/L, no
+// vowSpelling-word risk) - short enough to type/read off a screen, long
+// enough (32^8 ≈ 1 trillion combinations) that guessing one isn't
+// practical, matching the "the code is the credential" security model
+// used throughout (see the schema.sql comment on friend_invite_codes).
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function generateCode(length = 8): string {
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  }
+  return code;
 }
 
 export const useFriendStore = create<FriendStore>()((set, get) => ({
@@ -31,8 +58,10 @@ export const useFriendStore = create<FriendStore>()((set, get) => ({
   incomingRequests: [],
   outgoingRequests: [],
   activity: [],
+  myInviteCode: null,
   isLoading: false,
   isLoadingActivity: false,
+  isLoadingCode: false,
   error: null,
 
   fetchFriends: async () => {
@@ -263,6 +292,124 @@ export const useFriendStore = create<FriendStore>()((set, get) => ({
     } catch (e) {
       console.error('removeFriend failed:', e);
       set({ error: e instanceof Error ? e.message : 'Failed to remove friend.' });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchMyInviteCode: async () => {
+    const currentUserId = getCurrentUserId();
+    if (!currentUserId) return;
+
+    set({ isLoadingCode: true });
+    try {
+      const { data, error } = await (supabase as any)
+        .from('friend_invite_codes')
+        .select('code')
+        .eq('user_id', currentUserId)
+        .maybeSingle();
+      if (error) throw error;
+
+      if (data?.code) {
+        set({ myInviteCode: data.code });
+        return;
+      }
+
+      // First time - generate and persist one. A collision on the global
+      // UNIQUE(code) constraint is astronomically unlikely at 8 chars from
+      // a 32-symbol alphabet, but retried a few times regardless rather
+      // than surfacing a raw constraint error for what's really just bad
+      // luck on one random draw.
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const code = generateCode();
+        const { error: insertError } = await (supabase as any)
+          .from('friend_invite_codes')
+          .insert({ user_id: currentUserId, code });
+        if (!insertError) {
+          set({ myInviteCode: code });
+          return;
+        }
+        lastError = insertError;
+        if ((insertError as { code?: string })?.code !== '23505') break;
+      }
+      throw lastError ?? new Error('Failed to generate an invite code.');
+    } catch (e) {
+      console.error('fetchMyInviteCode failed:', e);
+      set({ error: e instanceof Error ? e.message : 'Failed to load your invite code.' });
+    } finally {
+      set({ isLoadingCode: false });
+    }
+  },
+
+  regenerateInviteCode: async () => {
+    const currentUserId = getCurrentUserId();
+    if (!currentUserId) return;
+
+    set({ isLoadingCode: true, error: null });
+    try {
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const code = generateCode();
+        const { error } = await (supabase as any)
+          .from('friend_invite_codes')
+          .update({ code })
+          .eq('user_id', currentUserId);
+        if (!error) {
+          set({ myInviteCode: code });
+          return;
+        }
+        lastError = error;
+        if ((error as { code?: string })?.code !== '23505') break;
+      }
+      throw lastError ?? new Error('Failed to regenerate your invite code.');
+    } catch (e) {
+      console.error('regenerateInviteCode failed:', e);
+      set({ error: e instanceof Error ? e.message : 'Failed to regenerate your invite code.' });
+    } finally {
+      set({ isLoadingCode: false });
+    }
+  },
+
+  previewInviteCode: async (code) => {
+    try {
+      const res = await fetch('/api/friends/preview-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        return { success: false, message: json.error || 'Invalid invite code.' };
+      }
+      return { success: true, profile: json as InvitePreview };
+    } catch (e) {
+      console.error('previewInviteCode failed:', e);
+      return { success: false, message: e instanceof Error ? e.message : 'Failed to look up this invite.' };
+    }
+  },
+
+  redeemInviteCode: async (code) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data: ownerId, error } = await (supabase as any).rpc('redeem_friend_code', {
+        target_code: code,
+      });
+      if (error) throw error;
+
+      await get().fetchFriends();
+      const friend = get().friends.find((f) => f.otherUser?.id === ownerId);
+      return {
+        success: true,
+        message: friend?.otherUser?.name ? `You're now connected with ${friend.otherUser.name}.` : "You're connected.",
+      };
+    } catch (e: any) {
+      console.error('redeemInviteCode failed:', e);
+      const message =
+        e?.message?.includes('invalid_code') ? 'This invite code is invalid.'
+        : e?.message?.includes('self_code') ? "That's your own invite code."
+        : e instanceof Error ? e.message : 'Failed to redeem this invite.';
+      return { success: false, message };
     } finally {
       set({ isLoading: false });
     }

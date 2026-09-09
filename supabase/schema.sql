@@ -577,3 +577,132 @@ CREATE POLICY "collaborators update shared collections" ON smart_collections FOR
         AND shared_with_id = auth.jwt()->>'sub'
     )
   );
+
+-- =====================================================
+-- Friend invite codes (codes / QR / shareable links)
+-- =====================================================
+
+-- One shareable code per user. No general "select any row" policy exists
+-- on purpose - a code must never be readable by scanning the table, only
+-- resolvable one at a time via preview_friend_code/redeem_friend_code
+-- below (SECURITY DEFINER, authenticated-only), so a code can't be
+-- enumerated even by an authenticated client.
+CREATE TABLE friend_invite_codes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL UNIQUE,
+  code TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_friend_invite_codes_code ON friend_invite_codes(code);
+
+CREATE TRIGGER update_friend_invite_codes_updated_at
+  BEFORE UPDATE ON friend_invite_codes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE friend_invite_codes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "select own invite code" ON friend_invite_codes FOR SELECT
+  USING (auth.jwt()->>'sub' = user_id);
+
+CREATE POLICY "insert own invite code" ON friend_invite_codes FOR INSERT
+  WITH CHECK (auth.jwt()->>'sub' = user_id);
+
+CREATE POLICY "update own invite code" ON friend_invite_codes FOR UPDATE
+  USING (auth.jwt()->>'sub' = user_id)
+  WITH CHECK (auth.jwt()->>'sub' = user_id);
+
+CREATE POLICY "delete own invite code" ON friend_invite_codes FOR DELETE
+  USING (auth.jwt()->>'sub' = user_id);
+
+-- Resolves a code to its owner's Clerk id, no side effects - used for the
+-- invite landing page's "X invited you - Accept?" preview before the
+-- friendship is actually created. Explicitly revoked from PUBLIC/anon
+-- below and granted only to `authenticated` - Postgres grants EXECUTE to
+-- PUBLIC by default on a new function, which the plain GRANT alone
+-- doesn't override.
+CREATE OR REPLACE FUNCTION preview_friend_code(target_code TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  caller_id TEXT := auth.jwt()->>'sub';
+  found_owner TEXT;
+BEGIN
+  IF caller_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  SELECT user_id INTO found_owner FROM friend_invite_codes WHERE code = target_code;
+
+  IF found_owner IS NULL THEN
+    RAISE EXCEPTION 'invalid_code';
+  END IF;
+
+  RETURN found_owner;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION preview_friend_code(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION preview_friend_code(TEXT) TO authenticated;
+
+-- Resolves a code to its owner and creates (or upgrades to accepted) the
+-- friendship row - idempotent, and handles both possible
+-- (requester,addressee) orderings since unique_friendship only constrains
+-- one direction. Possessing the code is treated as mutual consent (like
+-- Discord/Snapchat add-by-code), so this goes straight to 'accepted'
+-- rather than creating a separate pending request the code's owner would
+-- have to additionally approve.
+CREATE OR REPLACE FUNCTION redeem_friend_code(target_code TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  caller_id TEXT := auth.jwt()->>'sub';
+  found_owner TEXT;
+  existing_status TEXT;
+BEGIN
+  IF caller_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  SELECT user_id INTO found_owner FROM friend_invite_codes WHERE code = target_code;
+
+  IF found_owner IS NULL THEN
+    RAISE EXCEPTION 'invalid_code';
+  END IF;
+
+  IF found_owner = caller_id THEN
+    RAISE EXCEPTION 'self_code';
+  END IF;
+
+  SELECT status INTO existing_status
+  FROM friendships
+  WHERE (requester_id = caller_id AND addressee_id = found_owner)
+     OR (requester_id = found_owner AND addressee_id = caller_id)
+  LIMIT 1;
+
+  IF existing_status IS NOT NULL THEN
+    IF existing_status <> 'accepted' THEN
+      UPDATE friendships
+      SET status = 'accepted', updated_at = NOW()
+      WHERE (requester_id = caller_id AND addressee_id = found_owner)
+         OR (requester_id = found_owner AND addressee_id = caller_id);
+    END IF;
+    RETURN found_owner;
+  END IF;
+
+  INSERT INTO friendships (requester_id, addressee_id, status)
+  VALUES (caller_id, found_owner, 'accepted');
+
+  RETURN found_owner;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION redeem_friend_code(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION redeem_friend_code(TEXT) TO authenticated;

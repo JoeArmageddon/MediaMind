@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, UserPlus, Users, Check, X, Trash2, Loader2, Library } from 'lucide-react';
+import { ArrowLeft, UserPlus, Users, Check, X, Trash2, Loader2, Library, Copy, RefreshCw, QrCode } from 'lucide-react';
 import Link from 'next/link';
+import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,100 @@ function Avatar({ user }: { user: FriendshipWithProfile['otherUser'] }) {
   return (
     <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center text-white font-bold">
       {initial}
+    </div>
+  );
+}
+
+function InviteCodeCard() {
+  const { myInviteCode, isLoadingCode, fetchMyInviteCode, regenerateInviteCode } = useFriendStore();
+  const [showQr, setShowQr] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  useEffect(() => {
+    fetchMyInviteCode();
+  }, [fetchMyInviteCode]);
+
+  const link =
+    myInviteCode && typeof window !== 'undefined' ? `${window.location.origin}/invite/${myInviteCode}` : '';
+
+  const handleCopy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API can be denied/unavailable - not worth surfacing an
+      // error for, the link is right there to select manually either way.
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!confirm('Generate a new invite code? Your current code and link will stop working.')) return;
+    setIsRegenerating(true);
+    await regenerateInviteCode();
+    setIsRegenerating(false);
+  };
+
+  return (
+    <div className="glass-card rounded-[24px] p-6">
+      <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <QrCode className="h-4 w-4" />
+        Your invite code
+      </h3>
+      <p className="text-xs text-white/40 mb-4">
+        Share your code, link, or QR code - anyone who has it connects with you instantly, no approval needed.
+      </p>
+
+      {isLoadingCode && !myInviteCode ? (
+        <Loader2 className="h-5 w-5 text-white/30 animate-spin" />
+      ) : (
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <div className="font-mono text-2xl font-black text-white tracking-[0.2em] mb-3">
+              {myInviteCode}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                onClick={handleCopy}
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 mr-1.5" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+                {copied ? 'Copied' : 'Copy link'}
+              </Button>
+              <Button
+                onClick={() => setShowQr((s) => !s)}
+                size="sm"
+                variant="outline"
+                className="border-white/10 text-white/70 hover:text-white hover:bg-white/10 rounded-lg"
+              >
+                <QrCode className="h-3.5 w-3.5 mr-1.5" />
+                {showQr ? 'Hide QR' : 'Show QR'}
+              </Button>
+              <Button
+                onClick={handleRegenerate}
+                disabled={isRegenerating}
+                size="sm"
+                variant="ghost"
+                className="text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+              >
+                {isRegenerating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
+          </div>
+          {showQr && link && (
+            <div className="bg-white p-3 rounded-2xl shrink-0">
+              <QRCodeSVG value={link} size={128} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -103,6 +198,8 @@ export default function FriendsPage() {
           </p>
         )}
       </div>
+
+      <InviteCodeCard />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-2xl h-auto">
