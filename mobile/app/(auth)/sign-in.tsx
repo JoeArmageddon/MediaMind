@@ -1,7 +1,10 @@
 import { useState, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Link } from 'expo-router';
-import { useSignIn } from '@clerk/expo';
+// This @clerk/expo version's default export moved useSignIn/useSignUp to a
+// new Signals-based ("Future") API - the classic {isLoaded, signIn,
+// setActive} shape this file uses lives under the /legacy subpath now.
+import { useSignIn } from '@clerk/expo/legacy';
 import { OAuthButtons } from '../../components/OAuthButtons';
 import { useTheme } from '../../lib/ThemeContext';
 import type { ThemePalette } from '../../lib/theme';

@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Alert, Switch } from 'react-native';
 import { useAuth, useUser } from '@clerk/expo';
 import { getStoredApiKey, saveApiKey } from '../../lib/apiKeys';
+import { useMediaStore } from '../../store/mediaStore';
+import { hasUnsyncedChanges, clearLocalAccountData } from '../../lib/clearLocalData';
 import { useTheme } from '../../lib/ThemeContext';
 import type { ThemePalette } from '../../lib/theme';
 
@@ -39,10 +41,38 @@ export default function SettingsScreen() {
     setTimeout(() => setAiSaved(false), 2000);
   };
 
-  const handleSignOut = () => {
+  // Chunk B: the local cache can now hold real unsynced writes (not just
+  // a paint-while-loading copy), so signing out needs to actually clear
+  // it - otherwise a second account on the same device would inherit the
+  // previous account's library, or worse, have its still-queued changes
+  // attempt to land under the wrong account. Tries to flush the queue to
+  // Supabase first (best-effort); if anything's still unsynced after
+  // that (offline, or a write that's been failing), warns before
+  // discarding rather than silently losing it.
+  const handleSignOut = async () => {
+    await useMediaStore.getState().syncWithSupabase().catch(() => {});
+    const stillUnsynced = await hasUnsyncedChanges();
+
+    const doSignOut = async () => {
+      await clearLocalAccountData();
+      await signOut();
+    };
+
+    if (stillUnsynced) {
+      Alert.alert(
+        'Unsynced changes',
+        "Some changes haven't synced yet (you may be offline). Signing out now will discard them.",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign out anyway', style: 'destructive', onPress: doSignOut },
+        ]
+      );
+      return;
+    }
+
     Alert.alert('Sign out?', undefined, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => signOut() },
+      { text: 'Sign out', style: 'destructive', onPress: doSignOut },
     ]);
   };
 

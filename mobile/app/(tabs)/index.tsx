@@ -9,6 +9,7 @@ import { useMediaStore } from '../../store/mediaStore';
 import { useFriendStore } from '../../store/friendStore';
 import { MediaCard } from '../../components/MediaCard';
 import { MangaHatch } from '../../components/MangaHatch';
+import { OfflineBanner } from '../../components/OfflineBanner';
 import { useTheme } from '../../lib/ThemeContext';
 import type { ThemePalette } from '../../lib/theme';
 import { getTypeLabel } from '../../lib/utils';
@@ -101,6 +102,8 @@ export default function DashboardScreen() {
           <Text style={styles.heroTagText}>{theme.isManga ? 'MANGA MODE' : 'INTELLIGENCE'}</Text>
         </View>
       </View>
+
+      <OfflineBanner />
 
       {/* Stats ticker */}
       <View style={styles.statsRow}>
@@ -417,7 +420,13 @@ function makeStyles(theme: ThemePalette) {
       marginBottom: 12,
     },
     posterCollage: {
-      ...StyleSheet.absoluteFillObject,
+      // StyleSheet.absoluteFillObject was removed from this RN version
+      // (still typed/exists in older RN) - inlined equivalent.
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
       flexDirection: 'row',
       flexWrap: 'wrap',
       padding: 2,
@@ -434,7 +443,13 @@ function makeStyles(theme: ThemePalette) {
       opacity: theme.isManga ? 0.5 : 0.75,
     },
     posterCellShade: {
-      ...StyleSheet.absoluteFillObject,
+      // StyleSheet.absoluteFillObject was removed from this RN version
+      // (still typed/exists in older RN) - inlined equivalent.
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
       margin: 2,
       borderRadius: 6,
       backgroundColor: theme.isManga ? 'rgba(22,19,17,0.15)' : 'rgba(0,0,0,0.35)',
@@ -448,7 +463,13 @@ function makeStyles(theme: ThemePalette) {
       justifyContent: 'center',
     },
     libraryCardOverlayManga: {
-      ...StyleSheet.absoluteFillObject,
+      // StyleSheet.absoluteFillObject was removed from this RN version
+      // (still typed/exists in older RN) - inlined equivalent.
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
       backgroundColor: 'rgba(242,239,228,0.4)',
     },
     // Absolutely positioned and bottom-anchored (not flex:1 + align:

@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Link } from 'expo-router';
-import { useSignUp } from '@clerk/expo';
+// See sign-in.tsx's comment - the classic {isLoaded, signUp, setActive}
+// shape lives under /legacy in this @clerk/expo version.
+import { useSignUp } from '@clerk/expo/legacy';
 import { OAuthButtons } from '../../components/OAuthButtons';
 import { useTheme } from '../../lib/ThemeContext';
 import type { ThemePalette } from '../../lib/theme';

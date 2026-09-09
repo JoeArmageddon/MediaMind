@@ -1,11 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { setClerkTokenGetter, setCurrentUserIdGetter } from '../lib/supabase';
+import { useMediaStore } from '../store/mediaStore';
 import { ThemeProvider, useTheme } from '../lib/ThemeContext';
 
 // Clerk's documented Expo token-cache interface (getToken/saveToken) backed
@@ -48,6 +50,24 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     setClerkTokenGetter(isSignedIn ? () => getToken() : async () => null);
     setCurrentUserIdGetter(() => userId ?? undefined);
   }, [isSignedIn, userId, getToken]);
+
+  // Chunk B: drain the offline sync queue and re-fetch the moment
+  // connectivity actually comes back, rather than only ever syncing on
+  // the next manual pull-to-refresh/screen open - a queued add/update/
+  // delete otherwise sits queued indefinitely if the app stays foregrounded
+  // through a reconnect. Edge-triggered (offline -> online only) via a
+  // ref, not every emission NetInfo happens to fire.
+  const wasOffline = useRef(false);
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const online = state.isConnected !== false;
+      if (online && wasOffline.current && isSignedIn) {
+        useMediaStore.getState().fetchMedia();
+      }
+      wasOffline.current = !online;
+    });
+    return unsubscribe;
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (!isLoaded) return;

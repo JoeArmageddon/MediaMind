@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMediaStore } from '../../store/mediaStore';
 import { getAIClient } from '../../lib/ai';
+import { OfflineBanner } from '../../components/OfflineBanner';
 import { useTheme } from '../../lib/ThemeContext';
 import type { ThemePalette } from '../../lib/theme';
 import type { MediaStatus } from '../../lib/types';
@@ -139,6 +140,8 @@ export default function MediaDetailScreen() {
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
     >
       <Stack.Screen options={{ title: item.title }} />
+
+      <OfflineBanner />
 
       <View style={styles.header}>
         {item.poster_url ? (

@@ -1101,6 +1101,12 @@ function makeStyles(theme: ThemePalette) {
     aiCardIcon: {
       backgroundColor: theme.isManga ? theme.primary : theme.accent,
     },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 8,
+    },
     miniChip: {
       backgroundColor: theme.input,
       borderWidth: theme.borderWidth,

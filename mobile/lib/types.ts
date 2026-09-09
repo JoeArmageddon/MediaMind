@@ -297,3 +297,20 @@ export interface AIFallbackClassification {
   likely_genres: string[];
   confidence: number;
 }
+
+// =====================================================
+// Offline sync queue (Chunk B) - ported from
+// src/lib/db/dexie.ts's SyncQueueItem, AsyncStorage-backed here instead
+// of IndexedDB (see lib/offlineQueue.ts).
+// =====================================================
+
+export interface SyncQueueItem {
+  id: string;
+  table: string;
+  operation: 'insert' | 'update' | 'delete';
+  data: Record<string, unknown>;
+  created_at: string;
+  // Number of failed sync attempts so far. Absent/0 = never tried or brand new.
+  attempts?: number;
+  last_error?: string;
+}
