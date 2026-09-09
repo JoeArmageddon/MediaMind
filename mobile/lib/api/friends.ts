@@ -1,67 +1,13 @@
-import { getClerkToken } from '../supabase';
+import { callWebApi } from '../webApi';
 
-// Clerk doesn't allow client-side code to resolve other users by email
-// or look up a user profile by id (privacy) - those lookups need the
-// Clerk secret key, server-side. The web app already has that server side
+// Clerk doesn't allow client-side code to resolve other users by email or
+// look up a user profile by id (privacy) - those lookups need the Clerk
+// secret key, server-side. The web app already has that server side
 // (src/app/api/friends/find, src/app/api/friends/profiles) and is
-// deployed; mobile has no server of its own, so rather than standing up a
-// second backend just for two lookups, these hit the same deployed routes
-// over HTTPS. It's the same Clerk application (same publishable key) as
-// the web app, so a Bearer token from this app's Clerk session
-// authenticates there too - Clerk's Next.js middleware/`auth()` accepts a
-// session token via the Authorization header for exactly this
-// cross-origin/native-client case, not just its own first-party cookie.
-const WEB_API_URL = process.env.EXPO_PUBLIC_WEB_API_URL?.trim();
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// A rejection the server actually meant (bad token, no such user, bad
-// input) - retrying changes nothing, so this always propagates on the
-// first attempt. Anything else (thrown before/without a real response -
-// a network hiccup, or the deployed serverless function cold-starting) is
-// the transient case, worth one retry with a short backoff. This is what
-// was making friend names flash to "Unknown user" and then self-correct a
-// moment later - a lookup timing out once, not actually failing.
-class ClientRejection extends Error {}
-
-async function callWebApi<T>(path: string, body: unknown): Promise<T> {
-  if (!WEB_API_URL) {
-    throw new Error('Missing EXPO_PUBLIC_WEB_API_URL - check mobile/.env');
-  }
-
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt > 0) await delay(600);
-    try {
-      const token = await getClerkToken();
-      if (!token) {
-        throw new ClientRejection('Not signed in.');
-      }
-      const res = await fetch(`${WEB_API_URL}${path}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const message = json?.error || `Request failed (${res.status})`;
-        if (res.status < 500) throw new ClientRejection(message);
-        throw new Error(message);
-      }
-      return json as T;
-    } catch (e) {
-      lastError = e;
-      if (e instanceof ClientRejection) throw e;
-      // else: network error or 5xx - loop around and retry once.
-    }
-  }
-  throw lastError;
-}
+// deployed, so these hit the same deployed routes over HTTPS via
+// ../webApi's callWebApi (shared with the AI/search proxies in
+// lib/ai/*.ts and lib/api/{tmdb,rawg}.ts - same bearer-token pattern, same
+// reason: nothing that needs a real secret gets bundled into this app).
 
 export interface FoundUser {
   id: string;
@@ -83,4 +29,18 @@ export async function resolveProfiles(
     { userIds }
   );
   return profiles;
+}
+
+export interface InvitePreview {
+  id: string;
+  name: string;
+  email: string | null;
+  imageUrl: string | null;
+}
+
+// Resolves a friend or collection invite code to the owner's public
+// profile, before actually redeeming it - same route both invite flows
+// use on web (see friendStore.ts/collectionStore.ts's previewInviteCode).
+export async function previewInviteCode(code: string): Promise<InvitePreview> {
+  return callWebApi<InvitePreview>('/api/friends/preview-code', { code });
 }

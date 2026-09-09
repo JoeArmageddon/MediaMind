@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import * as SecureStore from 'expo-secure-store';
@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { setClerkTokenGetter, setCurrentUserIdGetter } from '../lib/supabase';
 import { useMediaStore } from '../store/mediaStore';
 import { ThemeProvider, useTheme } from '../lib/ThemeContext';
+import { checkBetaStatus } from '../lib/betaStatus';
 
 // Clerk's documented Expo token-cache interface (getToken/saveToken) backed
 // by SecureStore - hand-rolled rather than relying on a specific package
@@ -51,6 +52,32 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     setCurrentUserIdGetter(() => userId ?? undefined);
   }, [isSignedIn, userId, getToken]);
 
+  // Beta approval gate - the mobile equivalent of web's middleware.ts +
+  // /pending redirect, same Clerk publicMetadata.betaApproved flag (see
+  // lib/betaStatus.ts). Checked once per sign-in, not on every
+  // navigation - /pending itself polls for a live approval while the
+  // user is actually sitting there waiting (see app/pending.tsx); this
+  // effect only decides where a freshly-signed-in session lands.
+  const [approvalChecked, setApprovalChecked] = useState(false);
+  const [approved, setApproved] = useState(false);
+  useEffect(() => {
+    if (!isSignedIn) {
+      setApprovalChecked(false);
+      setApproved(false);
+      return;
+    }
+    let cancelled = false;
+    checkBetaStatus().then((status) => {
+      if (!cancelled) {
+        setApproved(status.approved);
+        setApprovalChecked(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSignedIn, userId]);
+
   // Chunk B: drain the offline sync queue and re-fetch the moment
   // connectivity actually comes back, rather than only ever syncing on
   // the next manual pull-to-refresh/screen open - a queued add/update/
@@ -72,15 +99,28 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoaded) return;
     const inAuthGroup = segments[0] === '(auth)';
+    const onPending = segments[0] === 'pending';
 
-    if (!isSignedIn && !inAuthGroup) {
-      router.replace('/sign-in');
-    } else if (isSignedIn && inAuthGroup) {
+    if (!isSignedIn) {
+      if (!inAuthGroup) router.replace('/sign-in');
+      return;
+    }
+
+    if (inAuthGroup) {
+      router.replace('/');
+      return;
+    }
+
+    if (!approvalChecked) return; // wait for the check below before deciding
+
+    if (!approved && !onPending) {
+      router.replace('/pending');
+    } else if (approved && onPending) {
       router.replace('/');
     }
-  }, [isLoaded, isSignedIn, segments, router]);
+  }, [isLoaded, isSignedIn, approvalChecked, approved, segments, router]);
 
-  if (!isLoaded) {
+  if (!isLoaded || (isSignedIn && !approvalChecked)) {
     return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
   }
 
@@ -103,6 +143,7 @@ function ThemedStack() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="media/[id]" options={{ title: '' }} />
+        <Stack.Screen name="pending" options={{ headerShown: false, gestureEnabled: false }} />
       </Stack>
       <StatusBar style={mode === 'manga' ? 'dark' : 'light'} />
     </>

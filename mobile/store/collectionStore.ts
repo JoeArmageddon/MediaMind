@@ -13,9 +13,30 @@ const CACHE_KEY = 'mediamind:collections-cache';
 // write queue. Shared collections aren't cached at all, same as web:
 // they're another account's live data.
 
+export interface CollectionInvitePreview {
+  collection_id: string;
+  title: string;
+  description: string | null;
+  owner_id: string;
+  item_count: number;
+}
+
+// Same alphabet/length reasoning as friendStore's generateCode - 8
+// unambiguous characters, ~1 trillion combinations, the code IS the
+// credential (see schema.sql's comment on collection_invite_codes).
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function generateCode(length = 8): string {
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  }
+  return code;
+}
+
 interface CollectionStore {
   collections: SmartCollection[];
   sharedWithMe: SharedCollection[];
+  inviteCodes: Record<string, string>;
   isLoading: boolean;
   isLoadingShared: boolean;
   fetchCollections: () => Promise<void>;
@@ -35,11 +56,20 @@ interface CollectionStore {
   unshareCollection: (shareId: string) => Promise<void>;
   addMediaToSharedCollection: (collectionId: string, mediaId: string) => Promise<void>;
   removeMediaFromSharedCollection: (collectionId: string, mediaId: string) => Promise<void>;
+  fetchCollectionInviteCode: (collectionId: string) => Promise<void>;
+  regenerateCollectionInviteCode: (collectionId: string) => Promise<void>;
+  previewCollectionCode: (
+    code: string
+  ) => Promise<{ success: boolean; preview?: CollectionInvitePreview; message?: string }>;
+  redeemCollectionCode: (code: string) => Promise<{ success: boolean; collectionId?: string; message: string }>;
+  setCollectionPublic: (collectionId: string, isPublic: boolean) => Promise<void>;
+  fetchPublicCollection: (collectionId: string) => Promise<SmartCollection | null>;
 }
 
 export const useCollectionStore = create<CollectionStore>((set, get) => ({
   collections: [],
   sharedWithMe: [],
+  inviteCodes: {},
   isLoading: false,
   isLoadingShared: false,
 
@@ -305,5 +335,132 @@ export const useCollectionStore = create<CollectionStore>((set, get) => ({
         c.id === collectionId ? { ...c, media_ids: updatedMediaIds, updated_at } : c
       ),
     }));
+  },
+
+  fetchCollectionInviteCode: async (collectionId) => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('collection_invite_codes')
+        .select('code')
+        .eq('collection_id', collectionId)
+        .maybeSingle();
+      if (error) throw error;
+
+      if (data?.code) {
+        set((state) => ({ inviteCodes: { ...state.inviteCodes, [collectionId]: data.code } }));
+        return;
+      }
+
+      // First time - generate and persist one, retried a few times on the
+      // astronomically unlikely UNIQUE(code) collision rather than
+      // surfacing a raw constraint error for one bit of bad luck.
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const code = generateCode();
+        const { error: insertError } = await (supabase as any)
+          .from('collection_invite_codes')
+          .insert({ collection_id: collectionId, code });
+        if (!insertError) {
+          set((state) => ({ inviteCodes: { ...state.inviteCodes, [collectionId]: code } }));
+          return;
+        }
+        lastError = insertError;
+        if ((insertError as { code?: string })?.code !== '23505') break;
+      }
+      throw lastError ?? new Error('Failed to generate an invite code.');
+    } catch (e) {
+      console.error('fetchCollectionInviteCode failed:', e);
+    }
+  },
+
+  regenerateCollectionInviteCode: async (collectionId) => {
+    try {
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const code = generateCode();
+        const { error } = await (supabase as any)
+          .from('collection_invite_codes')
+          .update({ code })
+          .eq('collection_id', collectionId);
+        if (!error) {
+          set((state) => ({ inviteCodes: { ...state.inviteCodes, [collectionId]: code } }));
+          return;
+        }
+        lastError = error;
+        if ((error as { code?: string })?.code !== '23505') break;
+      }
+      throw lastError ?? new Error('Failed to regenerate the invite code.');
+    } catch (e) {
+      console.error('regenerateCollectionInviteCode failed:', e);
+    }
+  },
+
+  // Unlike friend invite previews, this needs no server proxy - the RPC
+  // itself returns the collection's public preview fields directly (no
+  // Clerk profile lookup involved), so this app calls it straight from
+  // Supabase, same as web.
+  previewCollectionCode: async (code) => {
+    try {
+      const { data, error } = await (supabase as any).rpc('preview_collection_code', { target_code: code });
+      if (error || !data || data.length === 0) {
+        return { success: false, message: 'This collection invite is invalid or has expired.' };
+      }
+      return { success: true, preview: data[0] as CollectionInvitePreview };
+    } catch (e) {
+      console.error('previewCollectionCode failed:', e);
+      return { success: false, message: e instanceof Error ? e.message : 'Failed to look up this invite.' };
+    }
+  },
+
+  redeemCollectionCode: async (code) => {
+    try {
+      const { data: collectionId, error } = await (supabase as any).rpc('redeem_collection_code', {
+        target_code: code,
+      });
+      if (error) throw error;
+
+      await get().fetchSharedWithMe();
+      return { success: true, collectionId, message: "You've joined this collection." };
+    } catch (e: any) {
+      console.error('redeemCollectionCode failed:', e);
+      const message =
+        e?.message?.includes('invalid_code') ? 'This invite code is invalid.'
+        : e?.message?.includes('self_code') ? "That's your own collection."
+        : e instanceof Error ? e.message : 'Failed to join this collection.';
+      return { success: false, message };
+    }
+  },
+
+  // Owner-only in practice (RLS's "update own or claim unclaimed
+  // collections" policy enforces that server-side) - a thin, named
+  // wrapper around updateCollection so call sites read as intent ("make
+  // this public") rather than a raw partial-update call.
+  setCollectionPublic: async (collectionId, isPublic) => {
+    await get().updateCollection(collectionId, { is_public: isPublic });
+  },
+
+  // Public collections are viewable by any signed-in user, not just the
+  // owner or people it's been shared with - not cached in AsyncStorage or
+  // merged into collections/sharedWithMe (this is someone else's
+  // collection, viewed read-only, not "mine" in either sense). Deliberately
+  // doesn't resolve the owner's profile - unlike friend/share-recipient
+  // lookups, a public collection's viewer and owner aren't necessarily
+  // connected, and /api/friends/profiles only resolves ids that are
+  // verifiably the caller's own friend - so the view stays anonymous
+  // rather than adding a new arbitrary-id-to-profile lookup.
+  fetchPublicCollection: async (collectionId) => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from(TABLE)
+        .select('*')
+        .eq('id', collectionId)
+        .eq('is_public', true)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as SmartCollection) ?? null;
+    } catch (e) {
+      console.warn('fetchPublicCollection failed:', e);
+      return null;
+    }
   },
 }));

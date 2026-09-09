@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,16 +9,21 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMediaStore } from '../../store/mediaStore';
+import { useFriendStore } from '../../store/friendStore';
+import { useRecommendationStore } from '../../store/recommendationStore';
 import { getAIClient } from '../../lib/ai';
 import { OfflineBanner } from '../../components/OfflineBanner';
 import { useTheme } from '../../lib/ThemeContext';
 import type { ThemePalette } from '../../lib/theme';
-import type { MediaStatus } from '../../lib/types';
+import type { Media, MediaStatus } from '../../lib/types';
+
+const RATING_VALUES = [2, 4, 6, 8, 10];
 
 const STATUS_OPTIONS: { value: MediaStatus; label: string }[] = [
   { value: 'planned', label: 'Planned' },
@@ -45,6 +50,7 @@ export default function MediaDetailScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [showRecommend, setShowRecommend] = useState(false);
 
   if (!item) {
     return (
@@ -65,6 +71,14 @@ export default function MediaDetailScreen() {
   const handleToggleFavorite = async () => {
     try {
       await updateMedia(item.id, { is_favorite: !item.is_favorite });
+    } catch (e: any) {
+      Alert.alert('Failed to update', e?.message || 'Something went wrong.');
+    }
+  };
+
+  const handleRate = async (value: number) => {
+    try {
+      await updateMedia(item.id, { user_rating: item.user_rating === value ? null : value });
     } catch (e: any) {
       Alert.alert('Failed to update', e?.message || 'Something went wrong.');
     }
@@ -157,13 +171,18 @@ export default function MediaDetailScreen() {
           <Text style={styles.title}>{item.title}</Text>
           {item.release_year != null && <Text style={styles.meta}>{item.release_year}</Text>}
           <Text style={styles.meta}>{item.type.toUpperCase()}</Text>
-          <Pressable style={styles.favoriteButton} onPress={handleToggleFavorite}>
-            <Ionicons
-              name={item.is_favorite ? 'heart' : 'heart-outline'}
-              size={20}
-              color={item.is_favorite ? theme.danger : theme.textMuted}
-            />
-          </Pressable>
+          <View style={styles.headerActionsRow}>
+            <Pressable style={styles.favoriteButton} onPress={handleToggleFavorite}>
+              <Ionicons
+                name={item.is_favorite ? 'heart' : 'heart-outline'}
+                size={20}
+                color={item.is_favorite ? theme.danger : theme.textMuted}
+              />
+            </Pressable>
+            <Pressable style={styles.favoriteButton} onPress={() => setShowRecommend(true)}>
+              <Ionicons name="paper-plane-outline" size={18} color={theme.textMuted} />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -258,6 +277,21 @@ export default function MediaDetailScreen() {
         keyboardType="number-pad"
       />
 
+      <Text style={styles.sectionLabel}>
+        Your Rating {item.user_rating != null ? `(${(item.user_rating / 2).toFixed(1)} / 5)` : ''}
+      </Text>
+      <View style={styles.starRow}>
+        {RATING_VALUES.map((value) => (
+          <Pressable key={value} onPress={() => handleRate(value)} hitSlop={6}>
+            <Ionicons
+              name={(item.user_rating ?? 0) >= value ? 'star' : 'star-outline'}
+              size={28}
+              color={theme.primary}
+            />
+          </Pressable>
+        ))}
+      </View>
+
       <Text style={styles.sectionLabel}>Notes</Text>
       <TextInput
         style={[styles.input, styles.notesInput]}
@@ -279,7 +313,133 @@ export default function MediaDetailScreen() {
           <Text style={styles.deleteButtonText}>Delete from Library</Text>
         )}
       </Pressable>
+
+      <RecommendSheet visible={showRecommend} media={item} onClose={() => setShowRecommend(false)} />
     </ScrollView>
+  );
+}
+
+// Standalone Modal, opened directly from this screen (never nested inside
+// another open Modal) - friend picker + optional message, mirrors web's
+// RecommendDialog. Tracks who this session has already sent to locally so
+// the same title can go to multiple friends in one sitting without
+// re-fetching anything.
+function RecommendSheet({
+  visible,
+  media,
+  onClose,
+}: {
+  visible: boolean;
+  media: Media;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
+  const { friends, fetchFriends } = useFriendStore();
+  const { send } = useRecommendationStore();
+  const [message, setMessage] = useState('');
+  const [sendingTo, setSendingTo] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (visible) fetchFriends();
+  }, [visible, fetchFriends]);
+
+  const handleSend = async (friendId: string) => {
+    setSendingTo(friendId);
+    try {
+      const result = await send(friendId, media, message);
+      if (result.success) {
+        setSentTo((prev) => new Set(prev).add(friendId));
+      } else {
+        Alert.alert('Failed to send', result.message);
+      }
+    } finally {
+      setSendingTo(null);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={() => {
+        setMessage('');
+        setSentTo(new Set());
+        onClose();
+      }}
+    >
+      <ScrollView
+        style={{ backgroundColor: theme.bg }}
+        contentContainerStyle={[styles.sheetContent, { paddingTop: insets.top + 16 }]}
+      >
+        <View style={styles.sheetHeaderRow}>
+          <Text style={styles.sheetTitle} numberOfLines={1}>
+            Recommend &quot;{media.title}&quot;
+          </Text>
+          <Pressable
+            style={styles.close}
+            onPress={() => {
+              setMessage('');
+              setSentTo(new Set());
+              onClose();
+            }}
+          >
+            <Ionicons name="close" size={20} color={theme.text} />
+          </Pressable>
+        </View>
+
+        <Text style={styles.sectionLabel}>Message (optional)</Text>
+        <TextInput
+          style={[styles.input, styles.notesInput]}
+          value={message}
+          onChangeText={setMessage}
+          multiline
+          placeholder="Why they should check this out..."
+          placeholderTextColor={theme.textFaint}
+        />
+
+        <Text style={[styles.sectionLabel, { marginTop: 14 }]}>Send to</Text>
+        {friends.length === 0 ? (
+          <Text style={styles.deleteButtonText}>Add friends first to recommend titles to them.</Text>
+        ) : (
+          friends.map((f) => {
+            const friendId = f.otherUser?.id;
+            const isSent = friendId ? sentTo.has(friendId) : false;
+            const isSending = sendingTo === friendId;
+            return (
+              <View key={f.id} style={styles.shareRow}>
+                {f.otherUser?.imageUrl ? (
+                  <Image source={{ uri: f.otherUser.imageUrl }} style={styles.shareAvatar} />
+                ) : (
+                  <View style={[styles.shareAvatar, styles.shareAvatarFallback]}>
+                    <Text style={styles.shareAvatarFallbackText}>
+                      {f.otherUser?.name?.[0]?.toUpperCase() ?? '?'}
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.shareName} numberOfLines={1}>
+                  {f.otherUser?.name}
+                </Text>
+                <Pressable
+                  style={[styles.shareButton, isSent && styles.sentButton]}
+                  disabled={isSending || isSent || !friendId}
+                  onPress={() => friendId && handleSend(friendId)}
+                >
+                  {isSending ? (
+                    <ActivityIndicator size="small" color={theme.primaryText} />
+                  ) : (
+                    <Text style={styles.shareButtonText}>{isSent ? 'Sent' : 'Send'}</Text>
+                  )}
+                </Pressable>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+    </Modal>
   );
 }
 
@@ -353,9 +513,17 @@ function makeStyles(theme: ThemePalette) {
       color: theme.textMuted,
       fontSize: 12,
     },
-    favoriteButton: {
+    headerActionsRow: {
+      flexDirection: 'row',
+      gap: 16,
       marginTop: 8,
+    },
+    favoriteButton: {
       alignSelf: 'flex-start',
+    },
+    starRow: {
+      flexDirection: 'row',
+      gap: 8,
     },
     chipRow: {
       flexDirection: 'row',
@@ -504,6 +672,77 @@ function makeStyles(theme: ThemePalette) {
       color: theme.danger,
       fontSize: 12,
       marginTop: 8,
+    },
+    sheetContent: {
+      padding: 20,
+      paddingBottom: 40,
+    },
+    sheetHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    sheetTitle: {
+      flex: 1,
+      color: theme.text,
+      fontSize: 18,
+      fontWeight: '800',
+      marginRight: 12,
+    },
+    close: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: theme.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    shareRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: theme.card,
+      borderWidth: theme.borderWidth,
+      borderColor: theme.cardBorder,
+      borderRadius: 12,
+      padding: 10,
+      marginBottom: 8,
+    },
+    shareAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+    },
+    shareAvatarFallback: {
+      backgroundColor: theme.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    shareAvatarFallbackText: {
+      color: theme.primaryText,
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    shareName: {
+      flex: 1,
+      color: theme.text,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    shareButton: {
+      backgroundColor: theme.primary,
+      borderRadius: 9,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    sentButton: {
+      backgroundColor: theme.success,
+    },
+    shareButtonText: {
+      color: theme.primaryText,
+      fontSize: 11,
+      fontWeight: '700',
     },
   });
 }

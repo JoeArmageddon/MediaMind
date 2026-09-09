@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase, getCurrentUserId } from '../lib/supabase';
 import { useMediaStore } from '../store/mediaStore';
-import { useCollectionStore } from '../store/collectionStore';
+import { useCollectionStore, type CollectionInvitePreview } from '../store/collectionStore';
 import { useFriendStore } from '../store/friendStore';
 import { getAIClient } from '../lib/ai';
 import { ReadOnlyMediaSheetContent } from '../components/ReadOnlyMediaSheet';
@@ -71,6 +71,7 @@ export default function CollectionsScreen() {
 
   const [detail, setDetail] = useState<DetailTarget>(null);
   const [shareTarget, setShareTarget] = useState<SmartCollection | null>(null);
+  const [isJoinOpen, setIsJoinOpen] = useState(false);
 
   // Re-derived live from the store every render, rather than snapshotted
   // once when opened - addMediaToCollection/removeMediaFromCollection
@@ -96,6 +97,7 @@ export default function CollectionsScreen() {
       media_ids: newMediaIds,
       filter_criteria: null,
       is_auto_generated: false,
+      is_public: false,
     });
     setNewTitle('');
     setNewDescription('');
@@ -151,6 +153,7 @@ export default function CollectionsScreen() {
         media_ids: mediaIds,
         filter_criteria: null,
         is_auto_generated: true,
+        is_public: false,
       });
 
       setAiDrafts((prev) => prev.filter((_, i) => i !== index));
@@ -186,10 +189,36 @@ export default function CollectionsScreen() {
           <Text style={styles.headerTitle}>COLLECTIONS</Text>
           <Text style={styles.headerSub}>コレクション</Text>
         </View>
-        <Pressable style={styles.newButton} onPress={() => setIsCreateOpen(true)}>
-          <Ionicons name="add" size={16} color={theme.primaryText} />
-          <Text style={styles.newButtonText}>New</Text>
-        </Pressable>
+        <View style={styles.headerButtonRow}>
+          <Pressable
+            style={styles.joinButton}
+            // Alert.prompt is iOS-only (no Android equivalent in React
+            // Native) - acceptable here since this is a discovery
+            // convenience, not the primary join flow (that's the invite
+            // code button next to this one, which works everywhere).
+            onPress={() => {
+              Alert.prompt?.(
+                'View a public collection',
+                "Paste the collection's id or link.",
+                (value) => {
+                  const trimmed = value?.trim();
+                  if (!trimmed) return;
+                  const id = trimmed.includes('/') ? trimmed.split('/').filter(Boolean).pop() : trimmed;
+                  if (id) router.push(`/public-collection/${id}`);
+                }
+              );
+            }}
+          >
+            <Ionicons name="globe-outline" size={16} color={theme.textMuted} />
+          </Pressable>
+          <Pressable style={styles.joinButton} onPress={() => setIsJoinOpen(true)}>
+            <Ionicons name="enter-outline" size={16} color={theme.textMuted} />
+          </Pressable>
+          <Pressable style={styles.newButton} onPress={() => setIsCreateOpen(true)}>
+            <Ionicons name="add" size={16} color={theme.primaryText} />
+            <Text style={styles.newButtonText}>New</Text>
+          </Pressable>
+        </View>
       </View>
 
       <Pressable
@@ -491,6 +520,15 @@ export default function CollectionsScreen() {
       </Modal>
 
       <ShareCollectionSheet collection={shareTarget} onClose={() => setShareTarget(null)} />
+
+      <JoinCollectionSheet
+        visible={isJoinOpen}
+        onClose={() => setIsJoinOpen(false)}
+        onJoined={() => {
+          setIsJoinOpen(false);
+          setActiveTab('shared');
+        }}
+      />
     </View>
   );
 }
@@ -729,19 +767,39 @@ function ShareCollectionSheet({ collection, onClose }: { collection: SmartCollec
   const { theme } = useTheme();
   const styles = makeStyles(theme);
   const { friends, fetchFriends } = useFriendStore();
-  const { fetchSharesForCollection, shareCollection, unshareCollection } = useCollectionStore();
+  const {
+    fetchSharesForCollection,
+    shareCollection,
+    unshareCollection,
+    inviteCodes,
+    fetchCollectionInviteCode,
+    regenerateCollectionInviteCode,
+    setCollectionPublic,
+  } = useCollectionStore();
   const [shares, setShares] = useState<CollectionShareWithProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
 
   useEffect(() => {
     if (!collection) return;
     fetchFriends();
+    fetchCollectionInviteCode(collection.id);
     setIsLoading(true);
     fetchSharesForCollection(collection.id)
       .then(setShares)
       .finally(() => setIsLoading(false));
-  }, [collection, fetchFriends, fetchSharesForCollection]);
+  }, [collection, fetchFriends, fetchSharesForCollection, fetchCollectionInviteCode]);
+
+  const handleTogglePublic = async () => {
+    if (!collection) return;
+    setIsTogglingPublic(true);
+    try {
+      await setCollectionPublic(collection.id, !collection.is_public);
+    } finally {
+      setIsTogglingPublic(false);
+    }
+  };
 
   const sharedWithIds = new Set(shares.map((s) => s.shared_with_id));
 
@@ -781,6 +839,41 @@ function ShareCollectionSheet({ collection, onClose }: { collection: SmartCollec
             </Pressable>
           </View>
 
+          <Text style={styles.fieldLabel}>Invite code</Text>
+          <View style={styles.codeRow}>
+            <Text style={styles.codeText} selectable>
+              {inviteCodes[collection.id] ?? '--------'}
+            </Text>
+            <Pressable
+              style={styles.regenButton}
+              onPress={() => regenerateCollectionInviteCode(collection.id)}
+            >
+              <Ionicons name="refresh" size={15} color={theme.textMuted} />
+            </Pressable>
+          </View>
+          <Text style={styles.codeHint}>Anyone with this code can join as a collaborator.</Text>
+
+          <View style={[styles.shareRow, { marginTop: 14 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.shareName}>Public link</Text>
+              <Text style={styles.codeHint}>Viewable read-only by any signed-in MediaMind user.</Text>
+            </View>
+            <Pressable
+              style={[styles.shareButton, collection.is_public && styles.shareButtonActive]}
+              disabled={isTogglingPublic}
+              onPress={handleTogglePublic}
+            >
+              {isTogglingPublic ? (
+                <ActivityIndicator size="small" color={theme.primaryText} />
+              ) : (
+                <Text style={[styles.shareButtonText, collection.is_public && styles.shareButtonTextActive]}>
+                  {collection.is_public ? 'Public' : 'Private'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
+          <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Share with a friend</Text>
           {isLoading ? (
             <ActivityIndicator color={theme.primary} style={{ marginTop: 16 }} />
           ) : friends.length === 0 ? (
@@ -822,6 +915,135 @@ function ShareCollectionSheet({ collection, onClose }: { collection: SmartCollec
           )}
         </ScrollView>
       )}
+    </Modal>
+  );
+}
+
+// Standalone Modal, same reasoning as ShareCollectionSheet - opened
+// directly from the collection list header, never nested inside another
+// open Modal. Condenses web's separate preview-then-confirm
+// (/collection-invite/[code]) flow into one sheet: type a code, preview
+// what it belongs to, then confirm - all without leaving this Modal.
+function JoinCollectionSheet({
+  visible,
+  onClose,
+  onJoined,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onJoined: (collectionId: string) => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
+  const { previewCollectionCode, redeemCollectionCode } = useCollectionStore();
+  const [code, setCode] = useState('');
+  const [isChecking, setIsChecking] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [preview, setPreview] = useState<CollectionInvitePreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setCode('');
+    setPreview(null);
+    setError(null);
+  };
+
+  const handlePreview = async () => {
+    if (!code.trim()) return;
+    setIsChecking(true);
+    setError(null);
+    setPreview(null);
+    const result = await previewCollectionCode(code.trim().toUpperCase());
+    if (result.success && result.preview) {
+      setPreview(result.preview);
+    } else {
+      setError(result.message ?? 'Invalid code.');
+    }
+    setIsChecking(false);
+  };
+
+  const handleJoin = async () => {
+    setIsJoining(true);
+    setError(null);
+    const result = await redeemCollectionCode(code.trim().toUpperCase());
+    setIsJoining(false);
+    if (result.success && result.collectionId) {
+      const id = result.collectionId;
+      reset();
+      onJoined(id);
+    } else {
+      setError(result.message);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={() => {
+        reset();
+        onClose();
+      }}
+    >
+      <ScrollView
+        style={{ backgroundColor: theme.bg }}
+        contentContainerStyle={[styles.sheetContent, { paddingTop: insets.top + 16 }]}
+      >
+        <View style={styles.sheetHeaderRow}>
+          <Text style={styles.sheetTitle}>Join a collection</Text>
+          <Pressable
+            style={styles.close}
+            onPress={() => {
+              reset();
+              onClose();
+            }}
+          >
+            <Ionicons name="close" size={20} color={theme.text} />
+          </Pressable>
+        </View>
+
+        <Text style={styles.fieldLabel}>Invite code</Text>
+        <TextInput
+          style={styles.input}
+          value={code}
+          onChangeText={(v) => {
+            setCode(v);
+            setPreview(null);
+            setError(null);
+          }}
+          placeholder="e.g. AB3D9KXP"
+          placeholderTextColor={theme.textFaint}
+          autoCapitalize="characters"
+          autoCorrect={false}
+        />
+
+        {error && <Text style={[styles.feedback, { color: theme.danger }]}>{error}</Text>}
+
+        {preview ? (
+          <View style={[styles.shareRow, { marginTop: 12 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.shareName} numberOfLines={1}>
+                {preview.title}
+              </Text>
+              <Text style={styles.codeHint}>{preview.item_count} items</Text>
+            </View>
+          </View>
+        ) : null}
+
+        <Pressable
+          style={[styles.primaryButton, !code.trim() && styles.primaryButtonDisabled, { marginTop: 14 }]}
+          onPress={preview ? handleJoin : handlePreview}
+          disabled={!code.trim() || isChecking || isJoining}
+        >
+          {isChecking || isJoining ? (
+            <ActivityIndicator color={theme.primaryText} />
+          ) : (
+            <Text style={styles.primaryButtonText}>{preview ? 'Join collection' : 'Look up code'}</Text>
+          )}
+        </Pressable>
+      </ScrollView>
     </Modal>
   );
 }
@@ -932,6 +1154,21 @@ function makeStyles(theme: ThemePalette) {
       color: theme.textFaint,
       fontSize: 12,
       marginTop: 2,
+    },
+    headerButtonRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    joinButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.card,
+      borderWidth: theme.borderWidth,
+      borderColor: theme.cardBorder,
     },
     newButton: {
       flexDirection: 'row',
@@ -1378,6 +1615,41 @@ function makeStyles(theme: ThemePalette) {
     },
     shareButtonTextActive: {
       color: theme.danger,
+    },
+    codeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: theme.input,
+      borderWidth: theme.borderWidth,
+      borderColor: theme.cardBorder,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    codeText: {
+      flex: 1,
+      color: theme.text,
+      fontSize: 18,
+      fontWeight: '800',
+      letterSpacing: 2,
+    },
+    regenButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.card,
+    },
+    codeHint: {
+      color: theme.textFaint,
+      fontSize: 11,
+      marginTop: 6,
+    },
+    feedback: {
+      fontSize: 12,
+      marginTop: 8,
     },
     pickerListRow: {
       flexDirection: 'row',

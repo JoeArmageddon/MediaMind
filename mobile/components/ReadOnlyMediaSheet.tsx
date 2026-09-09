@@ -140,6 +140,25 @@ export function ReadOnlyMediaSheetContent({
         </Text>
       )}
 
+      {(media.user_rating != null || media.notes) && (
+        <View style={styles.reviewBox}>
+          {media.user_rating != null && (
+            <View style={styles.starRow}>
+              {[2, 4, 6, 8, 10].map((value) => (
+                <Ionicons
+                  key={value}
+                  name={media.user_rating! >= value ? 'star' : 'star-outline'}
+                  size={16}
+                  color={theme.primary}
+                />
+              ))}
+              <Text style={styles.starValue}>{(media.user_rating / 2).toFixed(1)} / 5</Text>
+            </View>
+          )}
+          {media.notes && <Text style={styles.reviewNote}>{media.notes}</Text>}
+        </View>
+      )}
+
       {showAddToLibrary &&
         (() => {
           const inMine = justAdded.has(media.id) || alreadyMine(media);
@@ -270,6 +289,31 @@ function makeStyles(theme: ThemePalette) {
       fontSize: 13,
       fontWeight: '600',
       marginTop: 16,
+    },
+    reviewBox: {
+      marginTop: 16,
+      backgroundColor: theme.card,
+      borderWidth: theme.borderWidth,
+      borderColor: theme.cardBorder,
+      borderRadius: 12,
+      padding: 12,
+      gap: 8,
+    },
+    starRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+    },
+    starValue: {
+      color: theme.textMuted,
+      fontSize: 12,
+      fontWeight: '700',
+      marginLeft: 6,
+    },
+    reviewNote: {
+      color: theme.textMuted,
+      fontSize: 13,
+      lineHeight: 18,
     },
     addButton: {
       flexDirection: 'row',
