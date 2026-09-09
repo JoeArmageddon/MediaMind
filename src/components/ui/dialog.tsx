@@ -52,7 +52,14 @@ const DialogContent = React.forwardRef<
         // one actually reported stuck) renders with its top and/or bottom
         // off-screen and no way to scroll to the close button or actions.
         // Individual call sites (e.g. MediaDetail) can still override this.
-        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg max-h-[85vh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 border border-border/50 bg-card/95 backdrop-blur-glass p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl',
+        // overflow-y-auto alone makes the browser compute overflow-x as
+        // "auto" too (the CSS spec forces the other axis off `visible` once
+        // either one isn't `visible`), so any child that doesn't wrap
+        // (whitespace-nowrap tab labels, an un-truncated row) silently
+        // turned the whole dialog into something you had to scroll
+        // sideways to see the rest of - overflow-x-hidden here closes that
+        // off everywhere at once, on top of fixing individual offenders.
+        'fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden translate-x-[-50%] translate-y-[-50%] gap-4 border border-border/50 bg-card/95 backdrop-blur-glass p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl',
         className
       )}
       {...props}

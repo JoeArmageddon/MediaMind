@@ -794,16 +794,16 @@ function AddMediaPickerDialog({
           <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-xl h-auto">
             <TabsTrigger
               value="library"
-              className="rounded-lg py-2 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+              className="rounded-lg py-2 px-1 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60 min-w-0"
             >
-              My Library
+              <span className="truncate">My Library</span>
             </TabsTrigger>
             <TabsTrigger
               value="search"
-              className="rounded-lg py-2 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+              className="rounded-lg py-2 px-1 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60 min-w-0"
             >
-              <Search className="h-3.5 w-3.5 mr-1.5" />
-              Search Everywhere
+              <Search className="h-3.5 w-3.5 mr-1 shrink-0" />
+              <span className="truncate">Search Web</span>
             </TabsTrigger>
           </TabsList>
 
@@ -941,6 +941,7 @@ export default function CollectionsPage() {
     removeMediaFromCollection,
     addMediaToSharedCollection,
     removeMediaFromSharedCollection,
+    redeemCollectionCode,
   } = useCollectionStore();
 
   // Generated-but-unsaved AI suggestions, persisted to db.aiCollectionDrafts
@@ -956,6 +957,9 @@ export default function CollectionsPage() {
   const [newCollectionDesc, setNewCollectionDesc] = useState('');
   const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('my');
+  const [joinCodeInput, setJoinCodeInput] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinFeedback, setJoinFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
   // "Expand" a media row from inside a collection's detail view - editable
   // (readOnly false) for your own collection's items, or when a shared
@@ -1096,6 +1100,20 @@ export default function CollectionsPage() {
     );
   };
 
+  const handleJoinByCode = async () => {
+    if (!joinCodeInput.trim()) return;
+    setIsJoining(true);
+    setJoinFeedback(null);
+    const result = await redeemCollectionCode(joinCodeInput.trim().toUpperCase());
+    setJoinFeedback({ ok: result.success, text: result.message });
+    if (result.success) {
+      setJoinCodeInput('');
+      await fetchSharedWithMe();
+      setActiveTab('shared');
+    }
+    setIsJoining(false);
+  };
+
   const handleRemoveFromSharedCollection = async (mediaId: string) => {
     if (!selectedSharedCollection) return;
     await removeMediaFromSharedCollection(selectedSharedCollection.id, mediaId);
@@ -1125,8 +1143,36 @@ export default function CollectionsPage() {
         </Button>
       </div>
 
-      <Button 
-        onClick={handleGenerate} 
+      <div className="glass-card rounded-[24px] p-6">
+        <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Users className="h-4 w-4" />
+          Join a collection
+        </h3>
+        <div className="flex gap-2">
+          <Input
+            value={joinCodeInput}
+            onChange={(e) => setJoinCodeInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleJoinByCode()}
+            placeholder="Enter invite code"
+            className="bg-black border-white/10 rounded-xl h-12 flex-1 font-mono uppercase tracking-widest placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
+          />
+          <Button
+            onClick={handleJoinByCode}
+            disabled={isJoining || !joinCodeInput.trim()}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 px-6"
+          >
+            {isJoining ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Join'}
+          </Button>
+        </div>
+        {joinFeedback && (
+          <p className={cn('text-sm mt-3', joinFeedback.ok ? 'text-green-400' : 'text-red-400')}>
+            {joinFeedback.text}
+          </p>
+        )}
+      </div>
+
+      <Button
+        onClick={handleGenerate}
         disabled={isGenerating || media.length === 0}
         className="w-full bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-700 hover:to-pink-700 text-white rounded-xl h-14"
       >
