@@ -295,7 +295,7 @@ export default function SettingsPage() {
     // Test RAWG with a timeout - a hung request here previously looked
     // exactly like "stuck", with no way to tell it apart from a real failure.
     try {
-      const rawgKey = await resolveApiKey('rawg_key', process.env.NEXT_PUBLIC_RAWG_API_KEY);
+      const rawgKey = await resolveApiKey('rawg_key', undefined);
       console.log('RAWG key found:', !!rawgKey);
       if (rawgKey) {
         const response = await fetchWithTimeout(

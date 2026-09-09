@@ -112,8 +112,8 @@ export default function SearchPage() {
     }
 
     // Check if API keys are configured (from IndexedDB - more reliable on mobile)
-    const tmdbKey = await resolveApiKey('tmdb_key', process.env.NEXT_PUBLIC_TMDB_API_KEY);
-    const rawgKey = await resolveApiKey('rawg_key', process.env.NEXT_PUBLIC_RAWG_API_KEY);
+    const tmdbKey = await resolveApiKey('tmdb_key', undefined);
+    const rawgKey = await resolveApiKey('rawg_key', undefined);
     
     if (!tmdbKey && (type === 'all' || type === 'movie' || type === 'tv')) {
       setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');
@@ -336,8 +336,8 @@ export default function SearchPage() {
     if (batchItems.length === 0) return;
     
     // Check if API keys are configured (from IndexedDB - more reliable on mobile)
-    const tmdbKey = await resolveApiKey('tmdb_key', process.env.NEXT_PUBLIC_TMDB_API_KEY);
-    const rawgKey = await resolveApiKey('rawg_key', process.env.NEXT_PUBLIC_RAWG_API_KEY);
+    const tmdbKey = await resolveApiKey('tmdb_key', undefined);
+    const rawgKey = await resolveApiKey('rawg_key', undefined);
     
     if (!tmdbKey && (batchType === 'movie' || batchType === 'tv')) {
       setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');

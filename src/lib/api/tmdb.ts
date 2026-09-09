@@ -30,7 +30,7 @@ export class TMDBClient {
   async init() {
     if (this.initialized) return true;
 
-    this.apiKey = await resolveApiKey('tmdb_key', process.env.NEXT_PUBLIC_TMDB_API_KEY);
+    this.apiKey = await resolveApiKey('tmdb_key', undefined);
     this.initialized = true;
   }
 
@@ -60,7 +60,7 @@ export class TMDBClient {
 
   private async getKey(): Promise<string> {
     // Always re-check for keys in case they were saved after initialization
-    this.apiKey = await resolveApiKey('tmdb_key', process.env.NEXT_PUBLIC_TMDB_API_KEY);
+    this.apiKey = await resolveApiKey('tmdb_key', undefined);
     return this.apiKey;
   }
 

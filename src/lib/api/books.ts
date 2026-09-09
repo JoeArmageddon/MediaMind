@@ -10,13 +10,13 @@ export class GoogleBooksClient {
   async init() {
     if (this.initialized) return true;
 
-    this.apiKey = (await resolveApiKey('google_books_key', process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY)) || null;
+    this.apiKey = (await resolveApiKey('google_books_key', undefined)) || null;
     this.initialized = true;
   }
 
   private async fetch<T>(endpoint: string, signal?: AbortSignal): Promise<T | null> {
     // Always re-check for keys in case they were saved after initialization
-    this.apiKey = (await resolveApiKey('google_books_key', process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY)) || null;
+    this.apiKey = (await resolveApiKey('google_books_key', undefined)) || null;
 
     try {
       const keyParam = this.apiKey ? `&key=${this.apiKey}` : '';
