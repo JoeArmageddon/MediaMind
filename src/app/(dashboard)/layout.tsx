@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { AmbientBackground } from '@/components/layout/AmbientBackground';
 import { useMediaStore } from '@/store/mediaStore';
 import { useSyncStore } from '@/store/syncStore';
 
@@ -23,6 +24,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#050505]">
+      <AmbientBackground />
       {/* Noise texture overlay */}
       <div className="fixed inset-0 noise pointer-events-none z-0" />
       

@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef } from 'react';
+import { motion } from 'framer-motion';
 import { Heart, Star, Check, Film, Tv, BookOpen, Gamepad2, Sparkles, MoreHorizontal } from 'lucide-react';
 import { cn, truncate } from '@/lib/utils';
 import { useMediaStore } from '@/store/mediaStore';
@@ -60,6 +61,16 @@ interface MediaCardProps {
   readOnly?: boolean;
 }
 
+// Fade+rise entrance, used with MediaGrid's AnimatePresence - previously
+// AnimatePresence wrapped a plain <div>, which animates nothing (it only
+// animates direct motion-component children), so cards just popped in/out
+// instantly despite the wrapper being there.
+const cardVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95 },
+};
+
 export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
   function MediaCard({ media, viewMode = 'grid', onClick, className, readOnly }, ref) {
     const config = typeConfig[media.type] || typeConfig.movie;
@@ -74,13 +85,20 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
 
     if (viewMode === 'list') {
       return (
-        <div 
+        <motion.div
           ref={ref}
+          layout
+          variants={cardVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          whileHover={{ x: 3 }}
+          whileTap={{ scale: 0.98 }}
           onClick={onClick}
           className={cn(
-            'group relative overflow-hidden rounded-2xl mb-2',
+            'group relative overflow-hidden rounded-2xl mb-2 cursor-pointer',
             'bg-[#1a1a1a]/40 backdrop-blur-xl border border-white/10',
-            'hover:border-white/20 transition-all duration-300',
+            'hover:border-white/20 transition-colors duration-300',
             'min-h-[80px]',
             className
           )}
@@ -144,17 +162,24 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       );
     }
 
     // Grid View - Poster with name underneath
     return (
-      <div
+      <motion.div
         ref={ref}
+        layout
+        variants={cardVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        whileHover={{ y: -4 }}
+        whileTap={{ scale: 0.97 }}
         onClick={onClick}
         className={cn(
-          'group relative flex flex-col gap-2',
+          'group relative flex flex-col gap-2 cursor-pointer',
           className
         )}
       >
@@ -236,7 +261,7 @@ export const MediaCard = forwardRef<HTMLDivElement, MediaCardProps>(
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 );
