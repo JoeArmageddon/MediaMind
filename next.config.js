@@ -62,9 +62,47 @@ const nextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
           },
+          // MIME-sniffing protection - a response served as e.g. text/plain
+          // (a user-supplied title, a JSON API response) never gets
+          // reinterpreted by the browser as HTML/JS.
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          // Clickjacking protection - nothing else is allowed to frame this
+          // app. SAMEORIGIN rather than DENY only because it's the more
+          // conservative choice for an app that doesn't need to be framed
+          // by anyone, including itself - functionally equivalent here.
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN',
+          },
+          // Don't leak the full URL (which can carry invite codes, media
+          // titles, etc. in the path) to third-party sites a user clicks
+          // through to - still sends the origin, which is enough for
+          // normal referrer-based analytics.
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          // This app never needs camera/mic/geolocation/payment access -
+          // explicitly denying them means an XSS or a compromised
+          // dependency can't silently prompt for one.
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+          },
         ],
       },
     ];
+    // A full Content-Security-Policy is deliberately not added here yet -
+    // this app's real external surface (Clerk's auth flow/scripts,
+    // Supabase's REST + realtime websocket, direct client-side calls to
+    // TMDB/RAWG/Jikan/Google Books/Gemini/Groq, several image CDNs) needs
+    // a carefully built script-src/connect-src/img-src allowlist, and
+    // getting it wrong silently breaks sign-in or search rather than
+    // failing loudly - not something to ship without a live, signed-in
+    // test pass. Worth a dedicated follow-up, not bundled into this one.
   },
 };
 
