@@ -33,7 +33,7 @@ export function ProgressControl({ media, onUpdate, className }: ProgressControlP
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-white/80">
+          <span className="text-sm font-medium text-[var(--mm-text)]">
             {isGame ? 'Completion' : `Progress (${unitLabel})`}
           </span>
           {isComplete && (
@@ -46,16 +46,16 @@ export function ProgressControl({ media, onUpdate, className }: ProgressControlP
         <div className="flex items-baseline gap-1">
           <span className={cn(
             "text-2xl font-bold",
-            isComplete ? "text-green-400" : "text-white"
+            isComplete ? "text-green-400" : "text-[var(--mm-text)]"
           )}>
             {Math.round(media.completion_percent)}
           </span>
-          <span className="text-sm text-white/40">%</span>
+          <span className="text-sm text-[var(--mm-text-40)]">%</span>
         </div>
       </div>
 
       {/* Progress Bar */}
-      <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/10">
+      <div className="relative h-3 w-full overflow-hidden rounded-full bg-[var(--mm-hover-bg-strong)]">
         <div 
           className="absolute inset-0 rounded-full"
           style={{
@@ -90,7 +90,7 @@ export function ProgressControl({ media, onUpdate, className }: ProgressControlP
             onValueChange={([v]) => handleUpdate(v)}
             className="cursor-pointer"
           />
-          <div className="flex items-center justify-between text-xs text-white/40">
+          <div className="flex items-center justify-between text-xs text-[var(--mm-text-40)]">
             <span>0%</span>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-violet-500" />
@@ -108,12 +108,12 @@ export function ProgressControl({ media, onUpdate, className }: ProgressControlP
             size="icon"
             onClick={() => handleUpdate(localProgress - 1)}
             disabled={localProgress <= 0}
-            className="h-12 w-12 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 hover:border-violet-500/30"
+            className="h-12 w-12 rounded-xl border-[var(--mm-card-border)] bg-[var(--mm-hover-bg)] hover:bg-[var(--mm-hover-bg-strong)] hover:border-violet-500/30"
           >
             <Minus className="h-5 w-5" />
           </Button>
 
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]">
             <Input
               type="number"
               value={localProgress}
@@ -122,8 +122,8 @@ export function ProgressControl({ media, onUpdate, className }: ProgressControlP
               min={0}
               max={media.total_units || 99999}
             />
-            <span className="text-white/40">/</span>
-            <span className="text-white/60 font-medium">
+            <span className="text-[var(--mm-text-40)]">/</span>
+            <span className="text-[var(--mm-text-60)] font-medium">
               {media.total_units || '?'}
             </span>
           </div>
@@ -132,7 +132,7 @@ export function ProgressControl({ media, onUpdate, className }: ProgressControlP
             variant="outline"
             size="icon"
             onClick={() => handleUpdate(localProgress + 1)}
-            className="h-12 w-12 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 hover:border-violet-500/30"
+            className="h-12 w-12 rounded-xl border-[var(--mm-card-border)] bg-[var(--mm-hover-bg)] hover:bg-[var(--mm-hover-bg-strong)] hover:border-violet-500/30"
           >
             <Plus className="h-5 w-5" />
           </Button>
@@ -148,7 +148,7 @@ export function ProgressControl({ media, onUpdate, className }: ProgressControlP
               variant="ghost"
               size="sm"
               onClick={() => handleUpdate(Math.round((media.total_units * percent) / 100))}
-              className="text-xs text-white/50 hover:text-white hover:bg-white/10"
+              className="text-xs text-[var(--mm-text-50)] hover:text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)]"
             >
               {percent}%
             </Button>

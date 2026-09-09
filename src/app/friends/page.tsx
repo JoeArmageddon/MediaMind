@@ -76,29 +76,29 @@ function InviteCodeCard() {
 
   return (
     <div className="glass-card rounded-[24px] p-6">
-      <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <h3 className="text-sm font-bold text-[var(--mm-text-70)] uppercase tracking-wider mb-3 flex items-center gap-2">
         <QrCode className="h-4 w-4" />
         Your invite code
       </h3>
-      <p className="text-xs text-white/40 mb-4">
+      <p className="text-xs text-[var(--mm-text-40)] mb-4">
         Share your code, link, or QR code - anyone who has it connects with you instantly, no approval needed.
       </p>
 
       {isLoadingCode && !myInviteCode ? (
-        <Loader2 className="h-5 w-5 text-white/30 animate-spin" />
+        <Loader2 className="h-5 w-5 text-[var(--mm-text-30)] animate-spin" />
       ) : (
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex-1 min-w-[200px]">
             <button
               onClick={() => copy(myInviteCode ?? '', 'code')}
               title="Copy code"
-              className="group flex items-center gap-2 mb-3 -ml-1 px-1 rounded-lg hover:bg-white/5 transition-colors"
+              className="group flex items-center gap-2 mb-3 -ml-1 px-1 rounded-lg hover:bg-[var(--mm-hover-bg)] transition-colors"
             >
-              <span className="font-mono text-2xl font-black text-white tracking-[0.2em]">{myInviteCode}</span>
+              <span className="font-mono text-2xl font-black text-[var(--mm-text)] tracking-[0.2em]">{myInviteCode}</span>
               {copied === 'code' ? (
                 <Check className="h-4 w-4 text-green-400" />
               ) : (
-                <Copy className="h-4 w-4 text-white/30 group-hover:text-white/60" />
+                <Copy className="h-4 w-4 text-[var(--mm-text-30)] group-hover:text-[var(--mm-text-60)]" />
               )}
             </button>
             <div className="flex gap-2 flex-wrap">
@@ -114,7 +114,7 @@ function InviteCodeCard() {
                 onClick={() => setShowQr((s) => !s)}
                 size="sm"
                 variant="outline"
-                className="border-white/10 text-white/70 hover:text-white hover:bg-white/10 rounded-lg"
+                className="border-[var(--mm-card-border)] text-[var(--mm-text-70)] hover:text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-lg"
               >
                 <QrCode className="h-3.5 w-3.5 mr-1.5" />
                 {showQr ? 'Hide QR' : 'Show QR'}
@@ -124,7 +124,7 @@ function InviteCodeCard() {
                 disabled={isRegenerating}
                 size="sm"
                 variant="ghost"
-                className="text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                className="text-[var(--mm-text-40)] hover:text-red-400 hover:bg-red-500/10 rounded-lg"
               >
                 {isRegenerating ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -165,15 +165,15 @@ function RecommendationCard({
       {rec.poster_url ? (
         <img src={rec.poster_url} alt={rec.title} className="w-12 h-16 object-cover rounded-lg shrink-0" />
       ) : (
-        <div className="w-12 h-16 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
+        <div className="w-12 h-16 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
           {rec.title[0]}
         </div>
       )}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-white font-semibold truncate">{rec.title}</p>
-            <p className="text-[10px] text-white/40 uppercase tracking-wide">
+            <p className="text-[var(--mm-text)] font-semibold truncate">{rec.title}</p>
+            <p className="text-[10px] text-[var(--mm-text-40)] uppercase tracking-wide">
               {getTypeLabel(rec.type)}
               {rec.release_year ? ` - ${rec.release_year}` : ''}
             </p>
@@ -182,17 +182,17 @@ function RecommendationCard({
             variant="ghost"
             size="icon"
             onClick={onDismiss}
-            className="text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg h-7 w-7 shrink-0"
+            className="text-[var(--mm-text-30)] hover:text-red-400 hover:bg-red-500/10 rounded-lg h-7 w-7 shrink-0"
             title="Dismiss"
           >
             <X className="h-3.5 w-3.5" />
           </Button>
         </div>
-        <p className="text-xs text-white/40 mt-1">
+        <p className="text-xs text-[var(--mm-text-40)] mt-1">
           {direction === 'received' ? 'From ' : 'To '}
           {rec.otherUser?.name ?? 'Unknown user'}
         </p>
-        {rec.message && <p className="text-sm text-white/70 mt-1.5 italic">&quot;{rec.message}&quot;</p>}
+        {rec.message && <p className="text-sm text-[var(--mm-text-70)] mt-1.5 italic">&quot;{rec.message}&quot;</p>}
         {direction === 'received' && (
           <Button
             size="sm"
@@ -333,19 +333,19 @@ export default function FriendsPage() {
           variant="ghost"
           size="icon"
           onClick={() => router.back()}
-          className="text-white hover:bg-white/10 rounded-xl"
+          className="text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-xl"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter">FRIENDS</h1>
-          <p className="text-sm text-white/50 font-mono">友達</p>
+          <h1 className="text-3xl font-black text-[var(--mm-text)] tracking-tighter">FRIENDS</h1>
+          <p className="text-sm text-[var(--mm-text-50)] font-mono">友達</p>
         </div>
       </div>
 
       {/* Add friend by code */}
       <div className="glass-card rounded-[24px] p-6">
-        <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-bold text-[var(--mm-text-70)] uppercase tracking-wider mb-3 flex items-center gap-2">
           <UserPlus className="h-4 w-4" />
           Add a friend
         </h3>
@@ -355,7 +355,7 @@ export default function FriendsPage() {
             onChange={(e) => setCodeInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleRedeem()}
             placeholder="Enter their invite code"
-            className="bg-black border-white/10 rounded-xl h-12 flex-1 font-mono uppercase tracking-widest placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
+            className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12 flex-1 font-mono uppercase tracking-widest placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
           />
           <Button
             onClick={handleRedeem}
@@ -375,17 +375,17 @@ export default function FriendsPage() {
       <InviteCodeCard />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-white/5 p-1 rounded-2xl h-auto">
+        <TabsList className="grid w-full grid-cols-3 bg-[var(--mm-hover-bg)] p-1 rounded-2xl h-auto">
           <TabsTrigger
             value="friends"
-            className="rounded-xl py-3 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+            className="rounded-xl py-3 text-xs sm:text-sm data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)]"
           >
             <Users className="h-4 w-4 mr-1.5 shrink-0" />
             <span className="truncate">Friends ({friends.length})</span>
           </TabsTrigger>
           <TabsTrigger
             value="requests"
-            className="rounded-xl py-3 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60 relative"
+            className="rounded-xl py-3 text-xs sm:text-sm data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)] relative"
           >
             <span className="truncate">Requests</span>
             {incomingRequests.length > 0 && (
@@ -396,7 +396,7 @@ export default function FriendsPage() {
           </TabsTrigger>
           <TabsTrigger
             value="recommendations"
-            className="rounded-xl py-3 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60 relative"
+            className="rounded-xl py-3 text-xs sm:text-sm data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)] relative"
           >
             <Inbox className="h-4 w-4 mr-1.5 shrink-0" />
             <span className="truncate">For You</span>
@@ -411,12 +411,12 @@ export default function FriendsPage() {
         <TabsContent value="friends" className="mt-6">
           {isLoading && friends.length === 0 ? (
             <div className="glass-card rounded-[28px] p-12 text-center">
-              <Loader2 className="h-6 w-6 text-white/30 mx-auto animate-spin" />
+              <Loader2 className="h-6 w-6 text-[var(--mm-text-30)] mx-auto animate-spin" />
             </div>
           ) : friends.length === 0 ? (
             <div className="glass-card rounded-[28px] p-12 text-center">
-              <Users className="h-12 w-12 text-white/20 mx-auto mb-4" />
-              <p className="text-white/50">No friends yet. Enter their invite code above, or share yours.</p>
+              <Users className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
+              <p className="text-[var(--mm-text-50)]">No friends yet. Enter their invite code above, or share yours.</p>
             </div>
           ) : (
             <div className="grid gap-3">
@@ -428,11 +428,11 @@ export default function FriendsPage() {
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar user={f.otherUser} />
                     <div className="min-w-0">
-                      <p className="text-white font-semibold truncate">
+                      <p className="text-[var(--mm-text)] font-semibold truncate">
                         {f.otherUser?.name ?? 'Unknown user'}
                       </p>
                       {f.otherUser?.email && (
-                        <p className="text-xs text-white/40 truncate">{f.otherUser.email}</p>
+                        <p className="text-xs text-[var(--mm-text-40)] truncate">{f.otherUser.email}</p>
                       )}
                     </div>
                   </div>
@@ -441,7 +441,7 @@ export default function FriendsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl"
+                        className="text-[var(--mm-text-60)] hover:text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-xl"
                         title="View library"
                       >
                         <Library className="h-4 w-4" />
@@ -451,7 +451,7 @@ export default function FriendsPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeFriend(f.id)}
-                      className="text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-xl"
+                      className="text-[var(--mm-text-40)] hover:text-red-400 hover:bg-red-500/10 rounded-xl"
                       title="Remove friend"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -465,11 +465,11 @@ export default function FriendsPage() {
 
         <TabsContent value="requests" className="mt-6 space-y-6">
           <div>
-            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider mb-3">
               Incoming ({incomingRequests.length})
             </h4>
             {incomingRequests.length === 0 ? (
-              <p className="text-white/40 text-sm">No incoming requests.</p>
+              <p className="text-[var(--mm-text-40)] text-sm">No incoming requests.</p>
             ) : (
               <div className="grid gap-3">
                 {incomingRequests.map((f) => (
@@ -480,11 +480,11 @@ export default function FriendsPage() {
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar user={f.otherUser} />
                       <div className="min-w-0">
-                        <p className="text-white font-semibold truncate">
+                        <p className="text-[var(--mm-text)] font-semibold truncate">
                           {f.otherUser?.name ?? 'Unknown user'}
                         </p>
                         {f.otherUser?.email && (
-                          <p className="text-xs text-white/40 truncate">{f.otherUser.email}</p>
+                          <p className="text-xs text-[var(--mm-text-40)] truncate">{f.otherUser.email}</p>
                         )}
                       </div>
                     </div>
@@ -501,7 +501,7 @@ export default function FriendsPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => declineRequest(f.id)}
-                        className="text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-xl"
+                        className="text-[var(--mm-text-40)] hover:text-red-400 hover:bg-red-500/10 rounded-xl"
                         title="Decline"
                       >
                         <X className="h-4 w-4" />
@@ -514,11 +514,11 @@ export default function FriendsPage() {
           </div>
 
           <div>
-            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider mb-3">
               Sent ({outgoingRequests.length})
             </h4>
             {outgoingRequests.length === 0 ? (
-              <p className="text-white/40 text-sm">No outgoing requests.</p>
+              <p className="text-[var(--mm-text-40)] text-sm">No outgoing requests.</p>
             ) : (
               <div className="grid gap-3">
                 {outgoingRequests.map((f) => (
@@ -529,10 +529,10 @@ export default function FriendsPage() {
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar user={f.otherUser} />
                       <div className="min-w-0">
-                        <p className="text-white font-semibold truncate">
+                        <p className="text-[var(--mm-text)] font-semibold truncate">
                           {f.otherUser?.name ?? 'Unknown user'}
                         </p>
-                        <Badge variant="outline" className="text-[10px] border-white/10 text-white/50 mt-1">
+                        <Badge variant="outline" className="text-[10px] border-[var(--mm-card-border)] text-[var(--mm-text-50)] mt-1">
                           Pending
                         </Badge>
                       </div>
@@ -541,7 +541,7 @@ export default function FriendsPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeFriend(f.id)}
-                      className="text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-xl shrink-0"
+                      className="text-[var(--mm-text-40)] hover:text-red-400 hover:bg-red-500/10 rounded-xl shrink-0"
                       title="Cancel request"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -555,11 +555,11 @@ export default function FriendsPage() {
 
         <TabsContent value="recommendations" className="mt-6 space-y-6">
           <div>
-            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider mb-3">
               Sent to you ({inbox.length})
             </h4>
             {inbox.length === 0 ? (
-              <p className="text-white/40 text-sm">
+              <p className="text-[var(--mm-text-40)] text-sm">
                 Nothing yet - when a friend recommends a title, it shows up here.
               </p>
             ) : (
@@ -580,11 +580,11 @@ export default function FriendsPage() {
           </div>
 
           <div>
-            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider mb-3">
               Sent by you ({sent.length})
             </h4>
             {sent.length === 0 ? (
-              <p className="text-white/40 text-sm">
+              <p className="text-[var(--mm-text-40)] text-sm">
                 Recommend a title from its detail view - look for the <Send className="h-3 w-3 inline mx-0.5" />{' '}
                 Recommend button.
               </p>

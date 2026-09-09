@@ -39,8 +39,8 @@ export function FriendsActivityFeed() {
   return (
     <div className="pt-4">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-          <Users className="h-4 w-4 text-white/50" />
+        <h2 className="text-lg font-bold text-[var(--mm-text)] tracking-tight flex items-center gap-2">
+          <Users className="h-4 w-4 text-[var(--mm-text-50)]" />
           Friends&apos; Activity
         </h2>
         <Link href="/friends" className="text-xs text-indigo-400 hover:text-indigo-300">
@@ -53,7 +53,7 @@ export function FriendsActivityFeed() {
           <Link
             key={entry.id}
             href={`/friends/${entry.friend.id}`}
-            className="flex items-center gap-3 p-3 hover:bg-white/5 transition-colors"
+            className="flex items-center gap-3 p-3 hover:bg-[var(--mm-hover-bg)] transition-colors"
           >
             {entry.friend.imageUrl ? (
               <img
@@ -67,13 +67,13 @@ export function FriendsActivityFeed() {
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-white/90 truncate">
+              <p className="text-sm text-[var(--mm-text)] truncate">
                 <span className="font-semibold">{entry.friend.name}</span>{' '}
-                <span className="text-white/50">{describe(entry)}</span>{' '}
+                <span className="text-[var(--mm-text-50)]">{describe(entry)}</span>{' '}
                 <span className="font-medium">{entry.media?.title ?? 'a title'}</span>
               </p>
               {entry.media && (
-                <p className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5">
+                <p className="text-[10px] text-[var(--mm-text-30)] uppercase tracking-wider mt-0.5">
                   {getTypeLabel(entry.media.type)}
                 </p>
               )}

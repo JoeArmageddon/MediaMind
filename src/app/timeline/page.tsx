@@ -32,12 +32,12 @@ export default function TimelinePage() {
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-white/10 rounded-xl">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-xl">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter">TIMELINE</h1>
-          <p className="text-sm text-white/50 font-mono">タイムライン</p>
+          <h1 className="text-3xl font-black text-[var(--mm-text)] tracking-tighter">TIMELINE</h1>
+          <p className="text-sm text-[var(--mm-text-50)] font-mono">タイムライン</p>
         </div>
       </div>
 
@@ -58,7 +58,7 @@ export default function TimelinePage() {
               <div key={event.id} className="relative pl-8">
                 {/* Timeline line */}
                 {index < history.length - 1 && (
-                  <div className="absolute left-3.5 top-8 bottom-0 w-px bg-white/10" />
+                  <div className="absolute left-3.5 top-8 bottom-0 w-px bg-[var(--mm-hover-bg-strong)]" />
                 )}
                 
                 {/* Dot */}
@@ -70,11 +70,11 @@ export default function TimelinePage() {
                 </div>
 
                 {/* Card */}
-                <div className="glass-card rounded-2xl p-4 hover:border-white/20 transition-colors">
+                <div className="glass-card rounded-2xl p-4 hover:border-[var(--mm-card-border-hover)] transition-colors">
                   <div className="flex items-start gap-4">
                     {/* Poster thumbnail */}
                     {event.media?.poster_url && (
-                      <div className="w-12 h-16 rounded-lg overflow-hidden bg-black flex-shrink-0 border border-white/10">
+                      <div className="w-12 h-16 rounded-lg overflow-hidden bg-[var(--mm-input-bg)] flex-shrink-0 border border-[var(--mm-card-border)]">
                         <img 
                           src={event.media.poster_url} 
                           alt={event.media.title}
@@ -84,16 +84,16 @@ export default function TimelinePage() {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">
+                        <span className="text-[10px] font-bold text-[var(--mm-text-50)] uppercase tracking-wider">
                           {getTypeLabel(event.media?.type || 'misc')}
                         </span>
-                        <span className="text-[10px] text-white/30">•</span>
-                        <span className="text-[10px] text-white/50">
+                        <span className="text-[10px] text-[var(--mm-text-30)]">•</span>
+                        <span className="text-[10px] text-[var(--mm-text-50)]">
                           {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
                         </span>
                       </div>
-                      <h3 className="font-bold text-white truncate">{event.media?.title || 'Unknown'}</h3>
-                      <p className="text-xs text-white/40 mt-1">
+                      <h3 className="font-bold text-[var(--mm-text)] truncate">{event.media?.title || 'Unknown'}</h3>
+                      <p className="text-xs text-[var(--mm-text-40)] mt-1">
                         {config.label}
                         {event.value && typeof event.value === 'object' && 'status' in event.value && (
                           <span className="ml-1">→ {getStatusLabel(String(event.value.status))}</span>
@@ -111,9 +111,9 @@ export default function TimelinePage() {
       {/* Empty state if no history */}
       {!isLoading && history.length === 0 && (
         <div className="glass-card rounded-[28px] p-12 text-center">
-          <Clock className="h-12 w-12 text-white/20 mx-auto mb-4" />
-          <p className="text-white/50">No activity yet.</p>
-          <p className="text-sm text-white/30 mt-2">Start adding media to see your timeline.</p>
+          <Clock className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
+          <p className="text-[var(--mm-text-50)]">No activity yet.</p>
+          <p className="text-sm text-[var(--mm-text-30)] mt-2">Start adding media to see your timeline.</p>
         </div>
       )}
     </div>

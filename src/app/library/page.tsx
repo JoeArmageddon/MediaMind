@@ -91,13 +91,13 @@ export default function LibraryPage() {
           variant="ghost" 
           size="icon" 
           onClick={() => router.push('/')}
-          className="text-white hover:bg-white/10 rounded-xl"
+          className="text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-xl"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter">LIBRARY</h1>
-          <p className="text-sm text-white/50 font-mono">コレクション</p>
+          <h1 className="text-3xl font-black text-[var(--mm-text)] tracking-tighter">LIBRARY</h1>
+          <p className="text-sm text-[var(--mm-text-50)] font-mono">コレクション</p>
         </div>
       </div>
 
@@ -106,14 +106,14 @@ export default function LibraryPage() {
         <div className="flex-none glass-card px-4 py-3 rounded-xl flex items-center gap-3">
           <div className="w-2 h-2 bg-indigo-500 rounded-full" />
           <div>
-            <div className="text-[10px] text-slate-400 uppercase tracking-wider">Total</div>
+            <div className="text-[10px] text-[var(--mm-text-40)] uppercase tracking-wider">Total</div>
             <div className="text-xl font-bold font-mono">{media.length}</div>
           </div>
         </div>
         <div className="flex-none glass-card px-4 py-3 rounded-xl flex items-center gap-3">
           <div className="w-2 h-2 bg-green-500 rounded-full" />
           <div>
-            <div className="text-[10px] text-slate-400 uppercase tracking-wider">Showing</div>
+            <div className="text-[10px] text-[var(--mm-text-40)] uppercase tracking-wider">Showing</div>
             <div className="text-xl font-bold font-mono">{filteredMedia.length}</div>
           </div>
         </div>
@@ -133,12 +133,12 @@ export default function LibraryPage() {
       {/* Search & Controls */}
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--mm-text-40)]" />
           <Input
             placeholder="Search your library..."
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
-            className="pl-12 h-14 bg-black border-white/10 rounded-xl text-lg focus:border-indigo-500"
+            className="pl-12 h-14 bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl text-lg focus:border-indigo-500"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -149,7 +149,7 @@ export default function LibraryPage() {
             onClick={() => setViewMode('grid')}
             className={cn(
               'h-14 w-14 rounded-xl',
-              viewMode === 'grid' ? 'bg-white/10 text-white' : 'text-white/60'
+              viewMode === 'grid' ? 'bg-[var(--mm-hover-bg-strong)] text-[var(--mm-text)]' : 'text-[var(--mm-text-60)]'
             )}
           >
             <Grid3X3 className="h-5 w-5" />
@@ -160,7 +160,7 @@ export default function LibraryPage() {
             onClick={() => setViewMode('list')}
             className={cn(
               'h-14 w-14 rounded-xl',
-              viewMode === 'list' ? 'bg-white/10 text-white' : 'text-white/60'
+              viewMode === 'list' ? 'bg-[var(--mm-hover-bg-strong)] text-[var(--mm-text)]' : 'text-[var(--mm-text-60)]'
             )}
           >
             <List className="h-5 w-5" />
@@ -172,13 +172,13 @@ export default function LibraryPage() {
       {/* Content */}
       {filteredMedia.length === 0 ? (
         <div className="text-center py-20">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-white/5 flex items-center justify-center">
-            <Search className="h-10 w-10 text-white/20" />
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-[var(--mm-hover-bg)] flex items-center justify-center">
+            <Search className="h-10 w-10 text-[var(--mm-text-20)]" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">
+          <h3 className="text-xl font-bold text-[var(--mm-text)] mb-2">
             {hasActiveFilters ? 'No matches found' : 'Your library is empty'}
           </h3>
-          <p className="text-white/50 mb-6">
+          <p className="text-[var(--mm-text-50)] mb-6">
             {hasActiveFilters 
               ? 'Try adjusting your filters or search query'
               : 'Start adding media to build your collection'
@@ -188,7 +188,7 @@ export default function LibraryPage() {
             <Button 
               onClick={clearFilters}
               variant="outline"
-              className="border-white/10 text-white/60 rounded-xl"
+              className="border-[var(--mm-card-border)] text-[var(--mm-text-60)] rounded-xl"
             >
               Clear Filters
             </Button>
@@ -205,7 +205,7 @@ export default function LibraryPage() {
         <div className="space-y-4">
           {/* Results Count */}
           <div className="flex items-center justify-between">
-            <p className="text-sm text-white/50">
+            <p className="text-sm text-[var(--mm-text-50)]">
               Showing {filteredMedia.length} {filteredMedia.length === 1 ? 'title' : 'titles'}
             </p>
             {hasActiveFilters && (
@@ -226,7 +226,7 @@ export default function LibraryPage() {
 
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent hideCloseButton className="max-w-4xl h-[90vh] lg:h-auto lg:max-h-[90vh] overflow-hidden bg-[#0a0a0a] border-white/10 p-0">
+        <DialogContent hideCloseButton className="max-w-4xl h-[90vh] lg:h-auto lg:max-h-[90vh] overflow-hidden bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] p-0">
           <DialogHeader className="sr-only">
             <DialogTitle>Media Details</DialogTitle>
           </DialogHeader>

@@ -57,7 +57,7 @@ export function FilterDrawer() {
         size="sm"
         onClick={toggleFilterDrawer}
         className={cn(
-          'border-white/10 hover:border-violet-600',
+          'border-[var(--mm-card-border)] hover:border-violet-600',
           activeCount > 0 && 'border-violet-600 bg-violet-600/10'
         )}
       >
@@ -81,23 +81,23 @@ export function FilterDrawer() {
       />
       
       {/* Drawer */}
-      <div className="fixed right-0 top-0 z-50 h-screen w-full max-w-sm bg-black border-l border-white/10">
+      <div className="fixed right-0 top-0 z-50 h-screen w-full max-w-sm bg-[var(--mm-input-bg)] border-l border-[var(--mm-card-border)]">
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex h-16 items-center justify-between px-4 border-b border-white/10">
+          <div className="flex h-16 items-center justify-between px-4 border-b border-[var(--mm-card-border)]">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
                 <Filter className="h-4 w-4 text-white" />
               </div>
-              <h2 className="text-lg font-bold text-white">Filters</h2>
+              <h2 className="text-lg font-bold text-[var(--mm-text)]">Filters</h2>
             </div>
             <div className="flex items-center gap-2">
               {activeCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={resetFilters} className="text-white/60 hover:text-white">
+                <Button variant="ghost" size="sm" onClick={resetFilters} className="text-[var(--mm-text-60)] hover:text-[var(--mm-text)]">
                   Reset
                 </Button>
               )}
-              <Button variant="ghost" size="icon" onClick={toggleFilterDrawer} className="text-white">
+              <Button variant="ghost" size="icon" onClick={toggleFilterDrawer} className="text-[var(--mm-text)]">
                 <X className="h-5 w-5" />
               </Button>
             </div>
@@ -107,12 +107,12 @@ export function FilterDrawer() {
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             {/* Status */}
             <div>
-              <h3 className="text-sm font-semibold text-white mb-3">Status</h3>
+              <h3 className="text-sm font-semibold text-[var(--mm-text)] mb-3">Status</h3>
               <div className="space-y-2">
                 {statuses.map((status) => (
                   <label
                     key={status}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 cursor-pointer hover:border-violet-600"
+                    className="flex items-center gap-3 p-3 rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] cursor-pointer hover:border-violet-600"
                   >
                     <input
                       type="checkbox"
@@ -126,7 +126,7 @@ export function FilterDrawer() {
                       }}
                       className="w-4 h-4 accent-violet-600"
                     />
-                    <span className="text-sm text-white/80">{getStatusLabel(status)}</span>
+                    <span className="text-sm text-[var(--mm-text)]">{getStatusLabel(status)}</span>
                   </label>
                 ))}
               </div>
@@ -134,12 +134,12 @@ export function FilterDrawer() {
 
             {/* Type */}
             <div>
-              <h3 className="text-sm font-semibold text-white mb-3">Type</h3>
+              <h3 className="text-sm font-semibold text-[var(--mm-text)] mb-3">Type</h3>
               <div className="grid grid-cols-2 gap-2">
                 {types.map((type) => (
                   <label
                     key={type}
-                    className="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10 cursor-pointer hover:border-violet-600"
+                    className="flex items-center gap-2 p-3 rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] cursor-pointer hover:border-violet-600"
                   >
                     <input
                       type="checkbox"
@@ -153,7 +153,7 @@ export function FilterDrawer() {
                       }}
                       className="w-4 h-4 accent-violet-600"
                     />
-                    <span className="text-sm text-white/80">{getTypeLabel(type)}</span>
+                    <span className="text-sm text-[var(--mm-text)]">{getTypeLabel(type)}</span>
                   </label>
                 ))}
               </div>
@@ -161,9 +161,9 @@ export function FilterDrawer() {
 
             {/* Favorites */}
             <div>
-              <h3 className="text-sm font-semibold text-white mb-3">Favorites</h3>
-              <label className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
-                <span className="text-sm text-white/80">Show only favorites</span>
+              <h3 className="text-sm font-semibold text-[var(--mm-text)] mb-3">Favorites</h3>
+              <label className="flex items-center justify-between p-3 rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]">
+                <span className="text-sm text-[var(--mm-text)]">Show only favorites</span>
                 <Switch
                   checked={filters.is_favorite || false}
                   onCheckedChange={(checked) => {
@@ -175,9 +175,9 @@ export function FilterDrawer() {
 
             {/* Archived */}
             <div>
-              <h3 className="text-sm font-semibold text-white mb-3">Archived</h3>
-              <label className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
-                <span className="text-sm text-white/80">Show archived</span>
+              <h3 className="text-sm font-semibold text-[var(--mm-text)] mb-3">Archived</h3>
+              <label className="flex items-center justify-between p-3 rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]">
+                <span className="text-sm text-[var(--mm-text)]">Show archived</span>
                 <Switch
                   checked={filters.is_archived}
                   onCheckedChange={(checked) => {
@@ -190,7 +190,7 @@ export function FilterDrawer() {
             {/* Genres */}
             {allGenres.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-white mb-3">Genres</h3>
+                <h3 className="text-sm font-semibold text-[var(--mm-text)] mb-3">Genres</h3>
                 <div className="flex flex-wrap gap-2">
                   {allGenres.map((genre) => (
                     <Badge
@@ -200,7 +200,7 @@ export function FilterDrawer() {
                         'cursor-pointer px-3 py-1.5 text-xs transition-all',
                         filters.genres.includes(genre)
                           ? 'bg-violet-600 hover:bg-violet-700 border-transparent'
-                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                          : 'bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] text-[var(--mm-text-70)] hover:bg-[var(--mm-hover-bg-strong)] hover:text-[var(--mm-text)]'
                       )}
                       onClick={() => {
                         setFilters({
@@ -227,7 +227,7 @@ export function FilterDrawer() {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-white/10 p-4">
+          <div className="border-t border-[var(--mm-card-border)] p-4">
             <Button 
               className="w-full bg-violet-600 hover:bg-violet-700" 
               onClick={toggleFilterDrawer}

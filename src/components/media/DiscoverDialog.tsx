@@ -74,24 +74,24 @@ export function DiscoverDialog({ open, onOpenChange, media, onPickMedia }: Disco
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10">
+      <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)]">
         <DialogHeader>
-          <DialogTitle className="text-white">Discover</DialogTitle>
+          <DialogTitle className="text-[var(--mm-text)]">Discover</DialogTitle>
           <DialogDescription>Find something to watch, read, or play next.</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="random" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-xl h-auto">
+          <TabsList className="grid w-full grid-cols-2 bg-[var(--mm-hover-bg)] p-1 rounded-xl h-auto">
             <TabsTrigger
               value="random"
-              className="rounded-lg py-2 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+              className="rounded-lg py-2 data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)]"
             >
               <Shuffle className="h-4 w-4 mr-2" />
               Random
             </TabsTrigger>
             <TabsTrigger
               value="ai"
-              className="rounded-lg py-2 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+              className="rounded-lg py-2 data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)]"
             >
               <Sparkles className="h-4 w-4 mr-2" />
               AI Pick
@@ -117,14 +117,14 @@ export function DiscoverDialog({ open, onOpenChange, media, onPickMedia }: Disco
               value={mood}
               onChange={(e) => setMood(e.target.value)}
               placeholder="Mood (optional, e.g. 'something light')"
-              className="bg-black border-white/10 rounded-xl"
+              className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl"
             />
             <Input
               type="number"
               value={minutes}
               onChange={(e) => setMinutes(e.target.value)}
               placeholder="Minutes available (optional)"
-              className="bg-black border-white/10 rounded-xl"
+              className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl"
             />
             <Button
               onClick={fetchRecommendations}
@@ -144,14 +144,14 @@ export function DiscoverDialog({ open, onOpenChange, media, onPickMedia }: Disco
             {!isLoadingRecommendations && recommendationCache && recommendationCache.length > 0 && (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {recommendationCache.map((rec, i) => (
-                  <div key={i} className="p-3 rounded-lg bg-white/5 border border-white/10">
+                  <div key={i} className="p-3 rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-white text-sm">{rec.title}</span>
+                      <span className="font-bold text-[var(--mm-text)] text-sm">{rec.title}</span>
                       <span className="text-[10px] text-fuchsia-400 font-mono flex-shrink-0">
                         {Math.round(rec.fit_score)}% fit
                       </span>
                     </div>
-                    <p className="text-xs text-white/60 mt-1">{rec.reason}</p>
+                    <p className="text-xs text-[var(--mm-text-60)] mt-1">{rec.reason}</p>
                   </div>
                 ))}
               </div>

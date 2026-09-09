@@ -473,35 +473,35 @@ export default function SearchPage() {
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-white/10 rounded-xl">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-xl">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter">ADD MEDIA</h1>
-          <p className="text-sm text-white/50 font-mono">検索</p>
+          <h1 className="text-3xl font-black text-[var(--mm-text)] tracking-tighter">ADD MEDIA</h1>
+          <p className="text-sm text-[var(--mm-text-50)] font-mono">検索</p>
         </div>
       </div>
 
       {/* Mode Switcher */}
       <Tabs value={mode} onValueChange={(v) => { setMode(v as 'single' | 'batch' | 'manual'); setError(null); }} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-white/5 p-1 rounded-2xl h-auto">
+        <TabsList className="grid w-full grid-cols-3 bg-[var(--mm-hover-bg)] p-1 rounded-2xl h-auto">
           <TabsTrigger 
             value="single" 
-            className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+            className="rounded-xl py-3 data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)]"
           >
             <Search className="h-4 w-4 mr-2" />
             Search
           </TabsTrigger>
           <TabsTrigger 
             value="batch"
-            className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+            className="rounded-xl py-3 data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)]"
           >
             <List className="h-4 w-4 mr-2" />
             Batch
           </TabsTrigger>
           <TabsTrigger 
             value="manual"
-            className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+            className="rounded-xl py-3 data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)]"
           >
             <PenSquare className="h-4 w-4 mr-2" />
             Manual
@@ -522,8 +522,8 @@ export default function SearchPage() {
                   className={cn(
                     'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap',
                     selectedType === type.value
-                      ? `bg-gradient-to-r ${type.gradient} text-white shadow-lg`
-                      : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
+                      ? `bg-gradient-to-r ${type.gradient} text-[var(--mm-text)] shadow-lg`
+                      : 'bg-[var(--mm-hover-bg)] text-[var(--mm-text-60)] hover:bg-[var(--mm-hover-bg-strong)] border border-[var(--mm-card-border)]'
                   )}
                 >
                   {type.icon}
@@ -535,19 +535,19 @@ export default function SearchPage() {
             {/* Search Input */}
             <div className="flex gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--mm-text-40)]" />
                 <Input
                   placeholder="Search for movies, shows, anime..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="pl-12 h-14 bg-black border-white/10 rounded-xl text-lg focus:border-indigo-500"
+                  className="pl-12 h-14 bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl text-lg focus:border-indigo-500"
                 />
               </div>
               <Button
                 onClick={isLoading ? cancelSearch : handleSearch}
                 className={cn(
-                  'h-14 px-6 rounded-xl font-bold text-white',
+                  'h-14 px-6 rounded-xl font-bold text-[var(--mm-text)]',
                   'bg-gradient-to-r shadow-lg',
                   isLoading ? 'from-red-500 to-red-600' : selectedConfig.gradient
                 )}
@@ -565,8 +565,8 @@ export default function SearchPage() {
                   <Wand2 className="h-5 w-5 text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Not Found?</h3>
-                  <p className="text-sm text-white/60">Add it manually with your own details</p>
+                  <h3 className="text-lg font-bold text-[var(--mm-text)]">Not Found?</h3>
+                  <p className="text-sm text-[var(--mm-text-60)]">Add it manually with your own details</p>
                 </div>
               </div>
               
@@ -575,13 +575,13 @@ export default function SearchPage() {
                   value={manualEntry.title}
                   onChange={(e) => setManualEntry({ ...manualEntry, title: e.target.value })}
                   placeholder="Title"
-                  className="bg-black border-white/10 rounded-xl"
+                  className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl"
                 />
                 <textarea
                   value={manualEntry.description}
                   onChange={(e) => setManualEntry({ ...manualEntry, description: e.target.value })}
                   placeholder="Description (optional)"
-                  className="w-full h-20 bg-black border border-white/10 rounded-xl p-3 text-white resize-none focus:border-indigo-500 focus:outline-none"
+                  className="w-full h-20 bg-[var(--mm-input-bg)] border border-[var(--mm-card-border)] rounded-xl p-3 text-[var(--mm-text)] resize-none focus:border-indigo-500 focus:outline-none"
                 />
                 <Button 
                   onClick={handleManualAdd}
@@ -603,7 +603,7 @@ export default function SearchPage() {
 
           {/* Debug Info - dev only */}
           {process.env.NODE_ENV === 'development' && debugInfo && (
-            <div className="p-3 bg-slate-800/50 border border-white/10 rounded-xl text-xs text-white/60 font-mono">
+            <div className="p-3 bg-slate-800/50 border border-[var(--mm-card-border)] rounded-xl text-xs text-[var(--mm-text-60)] font-mono">
               Debug: {debugInfo}
             </div>
           )}
@@ -612,8 +612,8 @@ export default function SearchPage() {
           {results.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-white tracking-tight">RESULTS</h2>
-                <Badge variant="outline" className="border-white/10 text-white/70 rounded-full">
+                <h2 className="text-lg font-bold text-[var(--mm-text)] tracking-tight">RESULTS</h2>
+                <Badge variant="outline" className="border-[var(--mm-card-border)] text-[var(--mm-text-70)] rounded-full">
                   {results.length} found
                 </Badge>
               </div>
@@ -622,10 +622,10 @@ export default function SearchPage() {
                 {results.map((result, index) => (
                   <div 
                     key={`${result.title}-${index}`} 
-                    className="glass-card rounded-2xl p-4 hover:border-white/20 transition-all group"
+                    className="glass-card rounded-2xl p-4 hover:border-[var(--mm-card-border-hover)] transition-all group"
                   >
                     <div className="flex gap-4">
-                      <div className="h-28 w-20 flex-shrink-0 bg-black rounded-xl overflow-hidden border border-white/10">
+                      <div className="h-28 w-20 flex-shrink-0 bg-[var(--mm-input-bg)] rounded-xl overflow-hidden border border-[var(--mm-card-border)]">
                         {result.poster_url ? (
                           <img
                             src={result.poster_url}
@@ -634,7 +634,7 @@ export default function SearchPage() {
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-white/5 to-white/10">
-                            <span className="text-2xl font-black text-white/20">
+                            <span className="text-2xl font-black text-[var(--mm-text-20)]">
                               {result.title.charAt(0)}
                             </span>
                           </div>
@@ -644,12 +644,12 @@ export default function SearchPage() {
                       <div className="flex flex-1 flex-col min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <Badge variant="outline" className="mb-1 text-xs border-white/10 text-white/70 rounded-md">
+                            <Badge variant="outline" className="mb-1 text-xs border-[var(--mm-card-border)] text-[var(--mm-text-70)] rounded-md">
                               {getTypeLabel(result.type)}
                             </Badge>
-                            <h3 className="font-bold text-white text-lg leading-tight">{result.title}</h3>
+                            <h3 className="font-bold text-[var(--mm-text)] text-lg leading-tight">{result.title}</h3>
                             {result.description && (
-                              <p className="mt-1 line-clamp-2 text-sm text-white/50">
+                              <p className="mt-1 line-clamp-2 text-sm text-[var(--mm-text-50)]">
                                 {result.description}
                               </p>
                             )}
@@ -663,9 +663,9 @@ export default function SearchPage() {
                           </Button>
                         </div>
 
-                        <div className="mt-auto flex items-center gap-3 text-xs text-white/40 pt-3">
+                        <div className="mt-auto flex items-center gap-3 text-xs text-[var(--mm-text-40)] pt-3">
                           {result.release_year && (
-                            <span className="bg-white/5 px-2 py-1 rounded-md">{result.release_year}</span>
+                            <span className="bg-[var(--mm-hover-bg)] px-2 py-1 rounded-md">{result.release_year}</span>
                           )}
                           {result.api_rating && (
                             <span className="text-yellow-500 flex items-center gap-1">
@@ -694,7 +694,7 @@ export default function SearchPage() {
         <>
           {/* Batch Type Selector */}
           <div className="glass-card rounded-[28px] p-6">
-            <label className="text-sm font-medium text-white/60 mb-3 block">Type for all items</label>
+            <label className="text-sm font-medium text-[var(--mm-text-60)] mb-3 block">Type for all items</label>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               {searchTypes.filter(t => t.value !== 'all').map((type) => (
                 <button
@@ -703,8 +703,8 @@ export default function SearchPage() {
                   className={cn(
                     'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap',
                     batchType === type.value
-                      ? `bg-gradient-to-r ${type.gradient} text-white shadow-lg`
-                      : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
+                      ? `bg-gradient-to-r ${type.gradient} text-[var(--mm-text)] shadow-lg`
+                      : 'bg-[var(--mm-hover-bg)] text-[var(--mm-text-60)] hover:bg-[var(--mm-hover-bg-strong)] border border-[var(--mm-card-border)]'
                   )}
                 >
                   {type.icon}
@@ -717,20 +717,20 @@ export default function SearchPage() {
           {/* Batch Input */}
           {batchItems.length === 0 ? (
             <div className="glass-card rounded-[28px] p-6">
-              <label className="text-sm font-medium text-white/60 mb-3 block">
+              <label className="text-sm font-medium text-[var(--mm-text-60)] mb-3 block">
                 Paste your list (one title per line)
               </label>
               <textarea
                 value={batchText}
                 onChange={(e) => setBatchText(e.target.value)}
                 placeholder="e.g.&#10;Solo Leveling&#10;Omniscient Reader&#10;Tower of God&#10;Noblesse"
-                className="w-full h-48 bg-black border border-white/10 rounded-xl p-4 text-white resize-none focus:border-indigo-500 focus:outline-none font-mono text-sm"
+                className="w-full h-48 bg-[var(--mm-input-bg)] border border-[var(--mm-card-border)] rounded-xl p-4 text-[var(--mm-text)] resize-none focus:border-indigo-500 focus:outline-none font-mono text-sm"
               />
               <div className="flex gap-3 mt-4">
                 <Button
                   variant="outline"
                   onClick={() => setBatchText('')}
-                  className="flex-1 border-white/10 text-white/60 hover:bg-white/5 rounded-xl h-12"
+                  className="flex-1 border-[var(--mm-card-border)] text-[var(--mm-text-60)] hover:bg-[var(--mm-hover-bg)] rounded-xl h-12"
                   disabled={!batchText}
                 >
                   <X className="mr-2 h-4 w-4" />
@@ -740,7 +740,7 @@ export default function SearchPage() {
                   onClick={parseBatchText}
                   disabled={!batchText.trim()}
                   className={cn(
-                    'flex-1 h-12 rounded-xl font-bold text-white',
+                    'flex-1 h-12 rounded-xl font-bold text-[var(--mm-text)]',
                     'bg-gradient-to-r shadow-lg',
                     batchTypeConfig.gradient
                   )}
@@ -756,8 +756,8 @@ export default function SearchPage() {
               {/* Batch Actions */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Batch Items</h2>
-                  <p className="text-sm text-white/50">
+                  <h2 className="text-lg font-bold text-[var(--mm-text)]">Batch Items</h2>
+                  <p className="text-sm text-[var(--mm-text-50)]">
                     {batchItems.filter(i => i.status === 'added').length} of {batchItems.length} added
                   </p>
                 </div>
@@ -767,7 +767,7 @@ export default function SearchPage() {
                     size="sm"
                     onClick={() => setBatchItems([])}
                     disabled={isBatchProcessing}
-                    className="border-white/10 text-white/60 rounded-xl"
+                    className="border-[var(--mm-card-border)] text-[var(--mm-text-60)] rounded-xl"
                   >
                     Reset
                   </Button>
@@ -775,7 +775,7 @@ export default function SearchPage() {
                     size="sm"
                     onClick={isBatchProcessing ? cancelBatch : processBatch}
                     className={cn(
-                      'rounded-xl font-bold text-white',
+                      'rounded-xl font-bold text-[var(--mm-text)]',
                       isBatchProcessing
                         ? 'bg-red-600 hover:bg-red-700'
                         : cn('bg-gradient-to-r shadow-lg', batchTypeConfig.gradient)
@@ -821,13 +821,13 @@ export default function SearchPage() {
                       {/* Status Indicator */}
                       <div className={cn(
                         'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-1',
-                        item.status === 'pending' && 'bg-white/5',
+                        item.status === 'pending' && 'bg-[var(--mm-hover-bg)]',
                         item.status === 'searching' && 'bg-indigo-500/20',
                         item.status === 'found' && 'bg-emerald-500/20',
                         item.status === 'not_found' && 'bg-red-500/20',
                         item.status === 'added' && 'bg-emerald-500/20',
                       )}>
-                        {item.status === 'pending' && <span className="text-white/40 text-xs">●</span>}
+                        {item.status === 'pending' && <span className="text-[var(--mm-text-40)] text-xs">●</span>}
                         {item.status === 'searching' && <Loader2 className="h-4 w-4 text-indigo-400 animate-spin" />}
                         {item.status === 'found' && <Check className="h-4 w-4 text-emerald-400" />}
                         {item.status === 'not_found' && <X className="h-4 w-4 text-red-400" />}
@@ -837,8 +837,8 @@ export default function SearchPage() {
                       <div className="flex-1 min-w-0">
                         {/* Title */}
                         <h3 className={cn(
-                          'font-bold text-white',
-                          item.status === 'added' && 'line-through text-white/50'
+                          'font-bold text-[var(--mm-text)]',
+                          item.status === 'added' && 'line-through text-[var(--mm-text-50)]'
                         )}>
                           {item.title}
                         </h3>
@@ -846,7 +846,7 @@ export default function SearchPage() {
                         {/* Results Selection */}
                         {item.results && item.results.length > 0 && item.status !== 'added' && (
                           <div className="mt-3 space-y-2">
-                            <p className="text-xs text-white/50">Select the correct match:</p>
+                            <p className="text-xs text-[var(--mm-text-50)]">Select the correct match:</p>
                             <div className="flex gap-2 overflow-x-auto pb-2">
                               {item.results.slice(0, 5).map((result, idx) => (
                                 <button
@@ -856,10 +856,10 @@ export default function SearchPage() {
                                     'flex-shrink-0 w-24 text-left p-2 rounded-xl border transition-all',
                                     item.selectedResult === result
                                       ? 'border-indigo-500 bg-indigo-500/10'
-                                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                                      : 'border-[var(--mm-card-border)] bg-[var(--mm-hover-bg)] hover:border-[var(--mm-card-border-hover)]'
                                   )}
                                 >
-                                  <div className="aspect-[2/3] rounded-lg overflow-hidden bg-black mb-2">
+                                  <div className="aspect-[2/3] rounded-lg overflow-hidden bg-[var(--mm-input-bg)] mb-2">
                                     {result.poster_url ? (
                                       <img 
                                         src={result.poster_url} 
@@ -868,15 +868,15 @@ export default function SearchPage() {
                                       />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center">
-                                        <span className="text-lg font-bold text-white/20">
+                                        <span className="text-lg font-bold text-[var(--mm-text-20)]">
                                           {result.title.charAt(0)}
                                         </span>
                                       </div>
                                     )}
                                   </div>
-                                  <p className="text-xs text-white truncate">{result.title}</p>
+                                  <p className="text-xs text-[var(--mm-text)] truncate">{result.title}</p>
                                   {result.release_year && (
-                                    <p className="text-[10px] text-white/50">{result.release_year}</p>
+                                    <p className="text-[10px] text-[var(--mm-text-50)]">{result.release_year}</p>
                                   )}
                                 </button>
                               ))}
@@ -889,33 +889,33 @@ export default function SearchPage() {
                           <div className="mt-3">
                             {editingManualItem === item.id ? (
                               /* Inline Manual Edit Form */
-                              <div className="space-y-3 p-3 bg-white/5 rounded-xl border border-white/10">
+                              <div className="space-y-3 p-3 bg-[var(--mm-hover-bg)] rounded-xl border border-[var(--mm-card-border)]">
                                 <p className="text-xs text-amber-400 font-medium">Add manually:</p>
                                 <Input
                                   value={manualEditForm.title}
                                   onChange={(e) => setManualEditForm({ ...manualEditForm, title: e.target.value })}
                                   placeholder="Title"
-                                  className="bg-black border-white/10 rounded-lg h-10 text-sm"
+                                  className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-lg h-10 text-sm"
                                 />
                                 <Input
                                   value={manualEditForm.poster_url}
                                   onChange={(e) => setManualEditForm({ ...manualEditForm, poster_url: e.target.value })}
                                   placeholder="Poster URL (optional)"
-                                  className="bg-black border-white/10 rounded-lg h-10 text-sm"
+                                  className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-lg h-10 text-sm"
                                 />
                                 <div className="grid grid-cols-2 gap-2">
                                   <Input
                                     value={manualEditForm.release_year}
                                     onChange={(e) => setManualEditForm({ ...manualEditForm, release_year: e.target.value })}
                                     placeholder="Year"
-                                    className="bg-black border-white/10 rounded-lg h-10 text-sm"
+                                    className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-lg h-10 text-sm"
                                   />
                                 </div>
                                 <textarea
                                   value={manualEditForm.description}
                                   onChange={(e) => setManualEditForm({ ...manualEditForm, description: e.target.value })}
                                   placeholder="Description (optional)"
-                                  className="w-full h-16 bg-black border border-white/10 rounded-lg p-2 text-sm text-white resize-none focus:border-indigo-500 focus:outline-none"
+                                  className="w-full h-16 bg-[var(--mm-input-bg)] border border-[var(--mm-card-border)] rounded-lg p-2 text-sm text-[var(--mm-text)] resize-none focus:border-indigo-500 focus:outline-none"
                                 />
                                 <div className="flex gap-2">
                                   <Button
@@ -930,14 +930,14 @@ export default function SearchPage() {
                                     size="sm"
                                     variant="outline"
                                     onClick={() => setEditingManualItem(null)}
-                                    className="border-white/10 text-white/60 rounded-lg h-9"
+                                    className="border-[var(--mm-card-border)] text-[var(--mm-text-60)] rounded-lg h-9"
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
                                 </div>
                               </div>
                             ) : (
-                              <div className="text-sm text-white/50">
+                              <div className="text-sm text-[var(--mm-text-50)]">
                                 No results found. 
                                 <button 
                                   onClick={() => startManualEdit(item)}
@@ -966,7 +966,7 @@ export default function SearchPage() {
                           size="icon"
                           variant="ghost"
                           onClick={() => removeBatchItem(item.id)}
-                          className="text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-xl h-10 w-10"
+                          className="text-[var(--mm-text-40)] hover:text-red-400 hover:bg-red-500/10 rounded-xl h-10 w-10"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -989,11 +989,11 @@ export default function SearchPage() {
               'bg-gradient-to-br',
               manualTypeConfig.gradient
             )}>
-              <PenSquare className="h-6 w-6 text-white" />
+              <PenSquare className="h-6 w-6 text-[var(--mm-text)]" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">Manual Entry</h3>
-              <p className="text-sm text-white/50">Add media with custom details</p>
+              <h3 className="text-lg font-bold text-[var(--mm-text)]">Manual Entry</h3>
+              <p className="text-sm text-[var(--mm-text-50)]">Add media with custom details</p>
             </div>
           </div>
 
@@ -1006,18 +1006,18 @@ export default function SearchPage() {
           <div className="space-y-4">
             {/* Title */}
             <div>
-              <label className="text-sm font-medium text-white/60 mb-2 block">Title *</label>
+              <label className="text-sm font-medium text-[var(--mm-text-60)] mb-2 block">Title *</label>
               <Input
                 value={manualForm.title}
                 onChange={(e) => setManualForm({ ...manualForm, title: e.target.value })}
                 placeholder="Enter title"
-                className="bg-black border-white/10 rounded-xl h-12"
+                className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12"
               />
             </div>
 
             {/* Type Selector */}
             <div>
-              <label className="text-sm font-medium text-white/60 mb-2 block">Type</label>
+              <label className="text-sm font-medium text-[var(--mm-text-60)] mb-2 block">Type</label>
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 {searchTypes.filter(t => t.value !== 'all').map((type) => (
                   <button
@@ -1026,8 +1026,8 @@ export default function SearchPage() {
                     className={cn(
                       'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap',
                       manualForm.type === type.value
-                        ? `bg-gradient-to-r ${type.gradient} text-white shadow-lg`
-                        : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
+                        ? `bg-gradient-to-r ${type.gradient} text-[var(--mm-text)] shadow-lg`
+                        : 'bg-[var(--mm-hover-bg)] text-[var(--mm-text-60)] hover:bg-[var(--mm-hover-bg-strong)] border border-[var(--mm-card-border)]'
                     )}
                   >
                     {type.icon}
@@ -1039,40 +1039,40 @@ export default function SearchPage() {
 
             {/* Description */}
             <div>
-              <label className="text-sm font-medium text-white/60 mb-2 block">Description</label>
+              <label className="text-sm font-medium text-[var(--mm-text-60)] mb-2 block">Description</label>
               <textarea
                 value={manualForm.description}
                 onChange={(e) => setManualForm({ ...manualForm, description: e.target.value })}
                 placeholder="Enter description"
-                className="w-full h-24 bg-black border border-white/10 rounded-xl p-3 text-white resize-none focus:border-indigo-500 focus:outline-none"
+                className="w-full h-24 bg-[var(--mm-input-bg)] border border-[var(--mm-card-border)] rounded-xl p-3 text-[var(--mm-text)] resize-none focus:border-indigo-500 focus:outline-none"
               />
             </div>
 
             {/* Poster URL */}
             <div>
-              <label className="text-sm font-medium text-white/60 mb-2 block">Poster URL</label>
+              <label className="text-sm font-medium text-[var(--mm-text-60)] mb-2 block">Poster URL</label>
               <Input
                 value={manualForm.poster_url}
                 onChange={(e) => setManualForm({ ...manualForm, poster_url: e.target.value })}
                 placeholder="https://..."
-                className="bg-black border-white/10 rounded-xl h-12"
+                className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12"
               />
             </div>
 
             {/* Grid for numeric fields */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-white/60 mb-2 block">Release Year</label>
+                <label className="text-sm font-medium text-[var(--mm-text-60)] mb-2 block">Release Year</label>
                 <Input
                   type="number"
                   value={manualForm.release_year}
                   onChange={(e) => setManualForm({ ...manualForm, release_year: e.target.value })}
                   placeholder="2024"
-                  className="bg-black border-white/10 rounded-xl h-12"
+                  className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-white/60 mb-2 block">
+                <label className="text-sm font-medium text-[var(--mm-text-60)] mb-2 block">
                   Total {getUnitLabel(manualForm.type)}
                 </label>
                 <Input
@@ -1080,19 +1080,19 @@ export default function SearchPage() {
                   value={manualForm.total_units}
                   onChange={(e) => setManualForm({ ...manualForm, total_units: e.target.value })}
                   placeholder="0"
-                  className="bg-black border-white/10 rounded-xl h-12"
+                  className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12"
                 />
               </div>
             </div>
 
             {/* Genres */}
             <div>
-              <label className="text-sm font-medium text-white/60 mb-2 block">Genres (comma-separated)</label>
+              <label className="text-sm font-medium text-[var(--mm-text-60)] mb-2 block">Genres (comma-separated)</label>
               <Input
                 value={manualForm.genres}
                 onChange={(e) => setManualForm({ ...manualForm, genres: e.target.value })}
                 placeholder="Action, Fantasy, Adventure..."
-                className="bg-black border-white/10 rounded-xl h-12"
+                className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12"
               />
             </div>
 
@@ -1101,7 +1101,7 @@ export default function SearchPage() {
               onClick={handleManualFormSubmit}
               disabled={!manualForm.title.trim()}
               className={cn(
-                'w-full h-14 rounded-xl font-bold text-white mt-4',
+                'w-full h-14 rounded-xl font-bold text-[var(--mm-text)] mt-4',
                 'bg-gradient-to-r shadow-lg',
                 manualTypeConfig.gradient
               )}

@@ -372,8 +372,8 @@ export default function SettingsPage() {
       <div className="glass-card rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="font-bold text-white text-sm">Claim existing library</div>
-            <div className="text-xs text-white/50">
+            <div className="font-bold text-[var(--mm-text)] text-sm">Claim existing library</div>
+            <div className="text-xs text-[var(--mm-text-50)]">
               One-time: assigns any data created before accounts existed to you.
             </div>
           </div>
@@ -382,20 +382,20 @@ export default function SettingsPage() {
             size="sm"
             onClick={claimExistingLibrary}
             disabled={isClaiming || !is_online}
-            className="border-white/10 hover:bg-white/5 flex-shrink-0"
+            className="border-[var(--mm-card-border)] hover:bg-[var(--mm-hover-bg)] flex-shrink-0"
           >
             {isClaiming ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Claim'}
           </Button>
         </div>
-        {claimResult && <p className="text-xs text-white/60 mt-2">{claimResult}</p>}
+        {claimResult && <p className="text-xs text-[var(--mm-text-60)] mt-2">{claimResult}</p>}
       </div>
 
       {/* Fix tags/genres */}
       <div className="glass-card rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="font-bold text-white text-sm">Fix tags &amp; genres</div>
-            <div className="text-xs text-white/50">
+            <div className="font-bold text-[var(--mm-text)] text-sm">Fix tags &amp; genres</div>
+            <div className="text-xs text-[var(--mm-text-50)]">
               AI-fills missing genres and descriptive tags across your whole library.
             </div>
           </div>
@@ -404,17 +404,17 @@ export default function SettingsPage() {
             size="sm"
             onClick={fixTagsAndGenres}
             disabled={isFixingTags || !is_online}
-            className="border-white/10 hover:bg-white/5 flex-shrink-0"
+            className="border-[var(--mm-card-border)] hover:bg-[var(--mm-hover-bg)] flex-shrink-0"
           >
             {isFixingTags ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Fix'}
           </Button>
         </div>
         {isFixingTags && fixTagsProgress && (
-          <p className="text-xs text-white/60 mt-2">
+          <p className="text-xs text-[var(--mm-text-60)] mt-2">
             {fixTagsProgress.done} / {fixTagsProgress.total}
           </p>
         )}
-        {fixTagsResult && <p className="text-xs text-white/60 mt-2">{fixTagsResult}</p>}
+        {fixTagsResult && <p className="text-xs text-[var(--mm-text-60)] mt-2">{fixTagsResult}</p>}
       </div>
 
       {/* API Keys */}
@@ -424,52 +424,52 @@ export default function SettingsPage() {
             <Key className="h-5 w-5 text-indigo-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">API KEYS</h2>
-            <p className="text-xs text-white/50 font-mono">Configure external services</p>
+            <h2 className="text-lg font-bold text-[var(--mm-text)]">API KEYS</h2>
+            <p className="text-xs text-[var(--mm-text-50)] font-mono">Configure external services</p>
           </div>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">TMDB API Key</label>
+            <label className="text-xs text-[var(--mm-text-50)] uppercase tracking-wider mb-2 block">TMDB API Key</label>
             <Input
               type="password"
               value={tmdbKey}
               onChange={(e) => setTmdbKey(e.target.value)}
               placeholder="Your TMDB API key"
-              className="bg-black border-white/10 focus:border-indigo-500"
+              className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] focus:border-indigo-500"
             />
           </div>
           <div>
-            <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">RAWG API Key</label>
+            <label className="text-xs text-[var(--mm-text-50)] uppercase tracking-wider mb-2 block">RAWG API Key</label>
             <Input
               type="password"
               value={rawgKey}
               onChange={(e) => setRawgKey(e.target.value)}
               placeholder="Your RAWG API key"
-              className="bg-black border-white/10 focus:border-indigo-500"
+              className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] focus:border-indigo-500"
             />
           </div>
           <div>
-            <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">Gemini API Key</label>
+            <label className="text-xs text-[var(--mm-text-50)] uppercase tracking-wider mb-2 block">Gemini API Key</label>
             <Input
               type="password"
               value={geminiKey}
               onChange={(e) => setGeminiKey(e.target.value)}
               placeholder="Your Gemini API key"
-              className="bg-black border-white/10 focus:border-indigo-500"
+              className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] focus:border-indigo-500"
             />
           </div>
           <div>
-            <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">Groq API Key (Primary AI)</label>
+            <label className="text-xs text-[var(--mm-text-50)] uppercase tracking-wider mb-2 block">Groq API Key (Primary AI)</label>
             <Input
               type="password"
               value={groqKey}
               onChange={(e) => setGroqKey(e.target.value)}
               placeholder="Your Groq API key (gsk_...)"
-              className="bg-black border-white/10 focus:border-indigo-500"
+              className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] focus:border-indigo-500"
             />
-            <p className="text-[10px] text-white/30 mt-1">Used for AI collections and recommendations. Faster than Gemini.</p>
+            <p className="text-[10px] text-[var(--mm-text-30)] mt-1">Used for AI collections and recommendations. Faster than Gemini.</p>
           </div>
         </div>
 
@@ -491,12 +491,12 @@ export default function SettingsPage() {
         </Button>
 
         {/* Test API Keys */}
-        <div className="pt-4 border-t border-white/10">
+        <div className="pt-4 border-t border-[var(--mm-card-border)]">
           <Button 
             onClick={testApiKeys}
             variant="outline"
             disabled={testResults.tmdb === 'loading' || testResults.rawg === 'loading'}
-            className="w-full border-white/10 hover:bg-white/5 rounded-xl disabled:opacity-50"
+            className="w-full border-[var(--mm-card-border)] hover:bg-[var(--mm-hover-bg)] rounded-xl disabled:opacity-50"
           >
             {testResults.tmdb === 'loading' || testResults.rawg === 'loading' ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -530,8 +530,8 @@ export default function SettingsPage() {
             <Download className="h-5 w-5 text-violet-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">DATA</h2>
-            <p className="text-xs text-white/50 font-mono">Backup & restore</p>
+            <h2 className="text-lg font-bold text-[var(--mm-text)]">DATA</h2>
+            <p className="text-xs text-[var(--mm-text-50)] font-mono">Backup & restore</p>
           </div>
         </div>
 
@@ -540,7 +540,7 @@ export default function SettingsPage() {
             variant="outline"
             onClick={handleExport}
             disabled={isExporting}
-            className="h-14 border-white/10 hover:bg-white/5 flex flex-col items-center gap-1"
+            className="h-14 border-[var(--mm-card-border)] hover:bg-[var(--mm-hover-bg)] flex flex-col items-center gap-1"
           >
             {isExporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
             <span className="text-xs">Export</span>
@@ -555,7 +555,7 @@ export default function SettingsPage() {
               disabled={isImporting}
               className="hidden"
             />
-            <div className="h-14 border border-white/10 hover:bg-white/5 rounded-md flex flex-col items-center justify-center gap-1 transition-colors">
+            <div className="h-14 border border-[var(--mm-card-border)] hover:bg-[var(--mm-hover-bg)] rounded-md flex flex-col items-center justify-center gap-1 transition-colors">
               {isImporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
               <span className="text-xs">Import</span>
             </div>
@@ -564,7 +564,7 @@ export default function SettingsPage() {
 
         <label className="flex items-center gap-2 pt-1">
           <Checkbox checked={includeApiKeysInExport} onCheckedChange={(v) => setIncludeApiKeysInExport(v === true)} />
-          <span className="text-xs text-white/50">Include API keys in export (kept out by default)</span>
+          <span className="text-xs text-[var(--mm-text-50)]">Include API keys in export (kept out by default)</span>
         </label>
       </div>
 
@@ -584,9 +584,9 @@ export default function SettingsPage() {
 
       {/* About */}
       <div className="glass-card rounded-2xl p-6 text-center">
-        <h3 className="text-lg font-bold text-white mb-2">MEDIA MIND</h3>
-        <p className="text-sm text-white/50">v2.0 • Personal Media Intelligence</p>
-        <p className="text-xs text-white/30 mt-4 font-mono">Built with Next.js + Supabase + AI</p>
+        <h3 className="text-lg font-bold text-[var(--mm-text)] mb-2">MEDIA MIND</h3>
+        <p className="text-sm text-[var(--mm-text-50)]">v2.0 • Personal Media Intelligence</p>
+        <p className="text-xs text-[var(--mm-text-30)] mt-4 font-mono">Built with Next.js + Supabase + AI</p>
       </div>
     </div>
   );

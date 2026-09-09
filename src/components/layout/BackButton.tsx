@@ -22,7 +22,7 @@ export function BackButton({ className }: BackButtonProps) {
       size="sm"
       onClick={() => router.back()}
       className={cn(
-        'flex items-center gap-2 text-white/70 hover:text-white hover:bg-white/10',
+        'flex items-center gap-2 text-[var(--mm-text-70)] hover:text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)]',
         className
       )}
     >

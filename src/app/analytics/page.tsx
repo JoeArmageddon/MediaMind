@@ -136,13 +136,13 @@ export default function AnalyticsPage() {
     return (
       <div className="max-w-3xl mx-auto pb-20">
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-white/10 rounded-xl">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-xl">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-3xl font-black text-white tracking-tighter">STATS</h1>
+          <h1 className="text-3xl font-black text-[var(--mm-text)] tracking-tighter">STATS</h1>
         </div>
         <div className="glass-card rounded-[28px] p-12 text-center">
-          <p className="text-white/50">No data yet. Add some media to see analytics.</p>
+          <p className="text-[var(--mm-text-50)]">No data yet. Add some media to see analytics.</p>
         </div>
       </div>
     );
@@ -152,12 +152,12 @@ export default function AnalyticsPage() {
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-white/10 rounded-xl">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-xl">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter">STATS</h1>
-          <p className="text-sm text-white/50 font-mono">統計</p>
+          <h1 className="text-3xl font-black text-[var(--mm-text)] tracking-tighter">STATS</h1>
+          <p className="text-sm text-[var(--mm-text-50)] font-mono">統計</p>
         </div>
       </div>
 
@@ -165,10 +165,10 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-2 gap-3">
         <div className="glass-card rounded-2xl p-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-              <Archive className="h-5 w-5 text-white/60" />
+            <div className="w-10 h-10 rounded-xl bg-[var(--mm-hover-bg)] flex items-center justify-center">
+              <Archive className="h-5 w-5 text-[var(--mm-text-60)]" />
             </div>
-            <span className="text-[10px] text-white/50 uppercase tracking-wider">Total</span>
+            <span className="text-[10px] text-[var(--mm-text-50)] uppercase tracking-wider">Total</span>
           </div>
           <div className="text-3xl font-black font-mono">{analytics.total}</div>
         </div>
@@ -178,7 +178,7 @@ export default function AnalyticsPage() {
             <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
               <CheckCircle className="h-5 w-5 text-green-500" />
             </div>
-            <span className="text-[10px] text-white/50 uppercase tracking-wider">Completed</span>
+            <span className="text-[10px] text-[var(--mm-text-50)] uppercase tracking-wider">Completed</span>
           </div>
           <div className="text-3xl font-black font-mono text-green-500">{analytics.completionRate}%</div>
         </div>
@@ -188,7 +188,7 @@ export default function AnalyticsPage() {
             <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
               <TrendingUp className="h-5 w-5 text-blue-500" />
             </div>
-            <span className="text-[10px] text-white/50 uppercase tracking-wider">In Progress</span>
+            <span className="text-[10px] text-[var(--mm-text-50)] uppercase tracking-wider">In Progress</span>
           </div>
           <div className="text-3xl font-black font-mono text-blue-500">{analytics.inProgress}</div>
         </div>
@@ -198,7 +198,7 @@ export default function AnalyticsPage() {
             <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
               <Clock className="h-5 w-5 text-amber-500" />
             </div>
-            <span className="text-[10px] text-white/50 uppercase tracking-wider">Hours</span>
+            <span className="text-[10px] text-[var(--mm-text-50)] uppercase tracking-wider">Hours</span>
           </div>
           <div className="text-3xl font-black font-mono text-amber-500">{analytics.totalHours}h</div>
         </div>
@@ -206,7 +206,7 @@ export default function AnalyticsPage() {
 
       {/* Type Distribution */}
       <div className="glass-card rounded-[28px] p-6">
-        <h2 className="text-lg font-bold text-white mb-6 tracking-tight">BY TYPE</h2>
+        <h2 className="text-lg font-bold text-[var(--mm-text)] mb-6 tracking-tight">BY TYPE</h2>
         <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -234,7 +234,7 @@ export default function AnalyticsPage() {
           {analytics.typeData.map((item) => (
             <div key={item.name} className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="text-xs text-white/60">{item.name}</span>
+              <span className="text-xs text-[var(--mm-text-60)]">{item.name}</span>
             </div>
           ))}
         </div>
@@ -242,7 +242,7 @@ export default function AnalyticsPage() {
 
       {/* Monthly Activity */}
       <div className="glass-card rounded-[28px] p-6">
-        <h2 className="text-lg font-bold text-white mb-6 tracking-tight">ACTIVITY</h2>
+        <h2 className="text-lg font-bold text-[var(--mm-text)] mb-6 tracking-tight">ACTIVITY</h2>
         <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={monthlyData}>
@@ -266,8 +266,8 @@ export default function AnalyticsPage() {
             <Flame className="h-5 w-5 text-orange-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">BURNOUT CHECK</h2>
-            <p className="text-xs text-white/50 font-mono">Genre/tone fatigue detection</p>
+            <h2 className="text-lg font-bold text-[var(--mm-text)]">BURNOUT CHECK</h2>
+            <p className="text-xs text-[var(--mm-text-50)] font-mono">Genre/tone fatigue detection</p>
           </div>
         </div>
 
@@ -295,16 +295,16 @@ export default function AnalyticsPage() {
               <span className="text-sm font-bold uppercase tracking-wide">{burnoutCache.risk_level} risk</span>
               <span className="text-xs">{burnoutCache.burnout_detected ? 'Burnout detected' : 'No burnout detected'}</span>
             </div>
-            <div className="text-sm text-white/70">
-              <span className="text-white/40 text-xs uppercase tracking-wider block mb-1">Pattern</span>
+            <div className="text-sm text-[var(--mm-text-70)]">
+              <span className="text-[var(--mm-text-40)] text-xs uppercase tracking-wider block mb-1">Pattern</span>
               {burnoutCache.dominant_pattern}
             </div>
-            <div className="text-sm text-white/70">
-              <span className="text-white/40 text-xs uppercase tracking-wider block mb-1">Suggestion</span>
+            <div className="text-sm text-[var(--mm-text-70)]">
+              <span className="text-[var(--mm-text-40)] text-xs uppercase tracking-wider block mb-1">Suggestion</span>
               {burnoutCache.suggested_shift}
             </div>
-            <div className="text-sm text-white/70">
-              <span className="text-white/40 text-xs uppercase tracking-wider block mb-1">Try instead</span>
+            <div className="text-sm text-[var(--mm-text-70)]">
+              <span className="text-[var(--mm-text-40)] text-xs uppercase tracking-wider block mb-1">Try instead</span>
               {burnoutCache.recommended_genre_direction}
             </div>
           </div>

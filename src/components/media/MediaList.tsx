@@ -24,7 +24,7 @@ export function MediaList({ onMediaClick }: MediaListProps) {
 
   if (filteredMedia.length === 0) {
     return (
-      <div className="text-center py-12 text-white/40">
+      <div className="text-center py-12 text-[var(--mm-text-40)]">
         No items found
       </div>
     );
@@ -41,10 +41,10 @@ export function MediaList({ onMediaClick }: MediaListProps) {
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') onMediaClick?.(media);
           }}
-          className="w-full glass-card rounded-2xl p-3 flex items-center gap-4 hover:border-white/20 transition-all text-left group cursor-pointer"
+          className="w-full glass-card rounded-2xl p-3 flex items-center gap-4 hover:border-[var(--mm-card-border-hover)] transition-all text-left group cursor-pointer"
         >
           {/* Poster */}
-          <div className="h-16 w-12 flex-shrink-0 bg-black rounded-lg overflow-hidden border border-white/10">
+          <div className="h-16 w-12 flex-shrink-0 bg-[var(--mm-input-bg)] rounded-lg overflow-hidden border border-[var(--mm-card-border)]">
             {media.poster_url ? (
               <img
                 src={media.poster_url}
@@ -53,7 +53,7 @@ export function MediaList({ onMediaClick }: MediaListProps) {
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-white/5 to-white/10">
-                <span className="text-lg font-black text-white/20">
+                <span className="text-lg font-black text-[var(--mm-text-20)]">
                   {media.title.charAt(0)}
                 </span>
               </div>
@@ -63,12 +63,12 @@ export function MediaList({ onMediaClick }: MediaListProps) {
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-white truncate">{media.title}</h3>
+              <h3 className="font-bold text-[var(--mm-text)] truncate">{media.title}</h3>
               {media.is_favorite && (
                 <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs text-white/50">
+            <div className="flex items-center gap-2 text-xs text-[var(--mm-text-50)]">
               <span className={cn(
                 'px-2 py-0.5 rounded-full text-[10px] font-medium',
                 getStatusColor(media.status)
@@ -88,10 +88,10 @@ export function MediaList({ onMediaClick }: MediaListProps) {
 
           {/* Progress */}
           <div className="flex-shrink-0 text-right">
-            <div className="text-sm font-mono text-white/60">
+            <div className="text-sm font-mono text-[var(--mm-text-60)]">
               {media.progress}/{media.total_units || '?'}
             </div>
-            <div className="text-xs text-white/40">
+            <div className="text-xs text-[var(--mm-text-40)]">
               {media.completion_percent}%
             </div>
           </div>
@@ -102,7 +102,7 @@ export function MediaList({ onMediaClick }: MediaListProps) {
               <DropdownMenuTrigger asChild>
                 <button
                   onClick={(e) => e.stopPropagation()}
-                  className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                  className="p-1 rounded-lg hover:bg-[var(--mm-hover-bg-strong)] text-[var(--mm-text-40)] hover:text-[var(--mm-text)] transition-colors"
                   aria-label="More actions"
                 >
                   <MoreVertical className="h-5 w-5" />

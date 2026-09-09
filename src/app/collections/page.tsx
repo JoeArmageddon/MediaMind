@@ -70,19 +70,19 @@ function UserCollectionCard({
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Folder className="h-5 w-5 text-white" />
             </div>
-            <h3 className="text-xl font-black text-white tracking-tight">{collection.title}</h3>
+            <h3 className="text-xl font-black text-[var(--mm-text)] tracking-tight">{collection.title}</h3>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={onShare}
               title="Share with a friend"
-              className="p-2 rounded-lg hover:bg-indigo-500/20 text-white/40 hover:text-indigo-400 transition-colors"
+              className="p-2 rounded-lg hover:bg-indigo-500/20 text-[var(--mm-text-40)] hover:text-indigo-400 transition-colors"
             >
               <Share2 className="h-4 w-4" />
             </button>
             <button
               onClick={onDelete}
-              className="p-2 rounded-lg hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
+              className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--mm-text-40)] hover:text-red-400 transition-colors"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -90,11 +90,11 @@ function UserCollectionCard({
         </div>
         
         {collection.description && (
-          <p className="text-white/60 text-sm mb-4 leading-relaxed">{collection.description}</p>
+          <p className="text-[var(--mm-text-60)] text-sm mb-4 leading-relaxed">{collection.description}</p>
         )}
         
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="bg-white/5 border-white/10 text-white/80 rounded-lg px-3 py-1">
+          <Badge variant="secondary" className="bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] text-[var(--mm-text)] rounded-lg px-3 py-1">
             {collection.media_ids.length} items
           </Badge>
           {collection.is_auto_generated && (
@@ -128,7 +128,7 @@ function AICollectionCard({
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center shadow-lg shadow-fuchsia-500/20">
               <Film className="h-5 w-5 text-white" />
             </div>
-            <h3 className="text-xl font-black text-white tracking-tight">{collection.title}</h3>
+            <h3 className="text-xl font-black text-[var(--mm-text)] tracking-tight">{collection.title}</h3>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -142,27 +142,27 @@ function AICollectionCard({
             <button
               onClick={onDiscard}
               title="Discard suggestion"
-              className="p-2 rounded-lg hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
+              className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--mm-text-40)] hover:text-red-400 transition-colors"
             >
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
         </div>
         
-        <p className="text-white/60 text-sm mb-4 leading-relaxed">{collection.description}</p>
+        <p className="text-[var(--mm-text-60)] text-sm mb-4 leading-relaxed">{collection.description}</p>
         
         <div className="flex flex-wrap gap-2">
           {collection.media_titles.slice(0, 4).map((title) => (
             <Badge 
               key={title} 
               variant="secondary" 
-              className="bg-white/5 border-white/10 text-white/80 rounded-lg px-3 py-1"
+              className="bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] text-[var(--mm-text)] rounded-lg px-3 py-1"
             >
               {title}
             </Badge>
           ))}
           {collection.media_titles.length > 4 && (
-            <Badge variant="outline" className="border-white/10 text-white/50 rounded-lg">
+            <Badge variant="outline" className="border-[var(--mm-card-border)] text-[var(--mm-text-50)] rounded-lg">
               +{collection.media_titles.length - 4}
             </Badge>
           )}
@@ -190,7 +190,7 @@ function UserCollectionDetail({
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
+        <DialogTitle className="text-xl font-black text-[var(--mm-text)] flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
@@ -199,11 +199,11 @@ function UserCollectionDetail({
       </DialogHeader>
       <div className="space-y-4 py-4">
         {collection.description && (
-          <p className="text-white/60 text-sm leading-relaxed">{collection.description}</p>
+          <p className="text-[var(--mm-text-60)] text-sm leading-relaxed">{collection.description}</p>
         )}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">Media in collection</h4>
+            <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider">Media in collection</h4>
             <button
               onClick={onAddMedia}
               className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300"
@@ -217,19 +217,19 @@ function UserCollectionDetail({
               <div
                 key={item.id}
                 onClick={() => onExpandMedia(item, false)}
-                className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 cursor-pointer transition-colors"
+                className="flex items-center justify-between p-3 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] hover:border-[var(--mm-card-border-hover)] cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   {item.poster_url ? (
                     <img src={item.poster_url} alt={item.title} className="w-10 h-14 object-cover rounded-lg shrink-0" />
                   ) : (
-                    <div className="w-10 h-14 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
+                    <div className="w-10 h-14 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
                       {item.title[0]}
                     </div>
                   )}
                   <div className="min-w-0">
-                    <span className="text-white font-medium text-sm truncate block">{item.title}</span>
-                    <p className="text-xs text-white/40">{getTypeLabel(item.type)}</p>
+                    <span className="text-[var(--mm-text)] font-medium text-sm truncate block">{item.title}</span>
+                    <p className="text-xs text-[var(--mm-text-40)]">{getTypeLabel(item.type)}</p>
                   </div>
                 </div>
                 <button
@@ -237,14 +237,14 @@ function UserCollectionDetail({
                     e.stopPropagation();
                     onRemoveMedia(item.id);
                   }}
-                  className="p-2 rounded-lg hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors shrink-0"
+                  className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--mm-text-30)] hover:text-red-400 transition-colors shrink-0"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
             ))
           ) : (
-            <p className="text-white/40 text-sm text-center py-4">No media in this collection yet.</p>
+            <p className="text-[var(--mm-text-40)] text-sm text-center py-4">No media in this collection yet.</p>
           )}
         </div>
       </div>
@@ -262,7 +262,7 @@ function AICollectionDetail({
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
+        <DialogTitle className="text-xl font-black text-[var(--mm-text)] flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
@@ -271,16 +271,16 @@ function AICollectionDetail({
       </DialogHeader>
       <div className="space-y-4 py-4">
         {collection.description && (
-          <p className="text-white/60 text-sm leading-relaxed">{collection.description}</p>
+          <p className="text-[var(--mm-text-60)] text-sm leading-relaxed">{collection.description}</p>
         )}
         <div className="space-y-2">
-          <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">Suggested media</h4>
+          <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider">Suggested media</h4>
           {collection.media_titles.map((title) => (
             <div
               key={title}
-              className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
+              className="flex items-center justify-between p-3 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] hover:border-[var(--mm-card-border-hover)] transition-colors"
             >
-              <span className="text-white font-medium text-sm">{title}</span>
+              <span className="text-[var(--mm-text)] font-medium text-sm">{title}</span>
               {allMedia.find(m => m.title.toLowerCase().includes(title.toLowerCase())) && (
                 <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-400">
                   In Library
@@ -312,20 +312,20 @@ function SharedCollectionCard({
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Folder className="h-5 w-5 text-white" />
             </div>
-            <h3 className="text-xl font-black text-white tracking-tight">{collection.title}</h3>
+            <h3 className="text-xl font-black text-[var(--mm-text)] tracking-tight">{collection.title}</h3>
           </div>
         </div>
 
         {collection.description && (
-          <p className="text-white/60 text-sm mb-4 leading-relaxed">{collection.description}</p>
+          <p className="text-[var(--mm-text-60)] text-sm mb-4 leading-relaxed">{collection.description}</p>
         )}
 
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="bg-white/5 border-white/10 text-white/80 rounded-lg px-3 py-1">
+          <Badge variant="secondary" className="bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] text-[var(--mm-text)] rounded-lg px-3 py-1">
             {collection.media_ids.length} items
           </Badge>
           {collection.owner && (
-            <div className="flex items-center gap-1.5 text-xs text-white/50">
+            <div className="flex items-center gap-1.5 text-xs text-[var(--mm-text-50)]">
               {collection.owner.imageUrl ? (
                 <img src={collection.owner.imageUrl} alt={collection.owner.name} className="w-4 h-4 rounded-full" />
               ) : (
@@ -393,7 +393,7 @@ function SharedCollectionDetail({
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="text-xl font-black text-white flex items-center gap-3">
+        <DialogTitle className="text-xl font-black text-[var(--mm-text)] flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
             <Folder className="h-4 w-4 text-white" />
           </div>
@@ -402,14 +402,14 @@ function SharedCollectionDetail({
       </DialogHeader>
       <div className="space-y-4 py-4">
         {collection.owner && (
-          <p className="text-white/40 text-xs">Shared by {collection.owner.name}</p>
+          <p className="text-[var(--mm-text-40)] text-xs">Shared by {collection.owner.name}</p>
         )}
         {collection.description && (
-          <p className="text-white/60 text-sm leading-relaxed">{collection.description}</p>
+          <p className="text-[var(--mm-text-60)] text-sm leading-relaxed">{collection.description}</p>
         )}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider">Media in collection</h4>
+            <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider">Media in collection</h4>
             <button
               onClick={onAddMedia}
               className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300"
@@ -420,7 +420,7 @@ function SharedCollectionDetail({
           </div>
           {isLoading ? (
             <div className="text-center py-4">
-              <Loader2 className="h-5 w-5 text-white/30 mx-auto animate-spin" />
+              <Loader2 className="h-5 w-5 text-[var(--mm-text-30)] mx-auto animate-spin" />
             </div>
           ) : media.length > 0 ? (
             media.map((item) => {
@@ -433,19 +433,19 @@ function SharedCollectionDetail({
                 <div
                   key={item.id}
                   onClick={() => onExpandMedia(item, !isMine)}
-                  className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-3 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] hover:border-[var(--mm-card-border-hover)] cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {item.poster_url ? (
                       <img src={item.poster_url} alt={item.title} className="w-10 h-14 object-cover rounded-lg shrink-0" />
                     ) : (
-                      <div className="w-10 h-14 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
+                      <div className="w-10 h-14 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
                         {item.title[0]}
                       </div>
                     )}
                     <div className="min-w-0">
-                      <span className="text-white font-medium text-sm truncate block">{item.title}</span>
-                      <p className="text-xs text-white/40">{getTypeLabel(item.type)}</p>
+                      <span className="text-[var(--mm-text)] font-medium text-sm truncate block">{item.title}</span>
+                      <p className="text-xs text-[var(--mm-text-40)]">{getTypeLabel(item.type)}</p>
                     </div>
                   </div>
                   <button
@@ -453,7 +453,7 @@ function SharedCollectionDetail({
                       e.stopPropagation();
                       onRemoveMedia(item.id);
                     }}
-                    className="p-2 rounded-lg hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors shrink-0"
+                    className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--mm-text-30)] hover:text-red-400 transition-colors shrink-0"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -461,7 +461,7 @@ function SharedCollectionDetail({
               );
             })
           ) : (
-            <p className="text-white/40 text-sm text-center py-4">No media in this collection.</p>
+            <p className="text-[var(--mm-text-40)] text-sm text-center py-4">No media in this collection.</p>
           )}
         </div>
       </div>
@@ -572,21 +572,21 @@ function ShareCollectionDialog({
 
   return (
     <Dialog open={!!collection} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
+      <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] rounded-[28px]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-black text-white flex items-center gap-2">
+          <DialogTitle className="text-xl font-black text-[var(--mm-text)] flex items-center gap-2">
             <Share2 className="h-5 w-5" />
             Share &quot;{collection.title}&quot;
           </DialogTitle>
         </DialogHeader>
 
-        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+        <div className="rounded-2xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
-              <Globe className="h-4 w-4 text-white/50 mt-0.5 shrink-0" />
+              <Globe className="h-4 w-4 text-[var(--mm-text-50)] mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-white">Public collection</p>
-                <p className="text-xs text-white/40 mt-0.5">
+                <p className="text-sm font-semibold text-[var(--mm-text)]">Public collection</p>
+                <p className="text-xs text-[var(--mm-text-40)] mt-0.5">
                   {isPublic
                     ? 'Anyone signed in to MediaMind can view this via its link - no friendship needed.'
                     : 'Only you (and anyone you share it with below) can see it.'}
@@ -596,18 +596,18 @@ function ShareCollectionDialog({
             <Switch checked={isPublic} onCheckedChange={handleTogglePublic} disabled={isTogglingPublic} />
           </div>
           {isPublic && (
-            <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2">
+            <div className="mt-3 pt-3 border-t border-[var(--mm-card-border)] flex items-center gap-2">
               <Input
                 readOnly
                 value={publicLink}
                 onFocus={(e) => e.target.select()}
-                className="bg-black border-white/10 rounded-lg h-9 text-xs font-mono text-white/70"
+                className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-lg h-9 text-xs font-mono text-[var(--mm-text-70)]"
               />
               <Button
                 onClick={() => copy(publicLink, 'public-link')}
                 size="sm"
                 variant="outline"
-                className="border-white/10 text-white/70 hover:text-white hover:bg-white/10 rounded-lg text-xs shrink-0"
+                className="border-[var(--mm-card-border)] text-[var(--mm-text-70)] hover:text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-lg text-xs shrink-0"
               >
                 {copied === 'public-link' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
               </Button>
@@ -616,8 +616,8 @@ function ShareCollectionDialog({
         </div>
 
         {code && (
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-4 mb-2">
-            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <div className="rounded-2xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] p-4 mb-2">
+            <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider mb-3 flex items-center gap-2">
               <QrCode className="h-3.5 w-3.5" />
               Invite link - anyone with it can join
             </h4>
@@ -625,13 +625,13 @@ function ShareCollectionDialog({
               <div className="flex-1 min-w-[160px]">
                 <button
                   onClick={() => copy(code, 'code')}
-                  className="group flex items-center gap-2 mb-2 -ml-1 px-1 rounded-lg hover:bg-white/5 transition-colors"
+                  className="group flex items-center gap-2 mb-2 -ml-1 px-1 rounded-lg hover:bg-[var(--mm-hover-bg)] transition-colors"
                 >
-                  <span className="font-mono text-lg font-black text-white tracking-[0.15em]">{code}</span>
+                  <span className="font-mono text-lg font-black text-[var(--mm-text)] tracking-[0.15em]">{code}</span>
                   {copied === 'code' ? (
                     <Check className="h-3.5 w-3.5 text-green-400" />
                   ) : (
-                    <Copy className="h-3.5 w-3.5 text-white/30 group-hover:text-white/60" />
+                    <Copy className="h-3.5 w-3.5 text-[var(--mm-text-30)] group-hover:text-[var(--mm-text-60)]" />
                   )}
                 </button>
                 <div className="flex gap-2 flex-wrap">
@@ -647,7 +647,7 @@ function ShareCollectionDialog({
                     onClick={() => setShowQr((s) => !s)}
                     size="sm"
                     variant="outline"
-                    className="border-white/10 text-white/70 hover:text-white hover:bg-white/10 rounded-lg text-xs"
+                    className="border-[var(--mm-card-border)] text-[var(--mm-text-70)] hover:text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-lg text-xs"
                   >
                     <QrCode className="h-3 w-3 mr-1" />
                     {showQr ? 'Hide QR' : 'Show QR'}
@@ -657,7 +657,7 @@ function ShareCollectionDialog({
                     disabled={isRegenerating}
                     size="sm"
                     variant="ghost"
-                    className="text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                    className="text-[var(--mm-text-40)] hover:text-red-400 hover:bg-red-500/10 rounded-lg"
                   >
                     {isRegenerating ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -677,13 +677,13 @@ function ShareCollectionDialog({
         )}
 
         <div className="py-2">
-          <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">Share with a friend</h4>
+          <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider mb-3">Share with a friend</h4>
           {isLoading ? (
             <div className="text-center py-8">
-              <Loader2 className="h-5 w-5 text-white/30 mx-auto animate-spin" />
+              <Loader2 className="h-5 w-5 text-[var(--mm-text-30)] mx-auto animate-spin" />
             </div>
           ) : friends.length === 0 ? (
-            <p className="text-white/50 text-sm text-center py-8">
+            <p className="text-[var(--mm-text-50)] text-sm text-center py-8">
               Add friends first to share collections with them.
             </p>
           ) : (
@@ -694,7 +694,7 @@ function ShareCollectionDialog({
                 return (
                   <div
                     key={f.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10"
+                    className="flex items-center justify-between p-3 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {f.otherUser?.imageUrl ? (
@@ -704,7 +704,7 @@ function ShareCollectionDialog({
                           {f.otherUser?.name?.[0]?.toUpperCase() ?? '?'}
                         </div>
                       )}
-                      <span className="text-sm text-white truncate">{f.otherUser?.name}</span>
+                      <span className="text-sm text-[var(--mm-text)] truncate">{f.otherUser?.name}</span>
                     </div>
                     <Button
                       size="sm"
@@ -713,7 +713,7 @@ function ShareCollectionDialog({
                       className={cn(
                         'rounded-lg text-xs',
                         isShared
-                          ? 'bg-white/10 hover:bg-red-500/20 text-white/70 hover:text-red-400'
+                          ? 'bg-[var(--mm-hover-bg-strong)] hover:bg-red-500/20 text-[var(--mm-text-70)] hover:text-red-400'
                           : 'bg-indigo-600 hover:bg-indigo-700 text-white'
                       )}
                     >
@@ -845,22 +845,22 @@ function AddMediaPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
+      <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] rounded-[28px]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-black text-white">Add Media</DialogTitle>
+          <DialogTitle className="text-xl font-black text-[var(--mm-text)]">Add Media</DialogTitle>
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as 'library' | 'search')} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-xl h-auto">
+          <TabsList className="grid w-full grid-cols-2 bg-[var(--mm-hover-bg)] p-1 rounded-xl h-auto">
             <TabsTrigger
               value="library"
-              className="rounded-lg py-2 px-1 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60 min-w-0"
+              className="rounded-lg py-2 px-1 text-xs sm:text-sm data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)] min-w-0"
             >
               <span className="truncate">My Library</span>
             </TabsTrigger>
             <TabsTrigger
               value="search"
-              className="rounded-lg py-2 px-1 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60 min-w-0"
+              className="rounded-lg py-2 px-1 text-xs sm:text-sm data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)] min-w-0"
             >
               <Search className="h-3.5 w-3.5 mr-1 shrink-0" />
               <span className="truncate">Search Web</span>
@@ -872,28 +872,28 @@ function AddMediaPickerDialog({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search your library..."
-              className="bg-black border-white/10 rounded-xl h-11"
+              className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-11"
             />
             <div className="max-h-80 overflow-y-auto space-y-2">
               {filtered.length === 0 ? (
-                <p className="text-white/40 text-sm text-center py-6">
+                <p className="text-[var(--mm-text-40)] text-sm text-center py-6">
                   {available.length === 0 ? "Everything's already in this collection." : 'No matches.'}
                 </p>
               ) : (
                 filtered.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10"
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {item.poster_url ? (
                         <img src={item.poster_url} alt={item.title} className="w-9 h-12 object-cover rounded-lg shrink-0" />
                       ) : (
-                        <div className="w-9 h-12 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
+                        <div className="w-9 h-12 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
                           {item.title[0]}
                         </div>
                       )}
-                      <span className="text-white text-sm truncate">{item.title}</span>
+                      <span className="text-[var(--mm-text)] text-sm truncate">{item.title}</span>
                     </div>
                     <Button
                       size="sm"
@@ -914,7 +914,7 @@ function AddMediaPickerDialog({
           </TabsContent>
 
           <TabsContent value="search" className="space-y-3 mt-3">
-            <p className="text-xs text-white/40 -mt-1">
+            <p className="text-xs text-[var(--mm-text-40)] -mt-1">
               Add a title you don&apos;t track yet - it's added to your library and this collection together.
             </p>
             <div className="flex gap-2">
@@ -923,7 +923,7 @@ function AddMediaPickerDialog({
                 onChange={(e) => setExternalQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleExternalSearch()}
                 placeholder="Search movies, TV, anime, books, games..."
-                className="bg-black border-white/10 rounded-xl h-11 flex-1"
+                className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-11 flex-1"
               />
               <Button
                 onClick={handleExternalSearch}
@@ -941,19 +941,19 @@ function AddMediaPickerDialog({
                 return (
                   <div
                     key={`${key}-${i}`}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10"
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {result.poster_url ? (
                         <img src={result.poster_url} alt={result.title} className="w-9 h-12 object-cover rounded-lg shrink-0" />
                       ) : (
-                        <div className="w-9 h-12 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
+                        <div className="w-9 h-12 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
                           {result.title[0]}
                         </div>
                       )}
                       <div className="min-w-0">
-                        <span className="text-white text-sm truncate block">{result.title}</span>
-                        <span className="text-[10px] text-white/40 uppercase tracking-wide">
+                        <span className="text-[var(--mm-text)] text-sm truncate block">{result.title}</span>
+                        <span className="text-[10px] text-[var(--mm-text-40)] uppercase tracking-wide">
                           {getTypeLabel(result.type)}
                           {result.release_year ? ` · ${result.release_year}` : ''}
                         </span>
@@ -969,11 +969,11 @@ function AddMediaPickerDialog({
                       )}
                     >
                       {addingId === key ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--mm-text)]" />
                       ) : added ? (
-                        <Check className="h-3.5 w-3.5 text-white" />
+                        <Check className="h-3.5 w-3.5 text-[var(--mm-text)]" />
                       ) : (
-                        <Plus className="h-3.5 w-3.5 text-white" />
+                        <Plus className="h-3.5 w-3.5 text-[var(--mm-text)]" />
                       )}
                     </Button>
                   </div>
@@ -1188,12 +1188,12 @@ export default function CollectionsPage() {
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:bg-white/10 rounded-xl">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-xl">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tighter">COLLECTIONS</h1>
-            <p className="text-sm text-white/50 font-mono">コレクション</p>
+            <h1 className="text-3xl font-black text-[var(--mm-text)] tracking-tighter">COLLECTIONS</h1>
+            <p className="text-sm text-[var(--mm-text-50)] font-mono">コレクション</p>
           </div>
         </div>
         <Button 
@@ -1206,7 +1206,7 @@ export default function CollectionsPage() {
       </div>
 
       <div className="glass-card rounded-[24px] p-6">
-        <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-bold text-[var(--mm-text-70)] uppercase tracking-wider mb-3 flex items-center gap-2">
           <Users className="h-4 w-4" />
           Join a collection
         </h3>
@@ -1216,7 +1216,7 @@ export default function CollectionsPage() {
             onChange={(e) => setJoinCodeInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleJoinByCode()}
             placeholder="Enter invite code"
-            className="bg-black border-white/10 rounded-xl h-12 flex-1 font-mono uppercase tracking-widest placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
+            className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12 flex-1 font-mono uppercase tracking-widest placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
           />
           <Button
             onClick={handleJoinByCode}
@@ -1244,21 +1244,21 @@ export default function CollectionsPage() {
 
       {media.length === 0 && (
         <div className="glass-card rounded-2xl p-6 text-center">
-          <p className="text-white/50">Add media to generate AI collections.</p>
+          <p className="text-[var(--mm-text-50)]">Add media to generate AI collections.</p>
         </div>
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-white/5 p-1 rounded-2xl h-auto">
-          <TabsTrigger value="my" className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
+        <TabsList className="grid w-full grid-cols-3 bg-[var(--mm-hover-bg)] p-1 rounded-2xl h-auto">
+          <TabsTrigger value="my" className="rounded-xl py-3 data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)]">
             <Folder className="h-4 w-4 mr-2" />
             My ({collections.length})
           </TabsTrigger>
-          <TabsTrigger value="ai" className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
+          <TabsTrigger value="ai" className="rounded-xl py-3 data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)]">
             <Sparkles className="h-4 w-4 mr-2" />
             AI ({aiCollections.length})
           </TabsTrigger>
-          <TabsTrigger value="shared" className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
+          <TabsTrigger value="shared" className="rounded-xl py-3 data-[state=active]:bg-[var(--mm-hover-bg-strong)] data-[state=active]:text-[var(--mm-text)] text-[var(--mm-text-60)]">
             <Users className="h-4 w-4 mr-2" />
             Shared ({sharedWithMe.length})
           </TabsTrigger>
@@ -1267,8 +1267,8 @@ export default function CollectionsPage() {
         <TabsContent value="my" className="mt-6">
           {collections.length === 0 ? (
             <div className="glass-card rounded-[28px] p-12 text-center">
-              <Folder className="h-12 w-12 text-white/20 mx-auto mb-4" />
-              <p className="text-white/50">No collections yet.</p>
+              <Folder className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
+              <p className="text-[var(--mm-text-50)]">No collections yet.</p>
             </div>
           ) : (
             <div className="grid gap-4">
@@ -1294,8 +1294,8 @@ export default function CollectionsPage() {
         <TabsContent value="ai" className="mt-6">
           {aiCollections.length === 0 ? (
             <div className="glass-card rounded-[28px] p-12 text-center">
-              <Sparkles className="h-12 w-12 text-white/20 mx-auto mb-4" />
-              <p className="text-white/50">No AI collections yet.</p>
+              <Sparkles className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
+              <p className="text-[var(--mm-text-50)]">No AI collections yet.</p>
             </div>
           ) : (
             <div className="grid gap-4">
@@ -1314,8 +1314,8 @@ export default function CollectionsPage() {
         <TabsContent value="shared" className="mt-6">
           {sharedWithMe.length === 0 ? (
             <div className="glass-card rounded-[28px] p-12 text-center">
-              <Users className="h-12 w-12 text-white/20 mx-auto mb-4" />
-              <p className="text-white/50">No collections shared with you yet.</p>
+              <Users className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
+              <p className="text-[var(--mm-text-50)]">No collections shared with you yet.</p>
             </div>
           ) : (
             <div className="grid gap-4">
@@ -1332,36 +1332,36 @@ export default function CollectionsPage() {
       </Tabs>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-lg bg-[#0a0a0a] border-white/10 rounded-[28px]">
+        <DialogContent className="max-w-lg bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] rounded-[28px]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black text-white">Create Collection</DialogTitle>
+            <DialogTitle className="text-xl font-black text-[var(--mm-text)]">Create Collection</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">Name</label>
+              <label className="text-xs text-[var(--mm-text-50)] uppercase tracking-wider mb-2 block">Name</label>
               <Input
                 value={newCollectionName}
                 onChange={(e) => setNewCollectionName(e.target.value)}
                 placeholder="e.g., My Top Anime"
-                className="bg-black border-white/10 rounded-xl h-12"
+                className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12"
               />
             </div>
             <div>
-              <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">Description</label>
+              <label className="text-xs text-[var(--mm-text-50)] uppercase tracking-wider mb-2 block">Description</label>
               <Textarea
                 value={newCollectionDesc}
                 onChange={(e) => setNewCollectionDesc(e.target.value)}
                 placeholder="What's this collection about?"
-                className="bg-black border-white/10 rounded-xl min-h-[80px]"
+                className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl min-h-[80px]"
               />
             </div>
             <div>
-              <label className="text-xs text-white/50 uppercase tracking-wider mb-2 block">
+              <label className="text-xs text-[var(--mm-text-50)] uppercase tracking-wider mb-2 block">
                 Media ({selectedMediaIds.length} selected)
               </label>
-              <div className="max-h-48 overflow-y-auto space-y-2 border border-white/10 rounded-xl p-2">
+              <div className="max-h-48 overflow-y-auto space-y-2 border border-[var(--mm-card-border)] rounded-xl p-2">
                 {media.map((item) => (
-                  <label key={item.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer">
+                  <label key={item.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--mm-hover-bg)] cursor-pointer">
                     <input
                       type="checkbox"
                       checked={selectedMediaIds.includes(item.id)}
@@ -1374,8 +1374,8 @@ export default function CollectionsPage() {
                       }}
                       className="w-4 h-4 accent-violet-600"
                     />
-                    <span className="text-sm text-white truncate flex-1">{item.title}</span>
-                    <Badge variant="outline" className="text-[10px] border-white/10 text-white/50">
+                    <span className="text-sm text-[var(--mm-text)] truncate flex-1">{item.title}</span>
+                    <Badge variant="outline" className="text-[10px] border-[var(--mm-card-border)] text-[var(--mm-text-50)]">
                       {getTypeLabel(item.type)}
                     </Badge>
                   </label>
@@ -1394,7 +1394,7 @@ export default function CollectionsPage() {
       </Dialog>
 
       <Dialog open={!!selectedUserCollection} onOpenChange={() => setSelectedUserCollection(null)}>
-        <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
+        <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] rounded-[28px]">
           {selectedUserCollection && (
             <UserCollectionDetail
               collection={selectedUserCollection}
@@ -1408,7 +1408,7 @@ export default function CollectionsPage() {
       </Dialog>
 
       <Dialog open={!!selectedAICollection} onOpenChange={() => setSelectedAICollection(null)}>
-        <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
+        <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] rounded-[28px]">
           {selectedAICollection && (
             <AICollectionDetail collection={selectedAICollection} allMedia={media} />
           )}
@@ -1416,7 +1416,7 @@ export default function CollectionsPage() {
       </Dialog>
 
       <Dialog open={!!selectedSharedCollection} onOpenChange={() => setSelectedSharedCollection(null)}>
-        <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
+        <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] rounded-[28px]">
           {selectedSharedCollection && (
             <SharedCollectionDetail
               collection={selectedSharedCollection}
@@ -1446,7 +1446,7 @@ export default function CollectionsPage() {
       />
 
       <Dialog open={!!expandedMedia} onOpenChange={() => setExpandedMedia(null)}>
-        <DialogContent hideCloseButton className="max-w-4xl h-[90vh] lg:h-auto lg:max-h-[90vh] overflow-hidden bg-[#0a0a0a] border-white/10 p-0">
+        <DialogContent hideCloseButton className="max-w-4xl h-[90vh] lg:h-auto lg:max-h-[90vh] overflow-hidden bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] p-0">
           <DialogHeader className="sr-only">
             <DialogTitle>Media Details</DialogTitle>
           </DialogHeader>

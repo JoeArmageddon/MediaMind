@@ -171,7 +171,7 @@ export function MediaDetail({
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-violet-500/10">
-                <span className="text-6xl lg:text-8xl font-bold text-white/10">
+                <span className="text-6xl lg:text-8xl font-bold text-[var(--mm-text-20)]">
                   {media.title.charAt(0)}
                 </span>
               </div>
@@ -207,7 +207,7 @@ export function MediaDetail({
                   <Heart
                     className={cn(
                       'h-4 w-4 lg:h-5 lg:w-5',
-                      media.is_favorite ? 'fill-white text-white' : 'text-white'
+                      media.is_favorite ? 'fill-white text-[var(--mm-text)]' : 'text-[var(--mm-text)]'
                     )}
                   />
                 </Button>
@@ -229,7 +229,7 @@ export function MediaDetail({
                     variant="outline"
                     size="icon"
                     onClick={() => onUpdate?.({ is_archived: !media.is_archived })}
-                    className="border-white/20 bg-black/50 hover:bg-white/10 h-10 w-10"
+                    className="border-[var(--mm-card-border-hover)] bg-black/50 hover:bg-[var(--mm-hover-bg-strong)] h-10 w-10"
                   >
                     <Archive className="h-4 w-4" />
                   </Button>
@@ -237,7 +237,7 @@ export function MediaDetail({
                     variant="outline"
                     size="icon"
                     onClick={() => setShowDeleteConfirm(true)}
-                    className="border-white/20 bg-black/50 hover:bg-red-500/80 h-10 w-10"
+                    className="border-[var(--mm-card-border-hover)] bg-black/50 hover:bg-red-500/80 h-10 w-10"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -246,14 +246,14 @@ export function MediaDetail({
                 <div className="glass-card rounded-xl p-3 border-red-500/30 bg-red-500/10">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertTriangle className="h-4 w-4 text-red-400" />
-                    <span className="text-sm font-bold text-white truncate">Delete "{media.title}"?</span>
+                    <span className="text-sm font-bold text-[var(--mm-text)] truncate">Delete "{media.title}"?</span>
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setShowDeleteConfirm(false)}
-                      className="flex-1 border-white/20 bg-black/50 text-white hover:bg-white/10"
+                      className="flex-1 border-[var(--mm-card-border-hover)] bg-black/50 text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)]"
                     >
                       Cancel
                     </Button>
@@ -282,7 +282,7 @@ export function MediaDetail({
                   {getTypeLabel(media.type)}
                 </Badge>
                 {media.release_year && (
-                  <Badge variant="outline" className="border-white/20 bg-white/5 text-xs">
+                  <Badge variant="outline" className="border-[var(--mm-card-border-hover)] bg-[var(--mm-hover-bg)] text-xs">
                     <Calendar className="mr-1 h-3 w-3" />
                     {media.release_year}
                   </Badge>
@@ -295,7 +295,7 @@ export function MediaDetail({
                 )}
               </div>
 
-              <h1 className="text-xl lg:text-3xl font-bold text-white leading-tight">
+              <h1 className="text-xl lg:text-3xl font-bold text-[var(--mm-text)] leading-tight">
                 {media.title}
               </h1>
 
@@ -305,13 +305,13 @@ export function MediaDetail({
                     <Badge 
                       key={genre} 
                       variant="secondary" 
-                      className="text-[10px] lg:text-xs bg-white/5 border-white/10"
+                      className="text-[10px] lg:text-xs bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)]"
                     >
                       {genre}
                     </Badge>
                   ))}
                   {media.genres.length > 4 && (
-                    <Badge variant="outline" className="text-[10px] border-white/10 text-white/50">
+                    <Badge variant="outline" className="text-[10px] border-[var(--mm-card-border)] text-[var(--mm-text-50)]">
                       +{media.genres.length - 4}
                     </Badge>
                   )}
@@ -321,14 +321,14 @@ export function MediaDetail({
 
             {/* Description */}
             {media.description && (
-              <p className="text-white/60 text-sm leading-relaxed line-clamp-4 lg:line-clamp-none">
+              <p className="text-[var(--mm-text-60)] text-sm leading-relaxed line-clamp-4 lg:line-clamp-none">
                 {media.description}
               </p>
             )}
 
             {/* Tabs */}
             <Tabs defaultValue="progress" className="w-full">
-              <TabsList className="w-full bg-white/5 border border-white/10 p-1 h-auto">
+              <TabsList className="w-full bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] p-1 h-auto">
                 <TabsTrigger 
                   value="progress" 
                   className="flex-1 text-xs lg:text-sm py-2 data-[state=active]:bg-violet-600/20 data-[state=active]:text-violet-300"
@@ -350,11 +350,11 @@ export function MediaDetail({
               </TabsList>
 
               <TabsContent value="progress" className="space-y-3 mt-3">
-                <div className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
+                <div className="p-3 lg:p-4 bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-white/70">Status</span>
+                    <span className="text-sm text-[var(--mm-text-70)]">Status</span>
                     {readOnly ? (
-                      <Badge variant="secondary" className="bg-white/5 border-white/10 capitalize">
+                      <Badge variant="secondary" className="bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] capitalize">
                         {media.status.replace('_', ' ')}
                       </Badge>
                     ) : (
@@ -366,7 +366,7 @@ export function MediaDetail({
                   </div>
 
                   {readOnly ? (
-                    <div className="text-sm text-white/70">
+                    <div className="text-sm text-[var(--mm-text-70)]">
                       Progress: {media.progress}
                       {media.total_units > 0 ? ` / ${media.total_units}` : ''}
                     </div>
@@ -401,9 +401,9 @@ export function MediaDetail({
 
                 {/* Thematic Analysis */}
                 {media.ai_primary_tone ? (
-                  <div className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-lg space-y-2">
+                  <div className="p-3 lg:p-4 bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-white/40 uppercase tracking-wider">Thematic Analysis</span>
+                      <span className="text-xs text-[var(--mm-text-40)] uppercase tracking-wider">Thematic Analysis</span>
                       {!readOnly && (
                         <button
                           onClick={analyzeTone}
@@ -415,49 +415,49 @@ export function MediaDetail({
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      <Badge variant="secondary" className="bg-white/5 border-white/10 text-xs">
+                      <Badge variant="secondary" className="bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] text-xs">
                         {media.ai_primary_tone}
                       </Badge>
                       {media.ai_secondary_tone && (
-                        <Badge variant="secondary" className="bg-white/5 border-white/10 text-xs">
+                        <Badge variant="secondary" className="bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] text-xs">
                           {media.ai_secondary_tone}
                         </Badge>
                       )}
                       {media.ai_pacing && (
-                        <Badge variant="outline" className="border-white/10 text-white/50 text-xs">
+                        <Badge variant="outline" className="border-[var(--mm-card-border)] text-[var(--mm-text-50)] text-xs">
                           {media.ai_pacing} pacing
                         </Badge>
                       )}
                     </div>
                     {media.ai_core_themes?.length > 0 && (
-                      <p className="text-xs text-white/50">{media.ai_core_themes.join(' · ')}</p>
+                      <p className="text-xs text-[var(--mm-text-50)]">{media.ai_core_themes.join(' · ')}</p>
                     )}
                     <div className="grid grid-cols-3 gap-2 pt-1 text-center">
                       <div>
-                        <div className="text-sm font-mono text-white/80">{media.ai_emotional_intensity ?? '—'}</div>
-                        <div className="text-[9px] text-white/30 uppercase">Intensity</div>
+                        <div className="text-sm font-mono text-[var(--mm-text)]">{media.ai_emotional_intensity ?? '—'}</div>
+                        <div className="text-[9px] text-[var(--mm-text-30)] uppercase">Intensity</div>
                       </div>
                       <div>
-                        <div className="text-sm font-mono text-white/80">{media.ai_darkness_level ?? '—'}</div>
-                        <div className="text-[9px] text-white/30 uppercase">Darkness</div>
+                        <div className="text-sm font-mono text-[var(--mm-text)]">{media.ai_darkness_level ?? '—'}</div>
+                        <div className="text-[9px] text-[var(--mm-text-30)] uppercase">Darkness</div>
                       </div>
                       <div>
-                        <div className="text-sm font-mono text-white/80">{media.ai_intellectual_depth ?? '—'}</div>
-                        <div className="text-[9px] text-white/30 uppercase">Depth</div>
+                        <div className="text-sm font-mono text-[var(--mm-text)]">{media.ai_intellectual_depth ?? '—'}</div>
+                        <div className="text-[9px] text-[var(--mm-text-30)] uppercase">Depth</div>
                       </div>
                     </div>
                   </div>
                 ) : !readOnly ? (
                   <Button
                     variant="outline"
-                    className="w-full border-white/10 bg-white/5 h-10 text-sm"
+                    className="w-full border-[var(--mm-card-border)] bg-[var(--mm-hover-bg)] h-10 text-sm"
                     onClick={analyzeTone}
                     disabled={isAnalyzing}
                   >
                     {isAnalyzing ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-white/60" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-[var(--mm-text-60)]" />
                     ) : (
-                      <Brain className="mr-2 h-4 w-4 text-white/60" />
+                      <Brain className="mr-2 h-4 w-4 text-[var(--mm-text-60)]" />
                     )}
                     Analyze Tone & Themes
                   </Button>
@@ -466,13 +466,13 @@ export function MediaDetail({
               </TabsContent>
 
               <TabsContent value="streaming" className="mt-3 space-y-3">
-                <div className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-lg">
+                <div className="p-3 lg:p-4 bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] rounded-lg">
                   {media.streaming_platforms?.length > 0 ? (
                     <div className="space-y-2">
                       {media.streaming_platforms.map((platform) => (
                         <div
                           key={platform.platform}
-                          className="flex items-center justify-between p-2.5 lg:p-3 bg-white/5 rounded-lg"
+                          className="flex items-center justify-between p-2.5 lg:p-3 bg-[var(--mm-hover-bg)] rounded-lg"
                         >
                           {platform.url ? (
                             <a
@@ -496,7 +496,7 @@ export function MediaDetail({
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-white/40 text-sm">
+                    <div className="text-center py-6 text-[var(--mm-text-40)] text-sm">
                       No streaming information
                     </div>
                   )}
@@ -542,24 +542,24 @@ export function MediaDetail({
                         <Star
                           className={cn(
                             'h-5 w-5',
-                            filled ? 'fill-yellow-400 text-yellow-400' : 'text-white/20'
+                            filled ? 'fill-yellow-400 text-yellow-400' : 'text-[var(--mm-text-20)]'
                           )}
                         />
                       </button>
                     );
                   })}
                   {media.user_rating != null && (
-                    <span className="text-xs text-white/40 ml-1">{(media.user_rating / 2).toFixed(1)} / 5</span>
+                    <span className="text-xs text-[var(--mm-text-40)] ml-1">{(media.user_rating / 2).toFixed(1)} / 5</span>
                   )}
                 </div>
 
                 {readOnly ? (
-                  <p className="w-full min-h-[80px] rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-white/70 whitespace-pre-wrap">
+                  <p className="w-full min-h-[80px] rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] p-3 text-sm text-[var(--mm-text-70)] whitespace-pre-wrap">
                     {notesDraft || 'No review written.'}
                   </p>
                 ) : (
                   <textarea
-                    className="w-full min-h-[120px] lg:min-h-[150px] rounded-lg bg-white/5 border border-white/10 p-3 text-sm resize-none focus:outline-none focus:border-violet-500/50 text-white"
+                    className="w-full min-h-[120px] lg:min-h-[150px] rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] p-3 text-sm resize-none focus:outline-none focus:border-violet-500/50 text-[var(--mm-text)]"
                     placeholder="What did you think?"
                     value={notesDraft}
                     onChange={(e) => scheduleNotesUpdate(e.target.value)}
@@ -570,13 +570,13 @@ export function MediaDetail({
             </Tabs>
 
             {/* Metadata */}
-            <div className="grid grid-cols-2 gap-2 text-xs text-white/40 pt-2 pb-4">
+            <div className="grid grid-cols-2 gap-2 text-xs text-[var(--mm-text-40)] pt-2 pb-4">
               <div>
-                <span className="block text-white/20 mb-1">Added</span>
+                <span className="block text-[var(--mm-text-20)] mb-1">Added</span>
                 {formatDate(media.created_at)}
               </div>
               <div>
-                <span className="block text-white/20 mb-1">Updated</span>
+                <span className="block text-[var(--mm-text-20)] mb-1">Updated</span>
                 {formatDate(media.updated_at)}
               </div>
             </div>

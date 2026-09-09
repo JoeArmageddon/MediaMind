@@ -74,7 +74,7 @@ export default function PublicCollectionPage() {
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => router.push('/collections')}
-          className="p-2 rounded-xl text-white hover:bg-white/10 transition-colors"
+          className="p-2 rounded-xl text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -83,10 +83,10 @@ export default function PublicCollectionPage() {
             <Folder className="h-5 w-5 text-white" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-2xl font-black text-white tracking-tighter truncate">
+            <h1 className="text-2xl font-black text-[var(--mm-text)] tracking-tighter truncate">
               {collection?.title ?? 'Public Collection'}
             </h1>
-            <p className="text-sm text-white/50 flex items-center gap-1.5">
+            <p className="text-sm text-[var(--mm-text-50)] flex items-center gap-1.5">
               <Globe className="h-3 w-3" />
               {media.length} {media.length === 1 ? 'title' : 'titles'}
             </p>
@@ -95,24 +95,24 @@ export default function PublicCollectionPage() {
       </div>
 
       {collection?.description && (
-        <p className="text-white/60 text-sm leading-relaxed -mt-2">{collection.description}</p>
+        <p className="text-[var(--mm-text-60)] text-sm leading-relaxed -mt-2">{collection.description}</p>
       )}
 
       {isLoading ? (
         <div className="glass-card rounded-[28px] p-12 text-center">
-          <Loader2 className="h-6 w-6 text-white/30 mx-auto animate-spin" />
+          <Loader2 className="h-6 w-6 text-[var(--mm-text-30)] mx-auto animate-spin" />
         </div>
       ) : notFound ? (
         <div className="glass-card rounded-[28px] p-12 text-center">
-          <Globe className="h-12 w-12 text-white/20 mx-auto mb-4" />
-          <p className="text-white/50">
+          <Globe className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
+          <p className="text-[var(--mm-text-50)]">
             This collection doesn&apos;t exist, or its owner has made it private.
           </p>
         </div>
       ) : media.length === 0 ? (
         <div className="glass-card rounded-[28px] p-12 text-center">
-          <Folder className="h-12 w-12 text-white/20 mx-auto mb-4" />
-          <p className="text-white/50">Nothing in this collection yet.</p>
+          <Folder className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
+          <p className="text-[var(--mm-text-50)]">Nothing in this collection yet.</p>
         </div>
       ) : (
         <MediaGrid media={media} readOnly />

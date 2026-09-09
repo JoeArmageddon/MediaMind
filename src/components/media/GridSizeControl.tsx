@@ -9,20 +9,20 @@ export function GridSizeControl() {
   const setGridSize = useMediaStore((s) => s.setGridSize);
 
   return (
-    <div className="flex items-center h-14 rounded-xl bg-white/5 border border-white/10 px-1">
+    <div className="flex items-center h-14 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] px-1">
       <button
         onClick={() => setGridSize(gridSize - 1)}
         disabled={gridSize <= 1}
-        className="h-10 w-10 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+        className="h-10 w-10 flex items-center justify-center rounded-lg text-[var(--mm-text-60)] hover:text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
         title="Fewer columns"
       >
         <Minus className="h-4 w-4" />
       </button>
-      <span className="w-6 text-center text-sm font-mono text-white/70 tabular-nums">{gridSize}</span>
+      <span className="w-6 text-center text-sm font-mono text-[var(--mm-text-70)] tabular-nums">{gridSize}</span>
       <button
         onClick={() => setGridSize(gridSize + 1)}
         disabled={gridSize >= 6}
-        className="h-10 w-10 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+        className="h-10 w-10 flex items-center justify-center rounded-lg text-[var(--mm-text-60)] hover:text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
         title="More columns"
       >
         <Plus className="h-4 w-4" />

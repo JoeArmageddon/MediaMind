@@ -112,7 +112,7 @@ export default function FriendLibraryPage() {
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => router.back()}
-          className="p-2 rounded-xl text-white hover:bg-white/10 transition-colors"
+          className="p-2 rounded-xl text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -129,10 +129,10 @@ export default function FriendLibraryPage() {
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="text-2xl font-black text-white tracking-tighter truncate">
+            <h1 className="text-2xl font-black text-[var(--mm-text)] tracking-tighter truncate">
               {friendship?.otherUser?.name ?? "Friend's Library"}
             </h1>
-            <p className="text-sm text-white/50">
+            <p className="text-sm text-[var(--mm-text-50)]">
               {media.length} {media.length === 1 ? 'title' : 'titles'}
             </p>
           </div>
@@ -140,7 +140,7 @@ export default function FriendLibraryPage() {
         <button
           onClick={() => loadLibrary({ silent: true })}
           title="Refresh"
-          className="p-2 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+          className="p-2 rounded-xl text-[var(--mm-text-50)] hover:text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] transition-colors shrink-0"
         >
           <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
         </button>
@@ -148,19 +148,19 @@ export default function FriendLibraryPage() {
 
       {media.length > 0 && (
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--mm-text-30)]" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Search ${friendship?.otherUser?.name ?? "their"} library...`}
-            className="bg-black border-white/10 rounded-xl h-11 pl-10"
+            className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-11 pl-10"
           />
         </div>
       )}
 
       {isLoading ? (
         <div className="glass-card rounded-[28px] p-12 text-center">
-          <Loader2 className="h-6 w-6 text-white/30 mx-auto animate-spin" />
+          <Loader2 className="h-6 w-6 text-[var(--mm-text-30)] mx-auto animate-spin" />
         </div>
       ) : error ? (
         <div className="glass-card rounded-[28px] p-12 text-center">
@@ -168,15 +168,15 @@ export default function FriendLibraryPage() {
         </div>
       ) : media.length === 0 ? (
         <div className="glass-card rounded-[28px] p-12 text-center">
-          <Library className="h-12 w-12 text-white/20 mx-auto mb-4" />
-          <p className="text-white/50">
+          <Library className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
+          <p className="text-[var(--mm-text-50)]">
             Nothing to show - either their library is empty, or you're not friends (yet).
           </p>
         </div>
       ) : filteredMedia.length === 0 ? (
         <div className="glass-card rounded-[28px] p-12 text-center">
-          <Search className="h-12 w-12 text-white/20 mx-auto mb-4" />
-          <p className="text-white/50">No matches for &quot;{search}&quot;.</p>
+          <Search className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
+          <p className="text-[var(--mm-text-50)]">No matches for &quot;{search}&quot;.</p>
         </div>
       ) : (
         <MediaGrid media={filteredMedia} readOnly />

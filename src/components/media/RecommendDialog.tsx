@@ -63,9 +63,9 @@ export function RecommendDialog({ media, open, onOpenChange }: RecommendDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
+      <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] rounded-[28px]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-black text-white flex items-center gap-2">
+          <DialogTitle className="text-xl font-black text-[var(--mm-text)] flex items-center gap-2">
             <Send className="h-5 w-5" />
             Recommend &quot;{media.title}&quot;
           </DialogTitle>
@@ -73,8 +73,8 @@ export function RecommendDialog({ media, open, onOpenChange }: RecommendDialogPr
 
         {friends.length === 0 ? (
           <div className="py-8 text-center">
-            <Users className="h-10 w-10 text-white/20 mx-auto mb-3" />
-            <p className="text-white/50 text-sm">Add a friend first to recommend titles to them.</p>
+            <Users className="h-10 w-10 text-[var(--mm-text-20)] mx-auto mb-3" />
+            <p className="text-[var(--mm-text-50)] text-sm">Add a friend first to recommend titles to them.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -92,7 +92,7 @@ export function RecommendDialog({ media, open, onOpenChange }: RecommendDialogPr
                       'w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-colors',
                       selectedFriendId === friendId
                         ? 'bg-indigo-600/20 border-indigo-500/50'
-                        : 'bg-white/5 border-white/10 hover:border-white/20',
+                        : 'bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] hover:border-[var(--mm-card-border-hover)]',
                       alreadySent && 'opacity-50'
                     )}
                   >
@@ -103,7 +103,7 @@ export function RecommendDialog({ media, open, onOpenChange }: RecommendDialogPr
                         {f.otherUser?.name?.[0]?.toUpperCase() ?? '?'}
                       </div>
                     )}
-                    <span className="text-sm text-white flex-1 truncate">{f.otherUser?.name ?? 'Unknown user'}</span>
+                    <span className="text-sm text-[var(--mm-text)] flex-1 truncate">{f.otherUser?.name ?? 'Unknown user'}</span>
                     {alreadySent && <Check className="h-4 w-4 text-green-400 shrink-0" />}
                   </button>
                 );
@@ -114,7 +114,7 @@ export function RecommendDialog({ media, open, onOpenChange }: RecommendDialogPr
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Add a note (optional)..."
-              className="bg-black border-white/10 rounded-xl min-h-[70px]"
+              className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl min-h-[70px]"
             />
 
             {error && <p className="text-sm text-red-400">{error}</p>}

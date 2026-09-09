@@ -98,13 +98,13 @@ export default function CalendarPage() {
           variant="ghost" 
           size="icon" 
           onClick={() => router.back()}
-          className="text-white hover:bg-white/10 rounded-xl"
+          className="text-[var(--mm-text)] hover:bg-[var(--mm-hover-bg-strong)] rounded-xl"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter">CALENDAR</h1>
-          <p className="text-sm text-white/50 font-mono">カレンダー</p>
+          <h1 className="text-3xl font-black text-[var(--mm-text)] tracking-tighter">CALENDAR</h1>
+          <p className="text-sm text-[var(--mm-text-50)] font-mono">カレンダー</p>
         </div>
       </div>
 
@@ -116,7 +116,7 @@ export default function CalendarPage() {
           </div>
           <div>
             <div className="text-2xl font-black font-mono">{stats.totalCompletions}</div>
-            <div className="text-[10px] text-white/50 uppercase tracking-wider">Completed</div>
+            <div className="text-[10px] text-[var(--mm-text-50)] uppercase tracking-wider">Completed</div>
           </div>
         </div>
         
@@ -126,7 +126,7 @@ export default function CalendarPage() {
           </div>
           <div>
             <div className="text-2xl font-black font-mono">{stats.activeDays}</div>
-            <div className="text-[10px] text-white/50 uppercase tracking-wider">Active Days</div>
+            <div className="text-[10px] text-[var(--mm-text-50)] uppercase tracking-wider">Active Days</div>
           </div>
         </div>
         
@@ -136,7 +136,7 @@ export default function CalendarPage() {
           </div>
           <div>
             <div className="text-2xl font-black font-mono">{stats.streak}</div>
-            <div className="text-[10px] text-white/50 uppercase tracking-wider">Day Streak</div>
+            <div className="text-[10px] text-[var(--mm-text-50)] uppercase tracking-wider">Day Streak</div>
           </div>
         </div>
       </div>
@@ -145,19 +145,19 @@ export default function CalendarPage() {
       <div className="glass-card rounded-[28px] p-6">
         {/* Month Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-black text-white tracking-tight">
+          <h2 className="text-2xl font-black text-[var(--mm-text)] tracking-tight">
             {format(currentDate, 'MMMM yyyy')}
           </h2>
           <div className="flex gap-2">
             <button 
               onClick={prevMonth}
-              className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors border border-white/10"
+              className="w-10 h-10 rounded-xl bg-[var(--mm-hover-bg)] hover:bg-[var(--mm-hover-bg-strong)] flex items-center justify-center transition-colors border border-[var(--mm-card-border)]"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button 
               onClick={nextMonth}
-              className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors border border-white/10"
+              className="w-10 h-10 rounded-xl bg-[var(--mm-hover-bg)] hover:bg-[var(--mm-hover-bg-strong)] flex items-center justify-center transition-colors border border-[var(--mm-card-border)]"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -169,7 +169,7 @@ export default function CalendarPage() {
           {weekDays.map((day) => (
             <div
               key={day}
-              className="text-center text-[10px] font-bold text-white/40 py-2 uppercase tracking-wider"
+              className="text-center text-[10px] font-bold text-[var(--mm-text-40)] py-2 uppercase tracking-wider"
             >
               {day}
             </div>
@@ -197,14 +197,14 @@ export default function CalendarPage() {
                   'aspect-square rounded-xl p-1 flex flex-col items-center justify-center relative',
                   'border transition-all cursor-pointer',
                   isToday && 'bg-indigo-600/20 border-indigo-500/50',
-                  hasActivity && !isToday && 'bg-white/5 border-white/10 hover:bg-white/10',
-                  !hasActivity && !isToday && 'border-transparent hover:bg-white/5'
+                  hasActivity && !isToday && 'bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] hover:bg-[var(--mm-hover-bg-strong)]',
+                  !hasActivity && !isToday && 'border-transparent hover:bg-[var(--mm-hover-bg)]'
                 )}
               >
                 <span
                   className={cn(
                     'text-sm font-bold',
-                    isToday ? 'text-indigo-400' : 'text-white/80'
+                    isToday ? 'text-indigo-400' : 'text-[var(--mm-text)]'
                   )}
                 >
                   {format(day, 'd')}
@@ -227,7 +227,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-6 text-sm text-white/50">
+      <div className="flex items-center justify-center gap-6 text-sm text-[var(--mm-text-50)]">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-indigo-500" />
           <span className="text-xs uppercase tracking-wider">Activity</span>

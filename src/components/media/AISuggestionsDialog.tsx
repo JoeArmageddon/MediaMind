@@ -62,9 +62,9 @@ export function AISuggestionsDialog({ media, open, onOpenChange }: AISuggestions
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10">
+      <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)]">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
+          <DialogTitle className="text-[var(--mm-text)] flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-violet-400" />
             Similar to {media?.title}
           </DialogTitle>
@@ -73,7 +73,7 @@ export function AISuggestionsDialog({ media, open, onOpenChange }: AISuggestions
 
         <div className="space-y-2 max-h-[60vh] overflow-y-auto">
           {isLoadingSuggestions && (
-            <div className="flex items-center justify-center py-8 text-white/50 text-sm">
+            <div className="flex items-center justify-center py-8 text-[var(--mm-text-50)] text-sm">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
               Thinking...
             </div>
@@ -84,15 +84,15 @@ export function AISuggestionsDialog({ media, open, onOpenChange }: AISuggestions
           )}
 
           {!isLoadingSuggestions && !error && cached?.length === 0 && (
-            <div className="text-sm text-white/40 py-4 text-center">No suggestions found.</div>
+            <div className="text-sm text-[var(--mm-text-40)] py-4 text-center">No suggestions found.</div>
           )}
 
           {!isLoadingSuggestions &&
             !error &&
             cached?.map((s, i) => (
-              <div key={i} className="p-3 rounded-lg bg-white/5 border border-white/10">
-                <div className="font-bold text-white text-sm">{s.title}</div>
-                <p className="text-xs text-white/60 mt-1">{s.reason}</p>
+              <div key={i} className="p-3 rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]">
+                <div className="font-bold text-[var(--mm-text)] text-sm">{s.title}</div>
+                <p className="text-xs text-[var(--mm-text-60)] mt-1">{s.reason}</p>
               </div>
             ))}
         </div>
