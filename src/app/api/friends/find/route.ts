@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 // Clerk doesn't let client-side code resolve other users by email (privacy) -
 // this route does the lookup server-side with the secret key, and only ever
@@ -10,6 +11,18 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // This endpoint is a found/not-found oracle by design (that's the whole
+  // point of "add a friend by email") - rate limiting is what keeps it
+  // from being usable to bulk-check whether arbitrary emails have
+  // MediaMind accounts.
+  const rl = checkRateLimit(`${userId}:friends-find`, 20, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Too many lookups - try again in a moment.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    );
   }
 
   let email: string;

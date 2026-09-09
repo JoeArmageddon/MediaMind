@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 // friendships rows only carry Clerk user ids, not display info - this
 // resolves ids to {name, email, imageUrl} for the friends UI. Deliberately
@@ -12,6 +13,17 @@ export async function POST(req: NextRequest) {
   const { userId, getToken } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Lower risk than find/preview-code (already scoped to the caller's own
+  // friendships), but this fans out to Clerk's API per id - a generous
+  // limit just to stop a runaway client-side loop from hammering it.
+  const rl = checkRateLimit(`${userId}:friends-profiles`, 60, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests - try again in a moment.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    );
   }
 
   let userIds: string[];

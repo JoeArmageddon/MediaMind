@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 // Resolves an invite code to the inviter's public profile, for the
 // "X invited you to connect - Accept?" landing page shown before the
@@ -15,6 +16,17 @@ export async function POST(req: NextRequest) {
   const { userId, getToken } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Codes are 8 chars from a 32-symbol alphabet (~1 trillion combinations),
+  // so brute-forcing one is impractical regardless - this is defense in
+  // depth, not the primary protection.
+  const rl = checkRateLimit(`${userId}:friends-preview-code`, 20, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Too many attempts - try again in a moment.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    );
   }
 
   let code: string;
