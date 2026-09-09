@@ -59,7 +59,19 @@ const DialogContent = React.forwardRef<
         // turned the whole dialog into something you had to scroll
         // sideways to see the rest of - overflow-x-hidden here closes that
         // off everywhere at once, on top of fixing individual offenders.
-        'fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden translate-x-[-50%] translate-y-[-50%] gap-4 border border-border/50 bg-card/95 backdrop-blur-glass p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl',
+        //
+        // grid-cols-1 (real root cause of the Create Collection dialog
+        // bleeding past its own right edge even on a wide desktop
+        // viewport): `display:grid` with no explicit grid-template-columns
+        // creates a single *implicit* column sized `auto`, and an auto
+        // grid track grows to fit its content's max-content size instead
+        // of being capped at the container's width - so a deeply nested
+        // long line (an untruncated title, a wide row) silently stretched
+        // the whole card, not just overflowed within it. grid-cols-1
+        // compiles to `minmax(0, 1fr)`, which is what actually makes grid
+        // children respect the box's real width - the standard fix for
+        // this well-known Tailwind/shadcn dialog footgun.
+        'fixed left-[50%] top-[50%] z-50 grid grid-cols-1 w-[calc(100%-2rem)] max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden translate-x-[-50%] translate-y-[-50%] gap-4 border border-border/50 bg-card/95 backdrop-blur-glass p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-2xl',
         className
       )}
       {...props}
