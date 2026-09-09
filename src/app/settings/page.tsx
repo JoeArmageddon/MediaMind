@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle, Loader2, BookOpen, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -587,6 +588,12 @@ export default function SettingsPage() {
         <h3 className="text-lg font-bold text-[var(--mm-text)] mb-2">MEDIA MIND</h3>
         <p className="text-sm text-[var(--mm-text-50)]">v2.0 • Personal Media Intelligence</p>
         <p className="text-xs text-[var(--mm-text-30)] mt-4 font-mono">Built with Next.js + Supabase + AI</p>
+        <Link
+          href="/privacy"
+          className="inline-block mt-4 text-xs text-[var(--mm-text-40)] hover:text-[var(--mm-text)] transition-colors underline underline-offset-2"
+        >
+          Privacy Policy
+        </Link>
       </div>
     </div>
   );

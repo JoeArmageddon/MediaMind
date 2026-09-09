@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { SignUp } from '@clerk/nextjs';
 import { clerkAppearance } from '@/lib/clerkAppearance';
 import { safeRedirectPath } from '@/lib/safeRedirect';
@@ -16,6 +17,12 @@ export default async function SignUpPage({
         <p className="text-xs text-indigo-400 font-mono tracking-[0.2em] uppercase mt-1">Intelligence</p>
       </div>
       <SignUp appearance={clerkAppearance} forceRedirectUrl={safeRedirectPath(redirect_url)} />
+      <Link
+        href="/privacy"
+        className="mt-6 text-xs text-white/30 hover:text-white/60 transition-colors"
+      >
+        Privacy Policy
+      </Link>
     </div>
   );
 }
