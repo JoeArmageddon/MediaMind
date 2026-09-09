@@ -1,4 +1,5 @@
 import { resolveApiKey } from '../apiKeys';
+import { callWebApi } from '../webApi';
 import { buildSmartCollectionsPrompt, SMART_COLLECTIONS_TEMPERATURE } from './collectionPrompt';
 import type {
   AISuggestion,
@@ -50,15 +51,22 @@ export class GroqClient {
 
   async init() {
     if (this.initialized) return;
-    this.apiKey = await resolveApiKey('groq_key', process.env.EXPO_PUBLIC_GROQ_API_KEY);
+    // No EXPO_PUBLIC_ fallback - a bundled key here would ship inside the
+    // app's JS bundle. See gemini.ts's init() for the full reasoning; this
+    // one never had a bundled default even before that fix (Groq is
+    // deliberately server-key-only on web too), but the shape stays
+    // consistent with gemini.ts/tmdb.ts/rawg.ts.
+    this.apiKey = await resolveApiKey('groq_key', undefined);
     this.initialized = true;
   }
 
   private async generateContent(prompt: string, opts?: { temperature?: number }): Promise<string> {
     await this.init();
+    const temperature = opts?.temperature ?? 0.7;
 
     if (!this.apiKey) {
-      throw new Error('Groq client not initialized - API key missing');
+      const { text } = await callWebApi<{ text: string }>('/api/ai/groq', { prompt, temperature });
+      return text;
     }
 
     const res = await fetch(GROQ_API_URL, {
@@ -73,7 +81,7 @@ export class GroqClient {
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: prompt },
         ],
-        temperature: opts?.temperature ?? 0.7,
+        temperature,
         // gpt-oss-120b is a reasoning model - even a trivial prompt used
         // 70-190 hidden "reasoning" tokens before the actual answer in
         // testing, and this app's real prompts (multi-item JSON schemas)

@@ -1,6 +1,7 @@
 import type { TMDBResult, SearchResult } from '../types';
 import { resolveApiKey } from '../apiKeys';
 import { supabaseUrl, supabaseAnonKey } from '../supabase';
+import { callWebApiGet } from '../webApi';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 // Same Supabase Edge Function proxy the web app uses - some networks block
@@ -26,31 +27,46 @@ export class TMDBClient {
 
   async init() {
     if (this.initialized) return true;
-    this.apiKey = await resolveApiKey('tmdb_key', process.env.EXPO_PUBLIC_TMDB_API_KEY);
+    // No EXPO_PUBLIC_ fallback - see webApi.ts's header comment. fetch()
+    // below calls the deployed web app's server-held default key instead
+    // of bundling one into this app's JS.
+    this.apiKey = await resolveApiKey('tmdb_key', undefined);
     this.initialized = true;
   }
 
   private async getKey(): Promise<string> {
-    this.apiKey = await resolveApiKey('tmdb_key', process.env.EXPO_PUBLIC_TMDB_API_KEY);
+    this.apiKey = await resolveApiKey('tmdb_key', undefined);
     return this.apiKey;
   }
 
   private async fetch<T>(endpoint: string, signal?: AbortSignal): Promise<T | null> {
     const key = await this.getKey();
-    if (!key) throw new Error('No TMDB API key');
-
     const [path, query] = endpoint.split('?');
-    const proxyUrl = new URL(TMDB_PROXY_URL);
-    proxyUrl.searchParams.set('path', path);
+    const queryParams: Record<string, string> = {};
     if (query) {
-      new URLSearchParams(query).forEach((v, k) => proxyUrl.searchParams.set(k, v));
+      new URLSearchParams(query).forEach((v, k) => {
+        queryParams[k] = v;
+      });
     }
-    proxyUrl.searchParams.set('api_key', key);
 
-    const response = await fetch(proxyUrl.toString(), {
-      signal,
-      headers: { Authorization: `Bearer ${supabaseAnonKey}` },
-    });
+    let response: Response;
+    if (key) {
+      // Bring-your-own-key path: through the Supabase edge proxy, same as
+      // before - some networks block api.themoviedb.org directly at the
+      // connection level.
+      const proxyUrl = new URL(TMDB_PROXY_URL);
+      proxyUrl.searchParams.set('path', path);
+      Object.entries(queryParams).forEach(([k, v]) => proxyUrl.searchParams.set(k, v));
+      proxyUrl.searchParams.set('api_key', key);
+      response = await fetch(proxyUrl.toString(), {
+        signal,
+        headers: { Authorization: `Bearer ${supabaseAnonKey}` },
+      });
+    } else {
+      // No user key - fall back to the deployed web app's server-side
+      // default-key proxy instead of a bundled EXPO_PUBLIC_ key.
+      response = await callWebApiGet('/api/external/tmdb', { path, ...queryParams }, signal);
+    }
 
     if (!response.ok) throw new Error(`TMDB HTTP ${response.status}`);
     return await response.json();

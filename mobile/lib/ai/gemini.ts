@@ -1,4 +1,5 @@
 import { resolveApiKey } from '../apiKeys';
+import { callWebApi } from '../webApi';
 import { buildSmartCollectionsPrompt, SMART_COLLECTIONS_TEMPERATURE } from './collectionPrompt';
 import type {
   AISuggestion,
@@ -43,15 +44,24 @@ export class GeminiClient {
 
   async init() {
     if (this.initialized) return;
-    this.apiKey = await resolveApiKey('gemini_key', process.env.EXPO_PUBLIC_GEMINI_API_KEY);
+    // No bundled EXPO_PUBLIC_ fallback here on purpose - see webApi.ts's
+    // header comment. A key baked into the app's JS bundle is extractable
+    // by anyone who unpacks the installed app, exactly like the web app's
+    // NEXT_PUBLIC_GEMINI_API_KEY bug fixed earlier this project. When
+    // there's no user-supplied key, generateContent() below calls the
+    // deployed web app's /api/ai/gemini instead, which holds the real
+    // default key server-side only.
+    this.apiKey = await resolveApiKey('gemini_key', undefined);
     this.initialized = true;
   }
 
   private async generateContent(prompt: string, opts?: { temperature?: number }): Promise<string> {
     await this.init();
+    const temperature = opts?.temperature ?? 0.7;
 
     if (!this.apiKey) {
-      throw new Error('Gemini client not initialized - API key missing');
+      const { text } = await callWebApi<{ text: string }>('/api/ai/gemini', { prompt, temperature });
+      return text;
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
@@ -61,7 +71,7 @@ export class GeminiClient {
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: SYSTEM_PROMPT + '\n\n' + prompt }] }],
         generationConfig: {
-          temperature: opts?.temperature ?? 0.7,
+          temperature,
           maxOutputTokens: 2000,
           // Forces raw JSON output instead of relying on prompt instructions
           // alone - matches Groq's response_format:'json_object' reliability.
