@@ -947,3 +947,37 @@ CREATE POLICY "recipient marks recommendation read" ON recommendations FOR UPDAT
 -- those.
 CREATE POLICY "either party deletes recommendation" ON recommendations FOR DELETE
   USING (auth.jwt()->>'sub' = from_user_id OR auth.jwt()->>'sub' = to_user_id);
+
+-- ============================================================
+-- Beta whitelist: application-form + manual-approval gate
+-- ============================================================
+
+-- Deliberately has NO client-facing RLS policies at all (RLS enabled,
+-- zero policies = default deny for anon/authenticated) - every read/write
+-- goes through Next.js API routes using the service role key instead:
+--   1. Submitting an application happens BEFORE the person has any
+--      account/session at all, so a normal auth.jwt()->>'sub' policy
+--      can't gate it - the API route does its own validation and rate
+--      limiting instead.
+--   2. Reviewing/approving applications needs to be restricted to one
+--      specific admin, which isn't a concept this schema has anywhere
+--      else - simpler to check in the API route (comparing the caller's
+--      Clerk email) than to invent a Postgres-level admin-role system
+--      for a single person.
+CREATE TABLE beta_applications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  last_finished TEXT NOT NULL,
+  current_tracking TEXT NOT NULL,
+  why_interested TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  review_note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reviewed_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_beta_applications_status ON beta_applications(status, created_at DESC);
+
+ALTER TABLE beta_applications ENABLE ROW LEVEL SECURITY;
+-- No policies - see comment above.
