@@ -1457,7 +1457,19 @@ export default function CollectionsPage() {
               onUpdate={
                 expandedMedia.readOnly
                   ? undefined
-                  : (updates) => updateMedia(expandedMedia.item.id, updates)
+                  : (updates) => {
+                      // expandedMedia.item is a snapshot taken when this
+                      // dialog opened, not a live reference into the media
+                      // store - without also patching it here, a real
+                      // update (Analyze Tone & Themes, Find streaming,
+                      // rating, notes...) would land correctly but this
+                      // still-open dialog would keep rendering the old
+                      // snapshot, looking like the action did nothing.
+                      updateMedia(expandedMedia.item.id, updates);
+                      setExpandedMedia((prev) =>
+                        prev ? { ...prev, item: { ...prev.item, ...updates } } : prev
+                      );
+                    }
               }
               onDelete={
                 expandedMedia.readOnly

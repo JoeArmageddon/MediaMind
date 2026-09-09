@@ -336,11 +336,22 @@ export const useMediaStore = create<MediaStore>()(
             });
           }
 
-          // Update local state immediately (optimistic)
+          // Update local state immediately (optimistic). selectedMedia is a
+          // separate snapshot taken when the detail dialog opened, not a
+          // live reference into `media` - without patching it too, an
+          // update made from inside that open dialog (Analyze Tone &
+          // Themes, Find streaming, rating, notes...) would land in the
+          // store/Supabase/IndexedDB correctly but the dialog itself would
+          // keep rendering the old snapshot forever, so a real update just
+          // looked like the button did nothing.
           set((state) => ({
             media: state.media.map((m) =>
               m.id === id ? { ...m, ...updates, updated_at } : m
             ),
+            selectedMedia:
+              state.selectedMedia?.id === id
+                ? { ...state.selectedMedia, ...updates, updated_at }
+                : state.selectedMedia,
           }));
           get().applyFilters();
 
