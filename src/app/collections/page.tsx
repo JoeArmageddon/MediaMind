@@ -19,6 +19,7 @@ import {
   Check,
   RefreshCw,
   Search,
+  Globe,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getAIClient } from '@/lib/ai';
 import { getSearchOrchestrator } from '@/lib/api/search';
@@ -482,18 +484,26 @@ function ShareCollectionDialog({
     inviteCodes,
     fetchCollectionInviteCode,
     regenerateCollectionInviteCode,
+    setCollectionPublic,
   } = useCollectionStore();
   const [shares, setShares] = useState<CollectionShareWithProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [busyFriendId, setBusyFriendId] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
-  const [copied, setCopied] = useState<'link' | 'code' | null>(null);
+  const [copied, setCopied] = useState<'link' | 'code' | 'public-link' | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  // Local, optimistic mirror of collection.is_public - the `collection`
+  // prop is a snapshot passed down from the collections list, which
+  // doesn't itself re-render just because the store's underlying row
+  // changed, so a toggle here needs its own state to reflect instantly.
+  const [isPublic, setIsPublic] = useState(collection?.is_public ?? false);
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
 
   useEffect(() => {
     if (!collection) return;
     fetchFriends();
     fetchCollectionInviteCode(collection.id);
+    setIsPublic(collection.is_public);
     setIsLoading(true);
     fetchSharesForCollection(collection.id)
       .then(setShares)
@@ -505,8 +515,23 @@ function ShareCollectionDialog({
   const sharedWithIds = new Set(shares.map((s) => s.shared_with_id));
   const code = inviteCodes[collection.id];
   const link = code && typeof window !== 'undefined' ? `${window.location.origin}/collection-invite/${code}` : '';
+  const publicLink =
+    typeof window !== 'undefined' ? `${window.location.origin}/collections/public/${collection.id}` : '';
 
-  const copy = async (value: string, which: 'link' | 'code') => {
+  const handleTogglePublic = async () => {
+    const next = !isPublic;
+    setIsTogglingPublic(true);
+    setIsPublic(next);
+    try {
+      await setCollectionPublic(collection.id, next);
+    } catch {
+      setIsPublic(!next);
+    } finally {
+      setIsTogglingPublic(false);
+    }
+  };
+
+  const copy = async (value: string, which: 'link' | 'code' | 'public-link') => {
     if (!value) return;
     try {
       await navigator.clipboard.writeText(value);
@@ -554,6 +579,41 @@ function ShareCollectionDialog({
             Share &quot;{collection.title}&quot;
           </DialogTitle>
         </DialogHeader>
+
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <Globe className="h-4 w-4 text-white/50 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-white">Public collection</p>
+                <p className="text-xs text-white/40 mt-0.5">
+                  {isPublic
+                    ? 'Anyone signed in to MediaMind can view this via its link - no friendship needed.'
+                    : 'Only you (and anyone you share it with below) can see it.'}
+                </p>
+              </div>
+            </div>
+            <Switch checked={isPublic} onCheckedChange={handleTogglePublic} disabled={isTogglingPublic} />
+          </div>
+          {isPublic && (
+            <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2">
+              <Input
+                readOnly
+                value={publicLink}
+                onFocus={(e) => e.target.select()}
+                className="bg-black border-white/10 rounded-lg h-9 text-xs font-mono text-white/70"
+              />
+              <Button
+                onClick={() => copy(publicLink, 'public-link')}
+                size="sm"
+                variant="outline"
+                className="border-white/10 text-white/70 hover:text-white hover:bg-white/10 rounded-lg text-xs shrink-0"
+              >
+                {copied === 'public-link' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              </Button>
+            </div>
+          )}
+        </div>
 
         {code && (
           <div className="rounded-2xl bg-white/5 border border-white/10 p-4 mb-2">
@@ -1036,6 +1096,7 @@ export default function CollectionsPage() {
       media_ids: selectedMediaIds,
       filter_criteria: null,
       is_auto_generated: false,
+      is_public: false,
     });
 
     setNewCollectionName('');
@@ -1063,6 +1124,7 @@ export default function CollectionsPage() {
       media_ids: mediaIds,
       filter_criteria: null,
       is_auto_generated: true,
+      is_public: false,
     });
 
     // Saved for real now - the draft has served its purpose.

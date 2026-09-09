@@ -42,6 +42,8 @@ interface CollectionStore {
     code: string
   ) => Promise<{ success: boolean; preview?: CollectionInvitePreview; message?: string }>;
   redeemCollectionCode: (code: string) => Promise<{ success: boolean; collectionId?: string; message: string }>;
+  setCollectionPublic: (collectionId: string, isPublic: boolean) => Promise<void>;
+  fetchPublicCollection: (collectionId: string) => Promise<SmartCollection | null>;
 }
 
 // Same alphabet/length reasoning as friendStore's generateCode - 8
@@ -520,6 +522,39 @@ export const useCollectionStore = create<CollectionStore>()(
             : e?.message?.includes('self_code') ? "That's your own collection."
             : e instanceof Error ? e.message : 'Failed to join this collection.';
           return { success: false, message };
+        }
+      },
+
+      // Owner-only in practice (RLS's "update own or claim unclaimed
+      // collections" policy enforces that server-side) - a thin, named
+      // wrapper around updateCollection so call sites read as intent
+      // ("make this public") rather than a raw partial-update call.
+      setCollectionPublic: async (collectionId, isPublic) => {
+        await get().updateCollection(collectionId, { is_public: isPublic });
+      },
+
+      // Public collections are viewable by any signed-in user, not just the
+      // owner or people it's been shared with - not cached in Dexie or
+      // merged into `collections`/`sharedWithMe` (this is someone else's
+      // collection, viewed read-only, not "mine" in either sense). Deliberately
+      // doesn't resolve the owner's profile - unlike friend/share-recipient
+      // lookups, a public collection's viewer and owner aren't necessarily
+      // connected in any way, and /api/friends/profiles only resolves ids
+      // that are verifiably the caller's own friend - so the view stays
+      // anonymous rather than adding a new arbitrary-id-to-profile lookup.
+      fetchPublicCollection: async (collectionId) => {
+        try {
+          const { data, error } = await (supabase as any)
+            .from(TABLE)
+            .select('*')
+            .eq('id', collectionId)
+            .eq('is_public', true)
+            .maybeSingle();
+          if (error) throw error;
+          return (data as SmartCollection) ?? null;
+        } catch (e) {
+          console.warn('fetchPublicCollection failed:', e);
+          return null;
         }
       },
     }),

@@ -131,6 +131,9 @@ export interface SmartCollection {
   media_ids: string[];
   filter_criteria: FilterCriteria | null;
   is_auto_generated: boolean;
+  // Viewable by any signed-in MediaMind user via its public link, not just
+  // friends/collaborators - see the "select public collections" RLS policy.
+  is_public: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -204,6 +207,38 @@ export interface CollectionShareWithProfile extends CollectionShare {
 // A collection someone else shared with me, annotated with who owns it.
 export interface SharedCollection extends SmartCollection {
   owner: { id: string; name: string; imageUrl: string | null } | null;
+}
+
+// =====================================================
+// Recommendations Type ("send this to a friend")
+// =====================================================
+
+// A snapshot of the sender's media row at send-time, not a live reference -
+// see the recommendations table's comment in supabase/schema.sql.
+export interface Recommendation {
+  id: string;
+  from_user_id: string;
+  to_user_id: string;
+  title: string;
+  type: MediaType;
+  poster_url: string | null;
+  description: string | null;
+  release_year: number | null;
+  api_rating: number | null;
+  genres: string[];
+  tmdb_id: number | null;
+  mal_id: number | null;
+  rawg_id: number | null;
+  google_books_id: string | null;
+  message: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+// An inbox row, annotated with who sent it (resolved server-side, same as
+// FriendshipWithProfile - the client can't look up Clerk users directly).
+export interface RecommendationWithProfile extends Recommendation {
+  otherUser: { id: string; name: string; imageUrl: string | null } | null;
 }
 
 // =====================================================

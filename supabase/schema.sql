@@ -830,3 +830,120 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION redeem_collection_code(TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION redeem_collection_code(TEXT) TO authenticated;
+
+-- ============================================================
+-- PHASE 2 (round 2): Reviews (reuses media.user_rating/notes, no schema
+-- change - see MediaDetail.tsx), Recommendations, Public collections
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- Public collections
+-- ------------------------------------------------------------
+ALTER TABLE smart_collections ADD COLUMN is_public BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Anyone signed in to MediaMind (not just friends/collaborators) can read a
+-- collection its owner has flagged public - explicitly scoped TO
+-- authenticated since, unlike every other policy on this table, the USING
+-- clause doesn't itself reference auth.jwt(), so without this restriction
+-- the anon role's default table-level grants (Supabase grants anon+
+-- authenticated full CRUD at the table level by default; RLS conditions are
+-- the only thing actually gating access) would make public collections
+-- readable with zero sign-in at all.
+CREATE POLICY "select public collections" ON smart_collections FOR SELECT
+  TO authenticated
+  USING (is_public = true);
+
+-- Companion fix for a real pre-existing gap: a collection_shares recipient
+-- (via per-friend share OR a redeemed collection invite code - the latter
+-- deliberately doesn't require friendship) could already read the
+-- smart_collections row itself ("select shared collections"), but nothing
+-- extended the *media* table's RLS to match, so the actual titles inside
+-- someone else's shared collection were invisible unless the two users
+-- also happened to be friends. Public collections need the identical
+-- extension. TO authenticated for the same anon-bypass reason as above.
+CREATE POLICY "select collection-shared media" ON media FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM smart_collections sc
+      WHERE media.id = ANY(sc.media_ids)
+        AND (
+          sc.is_public = true
+          OR EXISTS (
+            SELECT 1 FROM collection_shares cs
+            WHERE cs.collection_id = sc.id AND cs.shared_with_id = auth.jwt()->>'sub'
+          )
+        )
+    )
+  );
+
+-- ------------------------------------------------------------
+-- Recommendations ("send this to a friend")
+-- ------------------------------------------------------------
+-- A snapshot of the sender's media row at send-time, not a live reference -
+-- keeps this working even if the sender later edits/deletes their copy,
+-- and avoids needing another SECURITY DEFINER cross-user lookup just to
+-- render an inbox card (same reasoning as collection invite codes storing
+-- their own preview fields rather than joining live).
+CREATE TABLE recommendations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  from_user_id TEXT NOT NULL,
+  to_user_id TEXT NOT NULL,
+
+  title TEXT NOT NULL,
+  type media_type NOT NULL,
+  poster_url TEXT,
+  description TEXT,
+  release_year INTEGER,
+  api_rating DECIMAL(3,1),
+  genres TEXT[] DEFAULT '{}',
+  tmdb_id INTEGER,
+  mal_id INTEGER,
+  rawg_id INTEGER,
+  google_books_id TEXT,
+
+  message TEXT,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT no_self_recommend CHECK (from_user_id <> to_user_id)
+);
+
+CREATE INDEX idx_recommendations_to_user ON recommendations(to_user_id, created_at DESC);
+CREATE INDEX idx_recommendations_from_user ON recommendations(from_user_id, created_at DESC);
+
+ALTER TABLE recommendations ENABLE ROW LEVEL SECURITY;
+
+-- Either party can see it - the sender to know what they've sent, the
+-- recipient for their inbox. Same pattern as friendships/collection_shares.
+CREATE POLICY "select own recommendations" ON recommendations FOR SELECT
+  USING (auth.jwt()->>'sub' = from_user_id OR auth.jwt()->>'sub' = to_user_id);
+
+-- Only to an accepted friend, and only as yourself - checked server-side
+-- via RLS rather than trusted from the client, same as collection_shares'
+-- insert policy.
+CREATE POLICY "recommend to a friend" ON recommendations FOR INSERT
+  WITH CHECK (
+    auth.jwt()->>'sub' = from_user_id
+    AND EXISTS (
+      SELECT 1 FROM friendships
+      WHERE status = 'accepted'
+        AND (
+          (requester_id = auth.jwt()->>'sub' AND addressee_id = to_user_id)
+          OR (addressee_id = auth.jwt()->>'sub' AND requester_id = to_user_id)
+        )
+    )
+  );
+
+-- Recipient marks it read - the only mutation the app makes to an existing
+-- row.
+CREATE POLICY "recipient marks recommendation read" ON recommendations FOR UPDATE
+  USING (auth.jwt()->>'sub' = to_user_id)
+  WITH CHECK (auth.jwt()->>'sub' = to_user_id);
+
+-- Either party can clear it from their own view (sender un-sends, recipient
+-- dismisses) - one row serves both, same as a friendship or collection
+-- share, so either side removing it removes it for both, consistent with
+-- those.
+CREATE POLICY "either party deletes recommendation" ON recommendations FOR DELETE
+  USING (auth.jwt()->>'sub' = from_user_id OR auth.jwt()->>'sub' = to_user_id);

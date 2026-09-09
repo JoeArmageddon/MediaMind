@@ -15,6 +15,7 @@ import {
   Tv2,
   Loader2,
   Brain,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusSelect } from './StatusSelect';
 import { ProgressControl } from './ProgressControl';
 import { AISuggestionsDialog } from './AISuggestionsDialog';
+import { RecommendDialog } from './RecommendDialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, getTypeLabel, formatDate } from '@/lib/utils';
 import { createJustWatchClient } from '@/lib/api/justwatch';
@@ -54,6 +56,7 @@ export function MediaDetail({
 }: MediaDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [showRecommend, setShowRecommend] = useState(false);
   const [isFindingStreaming, setIsFindingStreaming] = useState(false);
   const [streamingError, setStreamingError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -338,11 +341,11 @@ export function MediaDetail({
                 >
                   Streaming
                 </TabsTrigger>
-                <TabsTrigger 
+                <TabsTrigger
                   value="notes"
                   className="flex-1 text-xs lg:text-sm py-2 data-[state=active]:bg-violet-600/20 data-[state=active]:text-violet-300"
                 >
-                  Notes
+                  {readOnly ? 'Review' : 'Your Review'}
                 </TabsTrigger>
               </TabsList>
 
@@ -376,14 +379,24 @@ export function MediaDetail({
                 </div>
 
                 {!readOnly && (
-                  <Button
-                    variant="outline"
-                    className="w-full border-violet-500/30 bg-violet-500/5 h-10 text-sm"
-                    onClick={() => setShowAISuggestions(true)}
-                  >
-                    <Sparkles className="mr-2 h-4 w-4 text-violet-400" />
-                    AI Suggestions
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-violet-500/30 bg-violet-500/5 h-10 text-sm"
+                      onClick={() => setShowAISuggestions(true)}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4 text-violet-400" />
+                      AI Suggestions
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-indigo-500/30 bg-indigo-500/5 h-10 text-sm"
+                      onClick={() => setShowRecommend(true)}
+                    >
+                      <Send className="mr-2 h-4 w-4 text-indigo-400" />
+                      Recommend
+                    </Button>
+                  </div>
                 )}
 
                 {/* Thematic Analysis */}
@@ -510,15 +523,44 @@ export function MediaDetail({
                 )}
               </TabsContent>
 
-              <TabsContent value="notes" className="mt-3">
+              <TabsContent value="notes" className="mt-3 space-y-3">
+                <div className="flex items-center gap-1">
+                  {[2, 4, 6, 8, 10].map((value) => {
+                    const filled = (media.user_rating ?? 0) >= value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => onUpdate?.({ user_rating: media.user_rating === value ? null : value })}
+                        className={cn(
+                          'p-0.5 transition-colors',
+                          readOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110'
+                        )}
+                        title={`${value / 2} / 5`}
+                      >
+                        <Star
+                          className={cn(
+                            'h-5 w-5',
+                            filled ? 'fill-yellow-400 text-yellow-400' : 'text-white/20'
+                          )}
+                        />
+                      </button>
+                    );
+                  })}
+                  {media.user_rating != null && (
+                    <span className="text-xs text-white/40 ml-1">{(media.user_rating / 2).toFixed(1)} / 5</span>
+                  )}
+                </div>
+
                 {readOnly ? (
                   <p className="w-full min-h-[80px] rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-white/70 whitespace-pre-wrap">
-                    {notesDraft || 'No notes.'}
+                    {notesDraft || 'No review written.'}
                   </p>
                 ) : (
                   <textarea
                     className="w-full min-h-[120px] lg:min-h-[150px] rounded-lg bg-white/5 border border-white/10 p-3 text-sm resize-none focus:outline-none focus:border-violet-500/50 text-white"
-                    placeholder="Add your notes..."
+                    placeholder="What did you think?"
                     value={notesDraft}
                     onChange={(e) => scheduleNotesUpdate(e.target.value)}
                     onBlur={flushNotesUpdate}
@@ -543,6 +585,7 @@ export function MediaDetail({
       </div>
 
       <AISuggestionsDialog media={media} open={showAISuggestions} onOpenChange={setShowAISuggestions} />
+      <RecommendDialog media={media} open={showRecommend} onOpenChange={setShowRecommend} />
     </ScrollArea>
   );
 }

@@ -21,6 +21,7 @@ function collection(overrides: Partial<SmartCollection>): SmartCollection {
     media_ids: [],
     filter_criteria: null,
     is_auto_generated: false,
+    is_public: false,
     created_at: now,
     updated_at: now,
     ...overrides,
@@ -81,6 +82,7 @@ describe('collectionStore', () => {
       media_ids: [],
       filter_criteria: null,
       is_auto_generated: false,
+      is_public: false,
     });
 
     expect(mockFrom).not.toHaveBeenCalled();
@@ -99,6 +101,7 @@ describe('collectionStore', () => {
       media_ids: [],
       filter_criteria: null,
       is_auto_generated: false,
+      is_public: false,
     });
 
     const queued = await db.syncQueue.toArray();

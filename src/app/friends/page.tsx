@@ -2,7 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, UserPlus, Users, Check, X, Trash2, Loader2, Library, Copy, RefreshCw, QrCode } from 'lucide-react';
+import {
+  ArrowLeft,
+  UserPlus,
+  Users,
+  Check,
+  X,
+  Trash2,
+  Loader2,
+  Library,
+  Copy,
+  RefreshCw,
+  QrCode,
+  Inbox,
+  Send,
+  Plus,
+} from 'lucide-react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
@@ -10,8 +25,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFriendStore } from '@/store/friendStore';
-import { cn } from '@/lib/utils';
-import type { FriendshipWithProfile } from '@/types';
+import { useRecommendationStore } from '@/store/recommendationStore';
+import { useMediaStore } from '@/store/mediaStore';
+import { cn, getTypeLabel } from '@/lib/utils';
+import type { FriendshipWithProfile, RecommendationWithProfile } from '@/types';
 
 function Avatar({ user }: { user: FriendshipWithProfile['otherUser'] }) {
   const initial = user?.name?.[0]?.toUpperCase() || '?';
@@ -128,6 +145,84 @@ function InviteCodeCard() {
   );
 }
 
+function RecommendationCard({
+  rec,
+  direction,
+  onAdd,
+  onDismiss,
+  isAdding,
+  added,
+}: {
+  rec: RecommendationWithProfile;
+  direction: 'received' | 'sent';
+  onAdd?: () => void;
+  onDismiss: () => void;
+  isAdding?: boolean;
+  added?: boolean;
+}) {
+  return (
+    <div className="glass-card rounded-2xl p-4 flex gap-3">
+      {rec.poster_url ? (
+        <img src={rec.poster_url} alt={rec.title} className="w-12 h-16 object-cover rounded-lg shrink-0" />
+      ) : (
+        <div className="w-12 h-16 bg-white/10 rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
+          {rec.title[0]}
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-white font-semibold truncate">{rec.title}</p>
+            <p className="text-[10px] text-white/40 uppercase tracking-wide">
+              {getTypeLabel(rec.type)}
+              {rec.release_year ? ` - ${rec.release_year}` : ''}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onDismiss}
+            className="text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg h-7 w-7 shrink-0"
+            title="Dismiss"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <p className="text-xs text-white/40 mt-1">
+          {direction === 'received' ? 'From ' : 'To '}
+          {rec.otherUser?.name ?? 'Unknown user'}
+        </p>
+        {rec.message && <p className="text-sm text-white/70 mt-1.5 italic">&quot;{rec.message}&quot;</p>}
+        {direction === 'received' && (
+          <Button
+            size="sm"
+            onClick={onAdd}
+            disabled={isAdding || added}
+            className={cn(
+              'rounded-lg text-xs mt-2',
+              added ? 'bg-green-600 hover:bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'
+            )}
+          >
+            {isAdding ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : added ? (
+              <>
+                <Check className="h-3.5 w-3.5 mr-1" />
+                Added
+              </>
+            ) : (
+              <>
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add to Library
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function FriendsPage() {
   const router = useRouter();
   const {
@@ -141,11 +236,81 @@ export default function FriendsPage() {
     declineRequest,
     removeFriend,
   } = useFriendStore();
+  const { inbox, sent, fetchInbox, fetchSent, markRead, dismiss: dismissRecommendation } = useRecommendationStore();
+  const { addMedia } = useMediaStore();
 
   const [codeInput, setCodeInput] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState('friends');
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetchInbox();
+    fetchSent();
+  }, [fetchInbox, fetchSent]);
+
+  // Mark the inbox read once its tab is actually opened, not on page load -
+  // the unread badge should stay visible until the recipient has actually
+  // looked, same reasoning as the Requests tab's badge.
+  useEffect(() => {
+    if (activeTab !== 'recommendations') return;
+    const unread = inbox.filter((r) => !r.is_read);
+    if (unread.length === 0) return;
+    unread.forEach((r) => markRead(r.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const handleAddRecommendation = async (rec: RecommendationWithProfile) => {
+    setAddingId(rec.id);
+    try {
+      await addMedia({
+        title: rec.title,
+        normalized_title: rec.title.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        type: rec.type,
+        poster_url: rec.poster_url,
+        backdrop_url: null,
+        description: rec.description,
+        release_year: rec.release_year,
+        api_rating: rec.api_rating,
+        genres: rec.genres,
+        tags: [],
+        studios: [],
+        total_units: 0,
+        progress: 0,
+        completion_percent: 0,
+        status: 'planned',
+        is_favorite: false,
+        is_archived: false,
+        notes: null,
+        user_rating: null,
+        streaming_platforms: [],
+        ai_primary_tone: null,
+        ai_secondary_tone: null,
+        ai_core_themes: [],
+        ai_emotional_intensity: null,
+        ai_pacing: null,
+        ai_darkness_level: null,
+        ai_intellectual_depth: null,
+        completed_at: null,
+        tmdb_id: rec.tmdb_id,
+        mal_id: rec.mal_id,
+        rawg_id: rec.rawg_id,
+        google_books_id: rec.google_books_id,
+      });
+      setAddedIds((prev) => new Set(prev).add(rec.id));
+    } catch (e) {
+      // A 23505 (already in your library) is the common case here - not
+      // worth a scary error, the item's already where they wanted it.
+      console.warn('Failed to add recommended title:', e);
+      setAddedIds((prev) => new Set(prev).add(rec.id));
+    } finally {
+      setAddingId(null);
+    }
+  };
+
+  const unreadCount = inbox.filter((r) => !r.is_read).length;
 
   useEffect(() => {
     fetchFriends();
@@ -210,22 +375,34 @@ export default function FriendsPage() {
       <InviteCodeCard />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-2xl h-auto">
+        <TabsList className="grid w-full grid-cols-3 bg-white/5 p-1 rounded-2xl h-auto">
           <TabsTrigger
             value="friends"
-            className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+            className="rounded-xl py-3 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
           >
-            <Users className="h-4 w-4 mr-2" />
-            Friends ({friends.length})
+            <Users className="h-4 w-4 mr-1.5 shrink-0" />
+            <span className="truncate">Friends ({friends.length})</span>
           </TabsTrigger>
           <TabsTrigger
             value="requests"
-            className="rounded-xl py-3 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60 relative"
+            className="rounded-xl py-3 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60 relative"
           >
-            Requests
+            <span className="truncate">Requests</span>
             {incomingRequests.length > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-fuchsia-600 text-white text-[10px] font-bold">
+              <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-fuchsia-600 text-white text-[10px] font-bold shrink-0">
                 {incomingRequests.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="recommendations"
+            className="rounded-xl py-3 text-xs sm:text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60 relative"
+          >
+            <Inbox className="h-4 w-4 mr-1.5 shrink-0" />
+            <span className="truncate">For You</span>
+            {unreadCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-fuchsia-600 text-white text-[10px] font-bold shrink-0">
+                {unreadCount}
               </span>
             )}
           </TabsTrigger>
@@ -370,6 +547,56 @@ export default function FriendsPage() {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="recommendations" className="mt-6 space-y-6">
+          <div>
+            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">
+              Sent to you ({inbox.length})
+            </h4>
+            {inbox.length === 0 ? (
+              <p className="text-white/40 text-sm">
+                Nothing yet - when a friend recommends a title, it shows up here.
+              </p>
+            ) : (
+              <div className="grid gap-3">
+                {inbox.map((rec) => (
+                  <RecommendationCard
+                    key={rec.id}
+                    rec={rec}
+                    direction="received"
+                    onAdd={() => handleAddRecommendation(rec)}
+                    onDismiss={() => dismissRecommendation(rec.id)}
+                    isAdding={addingId === rec.id}
+                    added={addedIds.has(rec.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">
+              Sent by you ({sent.length})
+            </h4>
+            {sent.length === 0 ? (
+              <p className="text-white/40 text-sm">
+                Recommend a title from its detail view - look for the <Send className="h-3 w-3 inline mx-0.5" />{' '}
+                Recommend button.
+              </p>
+            ) : (
+              <div className="grid gap-3">
+                {sent.map((rec) => (
+                  <RecommendationCard
+                    key={rec.id}
+                    rec={rec}
+                    direction="sent"
+                    onDismiss={() => dismissRecommendation(rec.id)}
+                  />
                 ))}
               </div>
             )}
