@@ -5,7 +5,12 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 // who doesn't have an account yet (the page itself prompts sign-up/sign-in
 // and preserves the code to redeem right after), so it can't sit behind
 // the same gate as the rest of the app.
-const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)', '/invite/(.*)']);
+const isPublicRoute = createRouteMatcher([
+  '/sign-in(.*)',
+  '/sign-up(.*)',
+  '/invite/(.*)',
+  '/collection-invite/(.*)',
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {

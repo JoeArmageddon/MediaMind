@@ -618,10 +618,13 @@ CREATE POLICY "delete own invite code" ON friend_invite_codes FOR DELETE
 
 -- Resolves a code to its owner's Clerk id, no side effects - used for the
 -- invite landing page's "X invited you - Accept?" preview before the
--- friendship is actually created. Explicitly revoked from PUBLIC/anon
--- below and granted only to `authenticated` - Postgres grants EXECUTE to
--- PUBLIC by default on a new function, which the plain GRANT alone
--- doesn't override.
+-- friendship is actually created. Explicitly revoked from both PUBLIC and
+-- `anon` below and granted only to `authenticated` - Supabase's default
+-- privileges grant `anon` EXECUTE on every new function in the public
+-- schema directly (not just via PUBLIC), so revoking from PUBLIC alone
+-- does not actually close this off; confirmed live via
+-- has_function_privilege('anon', ...) after a REVOKE ... FROM PUBLIC-only
+-- attempt still returned true.
 CREATE OR REPLACE FUNCTION preview_friend_code(target_code TEXT)
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -646,7 +649,7 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION preview_friend_code(TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION preview_friend_code(TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION preview_friend_code(TEXT) TO authenticated;
 
 -- Resolves a code to its owner and creates (or upgrades to accepted) the
@@ -704,5 +707,126 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION redeem_friend_code(TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION redeem_friend_code(TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION redeem_friend_code(TEXT) TO authenticated;
+
+-- =====================================================
+-- Collection invite codes (codes / QR / shareable links)
+-- =====================================================
+
+-- One shareable code per collection. Same no-general-read-policy pattern
+-- as friend_invite_codes above.
+CREATE TABLE collection_invite_codes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  collection_id UUID NOT NULL UNIQUE REFERENCES smart_collections(id) ON DELETE CASCADE,
+  code TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_collection_invite_codes_code ON collection_invite_codes(code);
+
+CREATE TRIGGER update_collection_invite_codes_updated_at
+  BEFORE UPDATE ON collection_invite_codes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE collection_invite_codes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "select own collection invite code" ON collection_invite_codes FOR SELECT
+  USING (EXISTS (SELECT 1 FROM smart_collections WHERE id = collection_id AND user_id = auth.jwt()->>'sub'));
+
+CREATE POLICY "insert own collection invite code" ON collection_invite_codes FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM smart_collections WHERE id = collection_id AND user_id = auth.jwt()->>'sub'));
+
+CREATE POLICY "update own collection invite code" ON collection_invite_codes FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM smart_collections WHERE id = collection_id AND user_id = auth.jwt()->>'sub'))
+  WITH CHECK (EXISTS (SELECT 1 FROM smart_collections WHERE id = collection_id AND user_id = auth.jwt()->>'sub'));
+
+CREATE POLICY "delete own collection invite code" ON collection_invite_codes FOR DELETE
+  USING (EXISTS (SELECT 1 FROM smart_collections WHERE id = collection_id AND user_id = auth.jwt()->>'sub'));
+
+-- Resolves a code to the collection's own public-facing info, no side
+-- effects - for the invite landing page's preview before joining.
+CREATE OR REPLACE FUNCTION preview_collection_code(target_code TEXT)
+RETURNS TABLE(collection_id UUID, title TEXT, description TEXT, owner_id TEXT, item_count INT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  caller_id TEXT := auth.jwt()->>'sub';
+  found_collection_id UUID;
+BEGIN
+  IF caller_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  SELECT cic.collection_id INTO found_collection_id
+  FROM collection_invite_codes cic
+  WHERE cic.code = target_code;
+
+  IF found_collection_id IS NULL THEN
+    RAISE EXCEPTION 'invalid_code';
+  END IF;
+
+  RETURN QUERY
+  SELECT sc.id, sc.title, sc.description, sc.user_id, COALESCE(array_length(sc.media_ids, 1), 0)
+  FROM smart_collections sc
+  WHERE sc.id = found_collection_id;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION preview_collection_code(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION preview_collection_code(TEXT) TO authenticated;
+
+-- Resolves a code and inserts the collaborator row directly - possessing
+-- the code/link/QR is its own authorization, deliberately superseding the
+-- "owner shares own collection with a friend" policy's friendship
+-- requirement (a code-based invite works for anyone, not just existing
+-- friends, same as a shared doc link doesn't require being a contact
+-- first) - safe because this is the only path that can ever write a
+-- collection_shares row without a pre-existing friendship, and it still
+-- requires knowing the unguessable code.
+CREATE OR REPLACE FUNCTION redeem_collection_code(target_code TEXT)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  caller_id TEXT := auth.jwt()->>'sub';
+  found_collection_id UUID;
+  found_owner_id TEXT;
+BEGIN
+  IF caller_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  SELECT cic.collection_id INTO found_collection_id
+  FROM collection_invite_codes cic
+  WHERE cic.code = target_code;
+
+  IF found_collection_id IS NULL THEN
+    RAISE EXCEPTION 'invalid_code';
+  END IF;
+
+  SELECT user_id INTO found_owner_id FROM smart_collections WHERE id = found_collection_id;
+
+  IF found_owner_id IS NULL THEN
+    RAISE EXCEPTION 'invalid_code';
+  END IF;
+
+  IF found_owner_id = caller_id THEN
+    RAISE EXCEPTION 'self_code';
+  END IF;
+
+  INSERT INTO collection_shares (collection_id, owner_id, shared_with_id)
+  VALUES (found_collection_id, found_owner_id, caller_id)
+  ON CONFLICT (collection_id, shared_with_id) DO NOTHING;
+
+  RETURN found_collection_id;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION redeem_collection_code(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION redeem_collection_code(TEXT) TO authenticated;

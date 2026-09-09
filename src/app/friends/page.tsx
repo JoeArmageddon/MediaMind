@@ -28,7 +28,7 @@ function Avatar({ user }: { user: FriendshipWithProfile['otherUser'] }) {
 function InviteCodeCard() {
   const { myInviteCode, isLoadingCode, fetchMyInviteCode, regenerateInviteCode } = useFriendStore();
   const [showQr, setShowQr] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'link' | 'code' | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
@@ -38,15 +38,15 @@ function InviteCodeCard() {
   const link =
     myInviteCode && typeof window !== 'undefined' ? `${window.location.origin}/invite/${myInviteCode}` : '';
 
-  const handleCopy = async () => {
-    if (!link) return;
+  const copy = async (value: string, which: 'link' | 'code') => {
+    if (!value) return;
     try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(value);
+      setCopied(which);
+      setTimeout(() => setCopied(null), 2000);
     } catch {
       // Clipboard API can be denied/unavailable - not worth surfacing an
-      // error for, the link is right there to select manually either way.
+      // error for, the value is right there to select manually either way.
     }
   };
 
@@ -72,17 +72,26 @@ function InviteCodeCard() {
       ) : (
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex-1 min-w-[200px]">
-            <div className="font-mono text-2xl font-black text-white tracking-[0.2em] mb-3">
-              {myInviteCode}
-            </div>
+            <button
+              onClick={() => copy(myInviteCode ?? '', 'code')}
+              title="Copy code"
+              className="group flex items-center gap-2 mb-3 -ml-1 px-1 rounded-lg hover:bg-white/5 transition-colors"
+            >
+              <span className="font-mono text-2xl font-black text-white tracking-[0.2em]">{myInviteCode}</span>
+              {copied === 'code' ? (
+                <Check className="h-4 w-4 text-green-400" />
+              ) : (
+                <Copy className="h-4 w-4 text-white/30 group-hover:text-white/60" />
+              )}
+            </button>
             <div className="flex gap-2 flex-wrap">
               <Button
-                onClick={handleCopy}
+                onClick={() => copy(link, 'link')}
                 size="sm"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
               >
-                {copied ? <Check className="h-3.5 w-3.5 mr-1.5" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
-                {copied ? 'Copied' : 'Copy link'}
+                {copied === 'link' ? <Check className="h-3.5 w-3.5 mr-1.5" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+                {copied === 'link' ? 'Copied' : 'Copy link'}
               </Button>
               <Button
                 onClick={() => setShowQr((s) => !s)}
@@ -127,14 +136,14 @@ export default function FriendsPage() {
     outgoingRequests,
     isLoading,
     fetchFriends,
-    sendRequest,
+    redeemInviteCode,
     acceptRequest,
     declineRequest,
     removeFriend,
   } = useFriendStore();
 
-  const [email, setEmail] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const [codeInput, setCodeInput] = useState('');
+  const [isRedeeming, setIsRedeeming] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState('friends');
 
@@ -142,14 +151,14 @@ export default function FriendsPage() {
     fetchFriends();
   }, [fetchFriends]);
 
-  const handleSend = async () => {
-    if (!email.trim()) return;
-    setIsSending(true);
+  const handleRedeem = async () => {
+    if (!codeInput.trim()) return;
+    setIsRedeeming(true);
     setFeedback(null);
-    const result = await sendRequest(email.trim());
+    const result = await redeemInviteCode(codeInput.trim().toUpperCase());
     setFeedback({ ok: result.success, text: result.message });
-    if (result.success) setEmail('');
-    setIsSending(false);
+    if (result.success) setCodeInput('');
+    setIsRedeeming(false);
   };
 
   return (
@@ -169,7 +178,7 @@ export default function FriendsPage() {
         </div>
       </div>
 
-      {/* Add friend */}
+      {/* Add friend by code */}
       <div className="glass-card rounded-[24px] p-6">
         <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3 flex items-center gap-2">
           <UserPlus className="h-4 w-4" />
@@ -177,19 +186,18 @@ export default function FriendsPage() {
         </h3>
         <div className="flex gap-2">
           <Input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Their email address"
-            type="email"
-            className="bg-black border-white/10 rounded-xl h-12 flex-1"
+            value={codeInput}
+            onChange={(e) => setCodeInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleRedeem()}
+            placeholder="Enter their invite code"
+            className="bg-black border-white/10 rounded-xl h-12 flex-1 font-mono uppercase tracking-widest placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
           />
           <Button
-            onClick={handleSend}
-            disabled={isSending || !email.trim()}
+            onClick={handleRedeem}
+            disabled={isRedeeming || !codeInput.trim()}
             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 px-6"
           >
-            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
+            {isRedeeming ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Connect'}
           </Button>
         </div>
         {feedback && (
@@ -231,7 +239,7 @@ export default function FriendsPage() {
           ) : friends.length === 0 ? (
             <div className="glass-card rounded-[28px] p-12 text-center">
               <Users className="h-12 w-12 text-white/20 mx-auto mb-4" />
-              <p className="text-white/50">No friends yet. Add someone by email above.</p>
+              <p className="text-white/50">No friends yet. Enter their invite code above, or share yours.</p>
             </div>
           ) : (
             <div className="grid gap-3">

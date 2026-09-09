@@ -2,7 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowLeft, Plus, Film, Wand2, Folder, Trash2, Share2, Users, X, Loader2 } from 'lucide-react';
+import {
+  Sparkles,
+  ArrowLeft,
+  Plus,
+  Film,
+  Wand2,
+  Folder,
+  Trash2,
+  Share2,
+  Users,
+  X,
+  Loader2,
+  QrCode,
+  Copy,
+  Check,
+  RefreshCw,
+  Search,
+} from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -10,6 +28,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getAIClient } from '@/lib/ai';
+import { getSearchOrchestrator } from '@/lib/api/search';
+import { mapExternalIds } from '@/lib/api/externalId';
 import { MediaDetail } from '@/components/media/MediaDetail';
 import { useMediaStore } from '@/store/mediaStore';
 import { useCollectionStore } from '@/store/collectionStore';
@@ -17,7 +37,14 @@ import { useFriendStore } from '@/store/friendStore';
 import { supabase } from '@/lib/db/supabase';
 import { db, type AICollectionDraft } from '@/lib/db/dexie';
 import { cn, getTypeLabel } from '@/lib/utils';
-import type { AISmartCollection, SmartCollection, SharedCollection, CollectionShareWithProfile, Media } from '@/types';
+import type {
+  AISmartCollection,
+  SmartCollection,
+  SharedCollection,
+  CollectionShareWithProfile,
+  Media,
+  SearchResult,
+} from '@/types';
 
 function UserCollectionCard({
   collection,
@@ -448,23 +475,56 @@ function ShareCollectionDialog({
   onClose: () => void;
 }) {
   const { friends, fetchFriends } = useFriendStore();
-  const { fetchSharesForCollection, shareCollection, unshareCollection } = useCollectionStore();
+  const {
+    fetchSharesForCollection,
+    shareCollection,
+    unshareCollection,
+    inviteCodes,
+    fetchCollectionInviteCode,
+    regenerateCollectionInviteCode,
+  } = useCollectionStore();
   const [shares, setShares] = useState<CollectionShareWithProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [busyFriendId, setBusyFriendId] = useState<string | null>(null);
+  const [showQr, setShowQr] = useState(false);
+  const [copied, setCopied] = useState<'link' | 'code' | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     if (!collection) return;
     fetchFriends();
+    fetchCollectionInviteCode(collection.id);
     setIsLoading(true);
     fetchSharesForCollection(collection.id)
       .then(setShares)
       .finally(() => setIsLoading(false));
-  }, [collection, fetchFriends, fetchSharesForCollection]);
+  }, [collection, fetchFriends, fetchSharesForCollection, fetchCollectionInviteCode]);
 
   if (!collection) return null;
 
   const sharedWithIds = new Set(shares.map((s) => s.shared_with_id));
+  const code = inviteCodes[collection.id];
+  const link = code && typeof window !== 'undefined' ? `${window.location.origin}/collection-invite/${code}` : '';
+
+  const copy = async (value: string, which: 'link' | 'code') => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(which);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      // Clipboard denied/unavailable - not worth an error, it's on screen.
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!confirm('Generate a new invite code for this collection? The current code and link will stop working.')) {
+      return;
+    }
+    setIsRegenerating(true);
+    await regenerateCollectionInviteCode(collection.id);
+    setIsRegenerating(false);
+  };
 
   const handleToggle = async (friendId: string) => {
     setBusyFriendId(friendId);
@@ -494,7 +554,70 @@ function ShareCollectionDialog({
             Share &quot;{collection.title}&quot;
           </DialogTitle>
         </DialogHeader>
-        <div className="py-4">
+
+        {code && (
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-4 mb-2">
+            <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <QrCode className="h-3.5 w-3.5" />
+              Invite link - anyone with it can join
+            </h4>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex-1 min-w-[160px]">
+                <button
+                  onClick={() => copy(code, 'code')}
+                  className="group flex items-center gap-2 mb-2 -ml-1 px-1 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <span className="font-mono text-lg font-black text-white tracking-[0.15em]">{code}</span>
+                  {copied === 'code' ? (
+                    <Check className="h-3.5 w-3.5 text-green-400" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 text-white/30 group-hover:text-white/60" />
+                  )}
+                </button>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    onClick={() => copy(link, 'link')}
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs"
+                  >
+                    {copied === 'link' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                    {copied === 'link' ? 'Copied' : 'Copy link'}
+                  </Button>
+                  <Button
+                    onClick={() => setShowQr((s) => !s)}
+                    size="sm"
+                    variant="outline"
+                    className="border-white/10 text-white/70 hover:text-white hover:bg-white/10 rounded-lg text-xs"
+                  >
+                    <QrCode className="h-3 w-3 mr-1" />
+                    {showQr ? 'Hide QR' : 'Show QR'}
+                  </Button>
+                  <Button
+                    onClick={handleRegenerate}
+                    disabled={isRegenerating}
+                    size="sm"
+                    variant="ghost"
+                    className="text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                  >
+                    {isRegenerating ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              {showQr && link && (
+                <div className="bg-white p-2.5 rounded-xl shrink-0">
+                  <QRCodeSVG value={link} size={100} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="py-2">
+          <h4 className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">Share with a friend</h4>
           {isLoading ? (
             <div className="text-center py-8">
               <Loader2 className="h-5 w-5 text-white/30 mx-auto animate-spin" />
@@ -569,8 +692,16 @@ function AddMediaPickerDialog({
   excludeIds: string[];
   onAdd: (mediaId: string) => Promise<void> | void;
 }) {
+  const { addMedia } = useMediaStore();
+  const [tab, setTab] = useState<'library' | 'search'>('library');
   const [search, setSearch] = useState('');
   const [addingId, setAddingId] = useState<string | null>(null);
+
+  const [externalQuery, setExternalQuery] = useState('');
+  const [externalResults, setExternalResults] = useState<SearchResult[]>([]);
+  const [isSearchingExternal, setIsSearchingExternal] = useState(false);
+  const [addedExternalKeys, setAddedExternalKeys] = useState<Set<string>>(new Set());
+  const [externalError, setExternalError] = useState<string | null>(null);
 
   const available = pool.filter((m) => !excludeIds.includes(m.id));
   const filtered = search.trim()
@@ -586,57 +717,211 @@ function AddMediaPickerDialog({
     }
   };
 
+  const handleExternalSearch = async () => {
+    if (!externalQuery.trim()) return;
+    setIsSearchingExternal(true);
+    setExternalError(null);
+    try {
+      const orchestrator = getSearchOrchestrator();
+      const results = await orchestrator.search(externalQuery.trim(), undefined);
+      setExternalResults(results);
+    } catch (e) {
+      setExternalError(e instanceof Error ? e.message : 'Search failed.');
+    } finally {
+      setIsSearchingExternal(false);
+    }
+  };
+
+  // A title from external search isn't in your library yet - this creates
+  // it (same shape as the Search tab's own add flow) and then adds the
+  // newly created row to the collection via the same onAdd path used for
+  // an existing item, rather than needing a separate "unowned catalog
+  // reference" data model just for this.
+  const handleAddExternal = async (result: SearchResult) => {
+    const key = `${result.type}:${result.title}`;
+    setAddingId(key);
+    setExternalError(null);
+    try {
+      const externalIds = mapExternalIds(result);
+      const newMedia = await addMedia({
+        title: result.title,
+        normalized_title: result.title.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        type: result.type,
+        poster_url: result.poster_url,
+        backdrop_url: null,
+        description: result.description,
+        release_year: result.release_year,
+        api_rating: result.api_rating,
+        genres: result.genres,
+        tags: [],
+        studios: [],
+        total_units: result.total_units || 0,
+        progress: 0,
+        completion_percent: 0,
+        status: 'planned',
+        is_favorite: false,
+        is_archived: false,
+        notes: null,
+        user_rating: null,
+        streaming_platforms: [],
+        ai_primary_tone: null,
+        ai_secondary_tone: null,
+        ai_core_themes: [],
+        ai_emotional_intensity: null,
+        ai_pacing: null,
+        ai_darkness_level: null,
+        ai_intellectual_depth: null,
+        completed_at: null,
+        ...externalIds,
+      });
+      await onAdd(newMedia.id);
+      setAddedExternalKeys((prev) => new Set(prev).add(key));
+    } catch (e) {
+      setExternalError(e instanceof Error ? e.message : 'Failed to add this title.');
+    } finally {
+      setAddingId(null);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md bg-[#0a0a0a] border-white/10 rounded-[28px]">
         <DialogHeader>
           <DialogTitle className="text-xl font-black text-white">Add Media</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search your library..."
-            className="bg-black border-white/10 rounded-xl h-11"
-          />
-          <div className="max-h-80 overflow-y-auto space-y-2">
-            {filtered.length === 0 ? (
-              <p className="text-white/40 text-sm text-center py-6">
-                {available.length === 0 ? "Everything's already in this collection." : 'No matches.'}
-              </p>
-            ) : (
-              filtered.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {item.poster_url ? (
-                      <img src={item.poster_url} alt={item.title} className="w-9 h-12 object-cover rounded-lg shrink-0" />
-                    ) : (
-                      <div className="w-9 h-12 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
-                        {item.title[0]}
-                      </div>
-                    )}
-                    <span className="text-white text-sm truncate">{item.title}</span>
-                  </div>
-                  <Button
-                    size="sm"
-                    disabled={addingId === item.id}
-                    onClick={() => handleAdd(item.id)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shrink-0"
+
+        <Tabs value={tab} onValueChange={(v) => setTab(v as 'library' | 'search')} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-xl h-auto">
+            <TabsTrigger
+              value="library"
+              className="rounded-lg py-2 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+            >
+              My Library
+            </TabsTrigger>
+            <TabsTrigger
+              value="search"
+              className="rounded-lg py-2 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
+            >
+              <Search className="h-3.5 w-3.5 mr-1.5" />
+              Search Everywhere
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="library" className="space-y-3 mt-3">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search your library..."
+              className="bg-black border-white/10 rounded-xl h-11"
+            />
+            <div className="max-h-80 overflow-y-auto space-y-2">
+              {filtered.length === 0 ? (
+                <p className="text-white/40 text-sm text-center py-6">
+                  {available.length === 0 ? "Everything's already in this collection." : 'No matches.'}
+                </p>
+              ) : (
+                filtered.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10"
                   >
-                    {addingId === item.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Plus className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+                    <div className="flex items-center gap-3 min-w-0">
+                      {item.poster_url ? (
+                        <img src={item.poster_url} alt={item.title} className="w-9 h-12 object-cover rounded-lg shrink-0" />
+                      ) : (
+                        <div className="w-9 h-12 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
+                          {item.title[0]}
+                        </div>
+                      )}
+                      <span className="text-white text-sm truncate">{item.title}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={addingId === item.id}
+                      onClick={() => handleAdd(item.id)}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shrink-0"
+                    >
+                      {addingId === item.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="search" className="space-y-3 mt-3">
+            <p className="text-xs text-white/40 -mt-1">
+              Add a title you don&apos;t track yet - it's added to your library and this collection together.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={externalQuery}
+                onChange={(e) => setExternalQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleExternalSearch()}
+                placeholder="Search movies, TV, anime, books, games..."
+                className="bg-black border-white/10 rounded-xl h-11 flex-1"
+              />
+              <Button
+                onClick={handleExternalSearch}
+                disabled={isSearchingExternal || !externalQuery.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-11 px-4"
+              >
+                {isSearchingExternal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              </Button>
+            </div>
+            {externalError && <p className="text-xs text-red-400">{externalError}</p>}
+            <div className="max-h-72 overflow-y-auto space-y-2">
+              {externalResults.map((result, i) => {
+                const key = `${result.type}:${result.title}`;
+                const added = addedExternalKeys.has(key);
+                return (
+                  <div
+                    key={`${key}-${i}`}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {result.poster_url ? (
+                        <img src={result.poster_url} alt={result.title} className="w-9 h-12 object-cover rounded-lg shrink-0" />
+                      ) : (
+                        <div className="w-9 h-12 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
+                          {result.title[0]}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="text-white text-sm truncate block">{result.title}</span>
+                        <span className="text-[10px] text-white/40 uppercase tracking-wide">
+                          {getTypeLabel(result.type)}
+                          {result.release_year ? ` · ${result.release_year}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={added || addingId === key}
+                      onClick={() => !added && handleAddExternal(result)}
+                      className={cn(
+                        'rounded-lg shrink-0',
+                        added ? 'bg-green-600 hover:bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'
+                      )}
+                    >
+                      {addingId === key ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                      ) : added ? (
+                        <Check className="h-3.5 w-3.5 text-white" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5 text-white" />
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
