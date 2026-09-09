@@ -66,24 +66,39 @@ export class TMDBClient {
 
   private async fetch<T>(endpoint: string, signal?: AbortSignal): Promise<T | null> {
     const key = await this.getKey();
-    if (!key) {
-      throw new Error('No TMDB API key');
-    }
-
     const [path, query] = endpoint.split('?');
-    const proxyUrl = new URL(TMDB_PROXY_URL);
-    proxyUrl.searchParams.set('path', path);
-    if (query) {
-      new URLSearchParams(query).forEach((v, k) => proxyUrl.searchParams.set(k, v));
+
+    let response: Response;
+    if (key) {
+      // Own key - via the Supabase edge function proxy, which exists to
+      // route around ISP-level blocks of api.themoviedb.org on some
+      // networks (see TMDB_PROXY_URL's comment above).
+      const proxyUrl = new URL(TMDB_PROXY_URL);
+      proxyUrl.searchParams.set('path', path);
+      if (query) {
+        new URLSearchParams(query).forEach((v, k) => proxyUrl.searchParams.set(k, v));
+      }
+      proxyUrl.searchParams.set('api_key', key);
+
+      console.log('TMDB fetch (via proxy):', path);
+      response = await fetch(proxyUrl.toString(), {
+        signal,
+        headers: { Authorization: `Bearer ${supabaseAnonKey}` },
+      });
+    } else {
+      // No key of your own - fall back to our own server-side proxy (a
+      // shared default key, never exposed to the client). Runs on
+      // Vercel's servers, not the end user's network, so the ISP-block
+      // reason for the edge function above doesn't apply here.
+      const proxyUrl = new URL('/api/external/tmdb', window.location.origin);
+      proxyUrl.searchParams.set('path', path);
+      if (query) {
+        new URLSearchParams(query).forEach((v, k) => proxyUrl.searchParams.set(k, v));
+      }
+
+      console.log('TMDB fetch (via default-key proxy):', path);
+      response = await fetch(proxyUrl.toString(), { signal });
     }
-    proxyUrl.searchParams.set('api_key', key);
-
-    console.log('TMDB fetch (via proxy):', path);
-
-    const response = await fetch(proxyUrl.toString(), {
-      signal,
-      headers: { Authorization: `Bearer ${supabaseAnonKey}` },
-    });
 
     if (!response.ok) {
       throw new Error(`TMDB HTTP ${response.status}`);

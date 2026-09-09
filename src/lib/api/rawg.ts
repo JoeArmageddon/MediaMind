@@ -18,16 +18,23 @@ export class RAWGClient {
     // Always re-check for keys in case they were saved after initialization
     this.apiKey = await resolveApiKey('rawg_key', undefined);
 
-    if (!this.apiKey) {
-      console.error('Cannot fetch RAWG: No API key');
-      return null;
-    }
-
     try {
-      const response = await fetch(
-        `${RAWG_BASE_URL}${endpoint}&key=${this.apiKey}`,
-        { signal }
-      );
+      let response: Response;
+      if (this.apiKey) {
+        response = await fetch(`${RAWG_BASE_URL}${endpoint}&key=${this.apiKey}`, { signal });
+      } else {
+        // No key of your own - fall back to our server-side proxy (a
+        // shared default key, never exposed to the client). endpoint is
+        // e.g. "/games?search=...&page_size=20" - split into path+query
+        // the same way the proxy route expects.
+        const [path, query] = endpoint.split('?');
+        const proxyUrl = new URL('/api/external/rawg', window.location.origin);
+        proxyUrl.searchParams.set('path', path);
+        if (query) {
+          new URLSearchParams(query).forEach((v, k) => proxyUrl.searchParams.set(k, v));
+        }
+        response = await fetch(proxyUrl.toString(), { signal });
+      }
 
       if (!response.ok) {
         if (response.status === 404) return null;

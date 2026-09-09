@@ -65,7 +65,20 @@ export class GroqClient {
     await this.init();
 
     if (!this.client) {
-      throw new Error('Groq client not initialized - API key missing');
+      // No key of your own - fall back to the server-side proxy (see
+      // gemini.ts's generateContent() for the full reasoning; same
+      // pattern, src/app/api/ai/groq/route.ts).
+      const res = await fetch('/api/ai/groq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, temperature: opts?.temperature ?? 0.7 }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Groq proxy HTTP ${res.status}`);
+      }
+      const { text } = await res.json();
+      return text;
     }
 
     try {

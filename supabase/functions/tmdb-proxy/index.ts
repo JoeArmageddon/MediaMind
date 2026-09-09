@@ -9,11 +9,11 @@
 //
 // This is a plain passthrough: the client sends the TMDB endpoint path via
 // `?path=` plus TMDB's own query params (including `api_key`) verbatim, and
-// this just forwards them to TMDB and relays the response back. The TMDB
-// key was already meant to be public (NEXT_PUBLIC_-prefixed, shipped in the
-// client bundle) before this change, so nothing here makes it any less
-// public than it already was - this only relocates where the outbound
-// request to TMDB physically originates from.
+// this just forwards them to TMDB and relays the response back. Only ever
+// called with a user's OWN TMDB key (src/lib/api/tmdb.ts) - a user with no
+// key of their own goes through /api/external/tmdb (a Next.js route) using
+// a server-only default key instead, which never touches this function or
+// the client at all.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';

@@ -65,7 +65,21 @@ export class GeminiClient {
     await this.init();
 
     if (!this.client) {
-      throw new Error('Gemini client not initialized - API key missing');
+      // No key of your own - fall back to the server-side proxy (a
+      // shared default key, never exposed to the client) so AI features
+      // still work out of the box during the beta. See
+      // src/app/api/ai/gemini/route.ts.
+      const res = await fetch('/api/ai/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, temperature: opts?.temperature ?? 0.7 }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Gemini proxy HTTP ${res.status}`);
+      }
+      const { text } = await res.json();
+      return text;
     }
 
     try {
