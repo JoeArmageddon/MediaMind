@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle, Loader2, BookOpen, Moon } from 'lucide-react';
+import { ArrowLeft, Download, Upload, RefreshCw, Wifi, WifiOff, Key, Save, Trash2, CheckCircle, Loader2, BookOpen, Moon, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -345,6 +345,21 @@ export default function SettingsPage() {
         </div>
         <Switch checked={theme === 'manga'} onCheckedChange={toggleTheme} />
       </div>
+
+      {/* Help */}
+      <Link href="/help" className="block">
+        <div className="glass-card rounded-2xl p-4 flex items-center justify-between hover:border-[var(--mm-card-border-hover)] transition-colors">
+          <div className="flex items-center gap-3">
+            <HelpCircle className="h-5 w-5 text-[var(--mm-primary)]" />
+            <div>
+              <div className="font-bold text-[var(--mm-text)] text-sm">How it works</div>
+              <div className="text-xs text-[var(--mm-text-50)]">
+                Adding titles, friends, collections, AI setup, and more.
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
 
       {/* Status Card */}
       <div className="glass-card rounded-2xl p-4 flex items-center justify-between">
