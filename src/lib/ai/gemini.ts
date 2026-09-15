@@ -162,8 +162,15 @@ Rules:
     recentlyCompleted: Media[],
     topGenres: string[],
     mood?: string,
-    minutes?: number
+    minutes?: number,
+    avoidTitles: string[] = [],
+    onHold: Media[] = []
   ): Promise<AIRecommendation[]> {
+    const avoidBlock =
+      avoidTitles.length > 0
+        ? `\nALREADY SHOWN THIS SESSION - DO NOT REPEAT:\n${avoidTitles.map((t) => `- ${t}`).join('\n')}\n`
+        : '';
+
     const prompt = `USER MEDIA LIBRARY SUMMARY:
 
 Current Watching:
@@ -171,6 +178,9 @@ ${currentWatching.map(m => `- ${m.title} (${m.type})`).join('\n') || 'None'}
 
 Planned:
 ${planned.map(m => `- ${m.title} (${m.type}) [${m.genres.join(', ')}]`).join('\n') || 'None'}
+
+On Hold:
+${onHold.map(m => `- ${m.title} (${m.type}) [${m.genres.join(', ')}]`).join('\n') || 'None'}
 
 Recently Completed:
 ${recentlyCompleted.map(m => `- ${m.title} (${m.type})`).join('\n') || 'None'}
@@ -183,9 +193,9 @@ ${mood || 'Not specified'}
 
 Time Available:
 ${minutes ? `${minutes} minutes` : 'Flexible'}
-
+${avoidBlock}
 TASK:
-Recommend 3 items from Planned or On Hold.
+Recommend 5 items from Planned or On Hold.
 
 Return JSON:
 {
@@ -199,10 +209,12 @@ Return JSON:
 }
 
 Rules:
-- Do not recommend completed items.
+- Do not recommend completed items, or anything in the "already shown" list above.
 - Consider time availability.
-- Avoid genre burnout.
-- If mood given, prioritize alignment.
+- Avoid genre burnout - if Recently Completed leans heavily on one genre/tone, weight against more of the same rather than piling on.
+- If mood given, prioritize alignment over everything else.
+- Reasons must be specific to this person's actual library (reference a real pattern in what they've watched/planned, not a generic blurb that could apply to anyone) - one sharp sentence, not a summary of the plot.
+- Order by fit_score descending.
 - Be psychologically aware.`;
 
     const response = await this.generateContent(prompt);
@@ -240,9 +252,10 @@ Return JSON:
   // 4. Smart Collection Generator
   async generateSmartCollections(
     allMedia: Pick<Media, 'title' | 'type' | 'genres' | 'ai_primary_tone'>[],
-    avoidTitles: string[] = []
+    avoidTitles: string[] = [],
+    themeHint?: string
   ): Promise<AISmartCollection[]> {
-    const prompt = buildSmartCollectionsPrompt(allMedia, avoidTitles);
+    const prompt = buildSmartCollectionsPrompt(allMedia, avoidTitles, themeHint);
     const response = await this.generateContent(prompt, { temperature: SMART_COLLECTIONS_TEMPERATURE });
     const data = this.parseJSON<{ collections: AISmartCollection[] }>(response);
     return data.collections;

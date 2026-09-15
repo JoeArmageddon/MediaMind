@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Shuffle, Sparkles, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Shuffle, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -21,9 +21,23 @@ interface DiscoverDialogProps {
 export function DiscoverDialog({ open, onOpenChange, media, onPickMedia }: DiscoverDialogProps) {
   const [mood, setMood] = useState('');
   const [minutes, setMinutes] = useState('');
+  // Every title recommended so far in this open dialog - fed back as an
+  // avoid-list so "Refresh" actually returns something new instead of the
+  // model re-converging on the same handful of picks for the same input.
+  const [shownTitles, setShownTitles] = useState<string[]>([]);
   const { recommendationCache, isLoadingRecommendations, error, setRecommendations, setLoading, setError } = useAIStore();
 
   const planned = media.filter((m) => m.status === 'planned');
+  const onHold = media.filter((m) => m.status === 'on_hold');
+  // The actual pool getRecommendations is told to pick from - used to
+  // resolve a recommended title back to a real Media row when it's clicked.
+  const candidatePool = [...planned, ...onHold];
+
+  // A fresh open should start clean, not carry over a previous session's
+  // avoid-list or a mood/minutes typed in for a different browsing moment.
+  useEffect(() => {
+    if (open) setShownTitles([]);
+  }, [open]);
 
   const pickRandom = () => {
     if (planned.length === 0) return;
@@ -57,11 +71,14 @@ export function DiscoverDialog({ open, onOpenChange, media, onPickMedia }: Disco
         recentlyCompleted,
         topGenres,
         mood.trim() || undefined,
-        minutes ? Number(minutes) : undefined
+        minutes ? Number(minutes) : undefined,
+        shownTitles,
+        onHold
       );
 
       if (result) {
         setRecommendations(result);
+        setShownTitles((prev) => [...prev, ...result.map((r) => r.title)]);
       } else {
         setError('AI recommendations are unavailable right now - check that a Groq or Gemini API key is set in Settings.');
       }
@@ -70,6 +87,13 @@ export function DiscoverDialog({ open, onOpenChange, media, onPickMedia }: Disco
     } finally {
       setLoading('recommendations', false);
     }
+  };
+
+  const openRecommendation = (title: string) => {
+    const match = candidatePool.find((m) => m.title.trim().toLowerCase() === title.trim().toLowerCase());
+    if (!match) return;
+    onPickMedia(match);
+    onOpenChange(false);
   };
 
   return (
@@ -133,10 +157,12 @@ export function DiscoverDialog({ open, onOpenChange, media, onPickMedia }: Disco
             >
               {isLoadingRecommendations ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : recommendationCache && recommendationCache.length > 0 ? (
+                <RefreshCw className="mr-2 h-4 w-4" />
               ) : (
                 <Sparkles className="mr-2 h-4 w-4" />
               )}
-              Get Recommendations
+              {recommendationCache && recommendationCache.length > 0 ? 'Refresh Recommendations' : 'Get Recommendations'}
             </Button>
 
             {error && <p className="text-xs text-red-400 text-center">{error}</p>}
@@ -144,7 +170,12 @@ export function DiscoverDialog({ open, onOpenChange, media, onPickMedia }: Disco
             {!isLoadingRecommendations && recommendationCache && recommendationCache.length > 0 && (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {recommendationCache.map((rec, i) => (
-                  <div key={i} className="p-3 rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]">
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => openRecommendation(rec.title)}
+                    className="w-full text-left p-3 rounded-lg bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] hover:border-fuchsia-500/50 transition-colors"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-bold text-[var(--mm-text)] text-sm">{rec.title}</span>
                       <span className="text-[10px] text-fuchsia-400 font-mono flex-shrink-0">
@@ -152,7 +183,7 @@ export function DiscoverDialog({ open, onOpenChange, media, onPickMedia }: Disco
                       </span>
                     </div>
                     <p className="text-xs text-[var(--mm-text-60)] mt-1">{rec.reason}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

@@ -1008,6 +1008,7 @@ export default function CollectionsPage() {
   // so they survive navigation/reload until explicitly saved or discarded.
   const [aiCollections, setAiCollections] = useState<AICollectionDraft[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [themeHint, setThemeHint] = useState('');
   const [selectedUserCollection, setSelectedUserCollection] = useState<SmartCollection | null>(null);
   const [selectedAICollection, setSelectedAICollection] = useState<AISmartCollection | null>(null);
   const [selectedSharedCollection, setSelectedSharedCollection] = useState<SharedCollection | null>(null);
@@ -1057,7 +1058,8 @@ export default function CollectionsPage() {
           genres: m.genres,
           ai_primary_tone: m.ai_primary_tone,
         })),
-        avoidTitles
+        avoidTitles,
+        themeHint.trim() || undefined
       );
       if (newCollections) {
         const now = new Date().toISOString();
@@ -1232,6 +1234,13 @@ export default function CollectionsPage() {
           </p>
         )}
       </div>
+
+      <Input
+        value={themeHint}
+        onChange={(e) => setThemeHint(e.target.value)}
+        placeholder="Optional theme or genre to build around (e.g. 'cozy mysteries', 'cyberpunk')"
+        className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12"
+      />
 
       <Button
         onClick={handleGenerate}

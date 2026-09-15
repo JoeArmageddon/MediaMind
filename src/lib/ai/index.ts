@@ -131,7 +131,9 @@ export class AIClient {
     recentlyCompleted: Media[],
     topGenres: string[],
     mood?: string,
-    minutes?: number
+    minutes?: number,
+    avoidTitles: string[] = [],
+    onHold: Media[] = []
   ): Promise<AIRecommendation[] | null> {
     if (!this.primary) return null;
     return this.callWithFallback(
@@ -141,7 +143,9 @@ export class AIClient {
         recentlyCompleted,
         topGenres,
         mood,
-        minutes
+        minutes,
+        avoidTitles,
+        onHold
       ),
       () => this.fallback!.getRecommendations(
         currentWatching,
@@ -149,7 +153,9 @@ export class AIClient {
         recentlyCompleted,
         topGenres,
         mood,
-        minutes
+        minutes,
+        avoidTitles,
+        onHold
       ),
       'getRecommendations'
     );
@@ -171,12 +177,13 @@ export class AIClient {
   // 4. Smart Collection Generator
   async generateSmartCollections(
     allMedia: Pick<Media, 'title' | 'type' | 'genres' | 'ai_primary_tone'>[],
-    avoidTitles: string[] = []
+    avoidTitles: string[] = [],
+    themeHint?: string
   ): Promise<AISmartCollection[] | null> {
     if (!this.primary) return null;
     return this.callWithFallback(
-      () => this.primary!.generateSmartCollections(allMedia, avoidTitles),
-      () => this.fallback!.generateSmartCollections(allMedia, avoidTitles),
+      () => this.primary!.generateSmartCollections(allMedia, avoidTitles, themeHint),
+      () => this.fallback!.generateSmartCollections(allMedia, avoidTitles, themeHint),
       'generateSmartCollections'
     );
   }
