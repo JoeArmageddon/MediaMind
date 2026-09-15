@@ -12,7 +12,6 @@ import { getSearchOrchestrator } from '@/lib/api/search';
 import { mapExternalIds } from '@/lib/api/externalId';
 import { getAIClient } from '@/lib/ai';
 import { getApiKey } from '@/lib/db/dexie';
-import { resolveApiKey } from '@/lib/api/apiKey';
 import { cn, getTypeLabel, getUnitLabel } from '@/lib/utils';
 import type { SearchResult, MediaType } from '@/types';
 
@@ -111,16 +110,6 @@ export default function SearchPage() {
       return;
     }
 
-    // Check if API keys are configured (from IndexedDB - more reliable on mobile)
-    const tmdbKey = await resolveApiKey('tmdb_key', undefined);
-    const rawgKey = await resolveApiKey('rawg_key', undefined);
-    
-    if (!tmdbKey && (type === 'all' || type === 'movie' || type === 'tv')) {
-      setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');
-      setIsLoading(false);
-      return;
-    }
-
     // Cancel any still-running previous search first - otherwise an old
     // slow/stuck request and a new one would both resolve into the same
     // isLoading/results state and race each other (the old one's `finally`
@@ -142,10 +131,13 @@ export default function SearchPage() {
       const mobile = isMobile();
       setDebugInfo(`Type: ${preferredType || 'all'}, Mobile: ${mobile}`);
 
-      // Check keys before search
+      // Informational only, never blocking - no personal key means the
+      // TMDB/RAWG clients fall back to the server-side default-key proxy
+      // (/api/external/tmdb, /api/external/rawg) on their own, so there's
+      // nothing to gate here.
       const tmdbKeyLoaded = await getApiKey('tmdb_key');
       const rawgKeyLoaded = await getApiKey('rawg_key');
-      setDebugInfo(`Keys - TMDB: ${tmdbKeyLoaded ? 'yes' : 'no'}${tmdbKeyLoaded ? '' : ' (using env)'}, RAWG: ${rawgKeyLoaded ? 'yes' : 'no'}${rawgKeyLoaded ? '' : ' (using env)'}`);
+      setDebugInfo(`Keys - TMDB: ${tmdbKeyLoaded ? 'yes' : 'no'}${tmdbKeyLoaded ? '' : ' (using server default)'}, RAWG: ${rawgKeyLoaded ? 'yes' : 'no'}${rawgKeyLoaded ? '' : ' (using server default)'}`);
 
       const orchestrator = getOrchestrator();
 
@@ -334,19 +326,6 @@ export default function SearchPage() {
 
   const processBatch = async () => {
     if (batchItems.length === 0) return;
-    
-    // Check if API keys are configured (from IndexedDB - more reliable on mobile)
-    const tmdbKey = await resolveApiKey('tmdb_key', undefined);
-    const rawgKey = await resolveApiKey('rawg_key', undefined);
-    
-    if (!tmdbKey && (batchType === 'movie' || batchType === 'tv')) {
-      setError('TMDB API key missing. Please add it in Settings to search for Movies/TV.');
-      return;
-    }
-    if (!rawgKey && batchType === 'game') {
-      setError('RAWG API key missing. Please add it in Settings to search for Games.');
-      return;
-    }
     
     setIsBatchProcessing(true);
     const controller = new AbortController();
