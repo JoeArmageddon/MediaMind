@@ -77,3 +77,41 @@ Rules:
 - Must differ meaningfully from every collection listed above to avoid - new titles, new groupings, new angle.
 - Vary which items get grouped together even across similar themes - do not default to the single most obvious pairing.`;
 }
+
+export const DISCOVERY_COLLECTION_COUNT = 10;
+
+// A second, separate kind of generation alongside buildSmartCollectionsPrompt:
+// that one only ever reorganizes titles the user already owns. This one
+// suggests titles they probably DON'T own yet - real movies/shows/anime/
+// manga/games/books that exist in the real world, not confined to their
+// library at all. Each suggested title still has to be verified against a
+// real catalog (the caller does this via the same multi-source search the
+// Search page uses) before it's shown as real or offered for adding - the
+// model can and does misremember titles, so nothing here is trusted at
+// face value.
+export function buildDiscoveryCollectionPrompt(themeHint?: string): string {
+  const trimmedHint = themeHint?.trim();
+
+  const themeInstruction = trimmedHint
+    ? `Build it around this theme/genre: "${trimmedHint}".`
+    : `Pick one specific, interesting theme yourself first (not just "popular movies") and build around that - name the theme in the collection's title/description.`;
+
+  return `TASK:
+Suggest ${DISCOVERY_COLLECTION_COUNT} REAL, existing movies, TV shows, anime, manga, games, or books - not from any particular person's library, just real published/released titles - that belong together as one themed collection. ${themeInstruction}
+
+Every title must be a real, actually-existing work. Never invent a title, a sequel, or a spin-off that doesn't exist - if you're not confident a title is real, leave it out rather than guess. Mix well-known titles with a few less obvious picks within the theme, rather than only the most predictable choices.
+
+Return JSON:
+{
+  "title": "",
+  "description": "",
+  "media_titles": []
+}
+
+Rules:
+- The collection title should be premium and specific (see the naming guidance below), not a generic label.
+  BAD: "Action Stuff", "Cool Movies", "Sci-Fi Collection".
+  GOOD: "Neon-Lit Cities After Dark", "Quietly Devastating Character Studies".
+- The description should explain the theme in one or two sentences.
+- media_titles should be the exact, correctly-spelled real title of each work (add the year in parentheses only if the title alone is ambiguous with an unrelated work of the same name).`;
+}

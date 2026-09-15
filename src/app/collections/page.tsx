@@ -111,15 +111,20 @@ function UserCollectionCard({
 
 function AICollectionCard({
   collection,
+  onOpen,
   onSave,
   onDiscard,
 }: {
   collection: AISmartCollection;
+  onOpen: () => void;
   onSave: () => void;
   onDiscard: () => void;
 }) {
   return (
-    <div className="glass-card rounded-[24px] p-6 hover:border-fuchsia-500/50 transition-all group relative overflow-hidden">
+    <div
+      onClick={onOpen}
+      className="glass-card rounded-[24px] p-6 hover:border-fuchsia-500/50 transition-all group relative overflow-hidden cursor-pointer"
+    >
       <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-600/10 to-pink-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
 
       <div className="relative z-10">
@@ -130,7 +135,7 @@ function AICollectionCard({
             </div>
             <h3 className="text-xl font-black text-[var(--mm-text)] tracking-tight">{collection.title}</h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             <Button
               size="sm"
               onClick={onSave}
@@ -148,14 +153,83 @@ function AICollectionCard({
             </button>
           </div>
         </div>
-        
+
         <p className="text-[var(--mm-text-60)] text-sm mb-4 leading-relaxed">{collection.description}</p>
-        
+
         <div className="flex flex-wrap gap-2">
           {collection.media_titles.slice(0, 4).map((title) => (
-            <Badge 
-              key={title} 
-              variant="secondary" 
+            <Badge
+              key={title}
+              variant="secondary"
+              className="bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] text-[var(--mm-text)] rounded-lg px-3 py-1"
+            >
+              {title}
+            </Badge>
+          ))}
+          {collection.media_titles.length > 4 && (
+            <Badge variant="outline" className="border-[var(--mm-card-border)] text-[var(--mm-text-50)] rounded-lg">
+              +{collection.media_titles.length - 4}
+            </Badge>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A dedicated card style for the one "Discover" collection per generation
+// (see DiscoveryCollectionDetail) - visually distinct from the library
+// AICollectionCards above since it's suggesting titles the user probably
+// doesn't own yet, not reorganizing ones they do. No inline Save button
+// here (unlike AICollectionCard) since there's nothing to save until the
+// user has actually added some of these to their library first, from
+// inside the detail view.
+function DiscoveryCollectionCard({
+  collection,
+  onOpen,
+  onDiscard,
+}: {
+  collection: AISmartCollection;
+  onOpen: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <div
+      onClick={onOpen}
+      className="glass-card rounded-[24px] p-6 border-2 border-dashed border-indigo-500/30 hover:border-indigo-500/60 transition-all group relative overflow-hidden cursor-pointer"
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 to-cyan-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Globe className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase tracking-wider text-indigo-400 font-bold">Discover · not in your library</span>
+              <h3 className="text-xl font-black text-[var(--mm-text)] tracking-tight">{collection.title}</h3>
+            </div>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDiscard();
+            }}
+            title="Discard suggestion"
+            className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--mm-text-40)] hover:text-red-400 transition-colors shrink-0"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+
+        <p className="text-[var(--mm-text-60)] text-sm mb-4 leading-relaxed">{collection.description}</p>
+
+        <div className="flex flex-wrap gap-2">
+          {collection.media_titles.slice(0, 4).map((title) => (
+            <Badge
+              key={title}
+              variant="secondary"
               className="bg-[var(--mm-hover-bg)] border-[var(--mm-card-border)] text-[var(--mm-text)] rounded-lg px-3 py-1"
             >
               {title}
@@ -252,12 +326,14 @@ function UserCollectionDetail({
   );
 }
 
-function AICollectionDetail({ 
-  collection, 
-  allMedia 
-}: { 
-  collection: AISmartCollection; 
+function AICollectionDetail({
+  collection,
+  allMedia,
+  onExpandMedia,
+}: {
+  collection: AISmartCollection;
   allMedia: Media[];
+  onExpandMedia: (item: Media) => void;
 }) {
   return (
     <>
@@ -275,20 +351,269 @@ function AICollectionDetail({
         )}
         <div className="space-y-2">
           <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider">Suggested media</h4>
-          {collection.media_titles.map((title) => (
-            <div
-              key={title}
-              className="flex items-center justify-between p-3 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] hover:border-[var(--mm-card-border-hover)] transition-colors"
-            >
-              <span className="text-[var(--mm-text)] font-medium text-sm">{title}</span>
-              {allMedia.find(m => m.title.toLowerCase().includes(title.toLowerCase())) && (
-                <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-400">
-                  In Library
-                </Badge>
-              )}
-            </div>
-          ))}
+          {collection.media_titles.map((title) => {
+            // These titles came straight from the user's own library data
+            // handed to the prompt, so a match here can show the real
+            // poster/description directly - no network lookup needed,
+            // unlike DiscoveryCollectionDetail's titles.
+            const matched = allMedia.find(
+              (m) =>
+                m.title.toLowerCase().includes(title.toLowerCase()) ||
+                title.toLowerCase().includes(m.title.toLowerCase())
+            );
+            return (
+              <div
+                key={title}
+                onClick={() => matched && onExpandMedia(matched)}
+                className={cn(
+                  'flex items-start gap-3 p-3 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] transition-colors',
+                  matched ? 'hover:border-[var(--mm-card-border-hover)] cursor-pointer' : 'opacity-60'
+                )}
+              >
+                {matched?.poster_url ? (
+                  <img src={matched.poster_url} alt={matched.title} className="w-10 h-14 object-cover rounded-lg shrink-0" />
+                ) : (
+                  <div className="w-10 h-14 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
+                    {title[0]}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[var(--mm-text)] font-medium text-sm truncate">{title}</span>
+                    {!matched && (
+                      <Badge variant="outline" className="text-[10px] border-[var(--mm-card-border)] text-[var(--mm-text-40)] shrink-0">
+                        Not matched
+                      </Badge>
+                    )}
+                  </div>
+                  {matched?.description && (
+                    <p className="text-xs text-[var(--mm-text-50)] mt-1 line-clamp-2">{matched.description}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+      </div>
+    </>
+  );
+}
+
+type DiscoveryLookup = {
+  status: 'loading' | 'found' | 'not_found' | 'error';
+  result?: SearchResult;
+  addedId?: string;
+};
+
+// The "Discover" collection's titles are real-world suggestions, not
+// drawn from the user's library - there's nothing local to show yet, so
+// every title gets run through the same multi-source search the Search
+// page uses (never trusting the model's own text as fact - see
+// buildDiscoveryCollectionPrompt's comment). Matched ones can be added to
+// the library individually; "Save as Collection" only ever includes
+// titles that were actually added, since an unadded suggestion has no
+// media_id to put in a collection.
+function DiscoveryCollectionDetail({
+  collection,
+  onSaved,
+}: {
+  collection: AISmartCollection;
+  onSaved: () => void;
+}) {
+  const { addMedia, media } = useMediaStore();
+  const { addCollection } = useCollectionStore();
+  const [lookups, setLookups] = useState<Record<number, DiscoveryLookup>>({});
+  const [addingIndex, setAddingIndex] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLookups({});
+
+    collection.media_titles.forEach((title, i) => {
+      setLookups((prev) => ({ ...prev, [i]: { status: 'loading' } }));
+      getSearchOrchestrator()
+        .search(title, undefined)
+        .then((results) => {
+          if (cancelled) return;
+          const best = results[0];
+          setLookups((prev) => ({ ...prev, [i]: best ? { status: 'found', result: best } : { status: 'not_found' } }));
+        })
+        .catch((e) => {
+          console.error('Discovery lookup failed:', e);
+          if (!cancelled) setLookups((prev) => ({ ...prev, [i]: { status: 'error' } }));
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // Re-run only when a genuinely different collection is opened, not on
+    // every render (this component's own state updates would otherwise
+    // re-trigger the effect and re-search everything on each result).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collection.title]);
+
+  const handleAdd = async (index: number, result: SearchResult) => {
+    setAddingIndex(index);
+    try {
+      const externalIds = mapExternalIds(result);
+      const newMedia = await addMedia({
+        title: result.title,
+        normalized_title: result.title.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        type: result.type,
+        poster_url: result.poster_url,
+        backdrop_url: null,
+        description: result.description,
+        release_year: result.release_year,
+        api_rating: result.api_rating,
+        genres: result.genres,
+        tags: [],
+        studios: [],
+        total_units: result.total_units || 0,
+        progress: 0,
+        completion_percent: 0,
+        status: 'planned',
+        is_favorite: false,
+        is_archived: false,
+        notes: null,
+        user_rating: null,
+        streaming_platforms: [],
+        ai_primary_tone: null,
+        ai_secondary_tone: null,
+        ai_core_themes: [],
+        ai_emotional_intensity: null,
+        ai_pacing: null,
+        ai_darkness_level: null,
+        ai_intellectual_depth: null,
+        completed_at: null,
+        ...externalIds,
+      });
+      setLookups((prev) => ({ ...prev, [index]: { ...prev[index], addedId: newMedia.id } }));
+    } catch (e: any) {
+      // 23505 = already have this title+type - not an error worth
+      // surfacing, just resolve it to the existing row so Save can still
+      // include it.
+      if (e?.code === '23505') {
+        const existing = media.find(
+          (m) => m.type === result.type && m.title.trim().toLowerCase() === result.title.trim().toLowerCase()
+        );
+        if (existing) setLookups((prev) => ({ ...prev, [index]: { ...prev[index], addedId: existing.id } }));
+      } else {
+        console.error('Failed to add discovery result:', e);
+      }
+    } finally {
+      setAddingIndex(null);
+    }
+  };
+
+  const addedIds = Object.values(lookups)
+    .map((l) => l.addedId)
+    .filter((id): id is string => !!id);
+
+  const handleSaveCollection = async () => {
+    setIsSaving(true);
+    try {
+      await addCollection({
+        title: collection.title,
+        description: collection.description,
+        media_ids: addedIds,
+        filter_criteria: null,
+        is_auto_generated: true,
+        is_public: false,
+      });
+      onSaved();
+    } catch (e) {
+      console.error('Failed to save discovery collection:', e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="text-xl font-black text-[var(--mm-text)] flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-600 flex items-center justify-center">
+            <Globe className="h-4 w-4 text-white" />
+          </div>
+          {collection.title}
+        </DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-4">
+        {collection.description && (
+          <p className="text-[var(--mm-text-60)] text-sm leading-relaxed">{collection.description}</p>
+        )}
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold text-[var(--mm-text-50)] uppercase tracking-wider">
+            Real titles, verified against TMDB/MyAnimeList/RAWG/Google Books
+          </h4>
+          {collection.media_titles.map((title, i) => {
+            const lookup = lookups[i] ?? { status: 'loading' };
+            return (
+              <div
+                key={`${title}-${i}`}
+                className="flex items-start gap-3 p-3 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]"
+              >
+                {lookup.status === 'found' && lookup.result?.poster_url ? (
+                  <img
+                    src={lookup.result.poster_url}
+                    alt={lookup.result.title}
+                    className="w-10 h-14 object-cover rounded-lg shrink-0"
+                  />
+                ) : (
+                  <div className="w-10 h-14 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
+                    {title[0]}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[var(--mm-text)] font-medium text-sm truncate">
+                      {lookup.result?.title ?? title}
+                    </span>
+                    {lookup.status === 'loading' && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[var(--mm-text-40)]" />}
+                  </div>
+                  {lookup.status === 'found' && lookup.result?.description && (
+                    <p className="text-xs text-[var(--mm-text-50)] mt-1 line-clamp-2">{lookup.result.description}</p>
+                  )}
+                  {lookup.status === 'not_found' && (
+                    <p className="text-xs text-[var(--mm-text-40)] mt-1">Couldn&apos;t verify this one - skipping it.</p>
+                  )}
+                  {lookup.status === 'error' && (
+                    <p className="text-xs text-red-400 mt-1">Lookup failed.</p>
+                  )}
+                  {lookup.status === 'found' && lookup.result && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!!lookup.addedId || addingIndex === i}
+                      onClick={() => handleAdd(i, lookup.result!)}
+                      className="h-7 text-xs mt-2 border-[var(--mm-card-border)] bg-[var(--mm-hover-bg-strong)]"
+                    >
+                      {addingIndex === i ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : lookup.addedId ? (
+                        <Check className="h-3 w-3 mr-1" />
+                      ) : (
+                        <Plus className="h-3 w-3 mr-1" />
+                      )}
+                      {lookup.addedId ? 'Added' : 'Add to Library'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <Button
+          onClick={handleSaveCollection}
+          disabled={addedIds.length === 0 || isSaving}
+          className="w-full bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-700 hover:to-cyan-700 text-white rounded-xl h-12"
+        >
+          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+          {addedIds.length === 0 ? 'Add at least one title first' : `Save Collection (${addedIds.length} added)`}
+        </Button>
       </div>
     </>
   );
@@ -1009,6 +1334,12 @@ export default function CollectionsPage() {
   const [aiCollections, setAiCollections] = useState<AICollectionDraft[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [themeHint, setThemeHint] = useState('');
+  // Not Dexie-persisted like aiCollections (a fresh one is generated every
+  // "Generate" click alongside the library ones, and its titles need a
+  // live re-search on open anyway, so there's nothing worth surviving a
+  // reload for).
+  const [discoveryDraft, setDiscoveryDraft] = useState<AISmartCollection | null>(null);
+  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const [selectedUserCollection, setSelectedUserCollection] = useState<SmartCollection | null>(null);
   const [selectedAICollection, setSelectedAICollection] = useState<AISmartCollection | null>(null);
   const [selectedSharedCollection, setSelectedSharedCollection] = useState<SharedCollection | null>(null);
@@ -1044,6 +1375,7 @@ export default function CollectionsPage() {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    setDiscoveryDraft(null);
     try {
       const ai = getAIClient();
       // Existing saved collections plus whatever drafts are still on
@@ -1051,19 +1383,29 @@ export default function CollectionsPage() {
       // count as "already have this", so a re-generate doesn't just
       // reproduce the same groupings under a slightly different title.
       const avoidTitles = [...collections.map((c) => c.title), ...aiCollections.map((d) => d.data.title)];
-      const newCollections = await ai.generateSmartCollections(
-        media.map((m) => ({
-          title: m.title,
-          type: m.type,
-          genres: m.genres,
-          ai_primary_tone: m.ai_primary_tone,
-        })),
-        avoidTitles,
-        themeHint.trim() || undefined
-      );
-      if (newCollections) {
+
+      // Two independent generations in parallel: one reorganizes what's
+      // already in the library, the other suggests real titles the user
+      // probably doesn't own yet (see buildDiscoveryCollectionPrompt).
+      // allSettled so a failure in the (non-essential) discovery call
+      // never blocks or alerts about the library one succeeding.
+      const [libraryResult, discoveryResult] = await Promise.allSettled([
+        ai.generateSmartCollections(
+          media.map((m) => ({
+            title: m.title,
+            type: m.type,
+            genres: m.genres,
+            ai_primary_tone: m.ai_primary_tone,
+          })),
+          avoidTitles,
+          themeHint.trim() || undefined
+        ),
+        ai.generateDiscoveryCollection(themeHint.trim() || undefined),
+      ]);
+
+      if (libraryResult.status === 'fulfilled' && libraryResult.value) {
         const now = new Date().toISOString();
-        const drafts: AICollectionDraft[] = newCollections.map((data) => ({
+        const drafts: AICollectionDraft[] = libraryResult.value.map((data) => ({
           id: crypto.randomUUID(),
           data,
           created_at: now,
@@ -1075,10 +1417,16 @@ export default function CollectionsPage() {
 
         setAiCollections(drafts);
         setActiveTab('ai');
+      } else if (libraryResult.status === 'rejected') {
+        console.error('Library generation failed:', libraryResult.reason);
+        alert('Failed to generate AI collections. Make sure you have a Groq or Gemini API key in Settings.');
       }
-    } catch (error) {
-      console.error('Generation failed:', error);
-      alert('Failed to generate AI collections. Make sure you have a Groq or Gemini API key in Settings.');
+
+      if (discoveryResult.status === 'fulfilled' && discoveryResult.value) {
+        setDiscoveryDraft(discoveryResult.value);
+      } else if (discoveryResult.status === 'rejected') {
+        console.warn('Discovery generation failed (non-fatal):', discoveryResult.reason);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -1301,17 +1649,25 @@ export default function CollectionsPage() {
         </TabsContent>
 
         <TabsContent value="ai" className="mt-6">
-          {aiCollections.length === 0 ? (
+          {aiCollections.length === 0 && !discoveryDraft ? (
             <div className="glass-card rounded-[28px] p-12 text-center">
               <Sparkles className="h-12 w-12 text-[var(--mm-text-20)] mx-auto mb-4" />
               <p className="text-[var(--mm-text-50)]">No AI collections yet.</p>
             </div>
           ) : (
             <div className="grid gap-4">
+              {discoveryDraft && (
+                <DiscoveryCollectionCard
+                  collection={discoveryDraft}
+                  onOpen={() => setIsDiscoveryOpen(true)}
+                  onDiscard={() => setDiscoveryDraft(null)}
+                />
+              )}
               {aiCollections.map((draft) => (
                 <AICollectionCard
                   key={draft.id}
                   collection={draft.data}
+                  onOpen={() => setSelectedAICollection(draft.data)}
                   onSave={() => handleSaveAICollection(draft)}
                   onDiscard={() => discardAICollection(draft.id)}
                 />
@@ -1419,7 +1775,30 @@ export default function CollectionsPage() {
       <Dialog open={!!selectedAICollection} onOpenChange={() => setSelectedAICollection(null)}>
         <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] rounded-[28px]">
           {selectedAICollection && (
-            <AICollectionDetail collection={selectedAICollection} allMedia={media} />
+            <AICollectionDetail
+              collection={selectedAICollection}
+              allMedia={media}
+              onExpandMedia={(item) => {
+                setSelectedAICollection(null);
+                setExpandedMedia({ item, readOnly: false });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDiscoveryOpen} onOpenChange={setIsDiscoveryOpen}>
+        <DialogContent className="max-w-md bg-[var(--mm-card-bg)] border-[var(--mm-card-border)] rounded-[28px] max-h-[85vh] overflow-y-auto">
+          {discoveryDraft && (
+            <DiscoveryCollectionDetail
+              collection={discoveryDraft}
+              onSaved={() => {
+                setIsDiscoveryOpen(false);
+                setDiscoveryDraft(null);
+                setActiveTab('my');
+                alert(`"${discoveryDraft.title}" saved!`);
+              }}
+            />
           )}
         </DialogContent>
       </Dialog>

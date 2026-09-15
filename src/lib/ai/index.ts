@@ -188,6 +188,18 @@ export class AIClient {
     );
   }
 
+  // 4b. Discovery Collection Generator - real titles the user probably
+  // doesn't own yet, separate from generateSmartCollections (which only
+  // ever reorganizes what's already in the library).
+  async generateDiscoveryCollection(themeHint?: string): Promise<AISmartCollection | null> {
+    if (!this.primary) return null;
+    return this.callWithFallback(
+      () => this.primary!.generateDiscoveryCollection(themeHint),
+      () => this.fallback!.generateDiscoveryCollection(themeHint),
+      'generateDiscoveryCollection'
+    );
+  }
+
   // 5. Media Thematic Analysis
   async analyzeMedia(
     media: Pick<Media, 'title' | 'description' | 'genres'>

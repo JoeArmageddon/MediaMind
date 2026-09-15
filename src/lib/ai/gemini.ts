@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { resolveApiKey } from '@/lib/api/apiKey';
-import { buildSmartCollectionsPrompt, SMART_COLLECTIONS_TEMPERATURE } from './collectionPrompt';
+import { buildSmartCollectionsPrompt, buildDiscoveryCollectionPrompt, SMART_COLLECTIONS_TEMPERATURE } from './collectionPrompt';
 import type {
   AISuggestion,
   AIRecommendation,
@@ -259,6 +259,14 @@ Return JSON:
     const response = await this.generateContent(prompt, { temperature: SMART_COLLECTIONS_TEMPERATURE });
     const data = this.parseJSON<{ collections: AISmartCollection[] }>(response);
     return data.collections;
+  }
+
+  // 4b. Discovery Collection Generator - real titles the user probably
+  // doesn't own, not a reorganization of their existing library.
+  async generateDiscoveryCollection(themeHint?: string): Promise<AISmartCollection> {
+    const prompt = buildDiscoveryCollectionPrompt(themeHint);
+    const response = await this.generateContent(prompt, { temperature: SMART_COLLECTIONS_TEMPERATURE });
+    return this.parseJSON<AISmartCollection>(response);
   }
 
   // 5. Media Thematic Analysis
