@@ -9,6 +9,7 @@ import type {
   AIMediaAnalysis,
   AIFallbackClassification,
   Media,
+  MediaType,
   History,
   StreamingPlatform,
 } from '@/types';
@@ -191,11 +192,11 @@ export class AIClient {
   // 4b. Discovery Collection Generator - real titles the user probably
   // doesn't own yet, separate from generateSmartCollections (which only
   // ever reorganizes what's already in the library).
-  async generateDiscoveryCollection(themeHint?: string): Promise<AISmartCollection | null> {
+  async generateDiscoveryCollection(themeHint?: string, types?: MediaType[]): Promise<AISmartCollection | null> {
     if (!this.primary) return null;
     return this.callWithFallback(
-      () => this.primary!.generateDiscoveryCollection(themeHint),
-      () => this.fallback!.generateDiscoveryCollection(themeHint),
+      () => this.primary!.generateDiscoveryCollection(themeHint, types),
+      () => this.fallback!.generateDiscoveryCollection(themeHint, types),
       'generateDiscoveryCollection'
     );
   }

@@ -1,4 +1,20 @@
-import type { Media } from '@/types';
+import type { Media, MediaType } from '@/types';
+
+const TYPE_LABELS: Record<MediaType, string> = {
+  movie: 'movies',
+  tv: 'TV shows',
+  anime: 'anime',
+  manga: 'manga',
+  manhwa: 'manhwa',
+  manhua: 'manhua',
+  donghua: 'donghua',
+  game: 'games',
+  book: 'books',
+  light_novel: 'light novels',
+  visual_novel: 'visual novels',
+  web_series: 'web series',
+  misc: 'other media',
+};
 
 // Shared by groq.ts and gemini.ts's generateSmartCollections - a fixed
 // prompt against the same library tends to converge on the same "obvious"
@@ -89,16 +105,32 @@ export const DISCOVERY_COLLECTION_COUNT = 10;
 // Search page uses) before it's shown as real or offered for adding - the
 // model can and does misremember titles, so nothing here is trusted at
 // face value.
-export function buildDiscoveryCollectionPrompt(themeHint?: string): string {
+export function buildDiscoveryCollectionPrompt(themeHint?: string, types?: MediaType[]): string {
   const trimmedHint = themeHint?.trim();
 
   const themeInstruction = trimmedHint
     ? `Build it around this theme/genre: "${trimmedHint}".`
     : `Pick one specific, interesting theme yourself first (not just "popular movies") and build around that - name the theme in the collection's title/description.`;
 
-  return `TASK:
-Suggest ${DISCOVERY_COLLECTION_COUNT} REAL, existing movies, TV shows, anime, manga, games, or books - not from any particular person's library, just real published/released titles - that belong together as one themed collection. ${themeInstruction}
+  // Empty/undefined = mixed, any type, AI's choice per title. One type =
+  // every title must be that type. Multiple = every title must be one of
+  // the selected types, but the mix within the collection is still the
+  // AI's call.
+  const mediaKinds =
+    types && types.length > 0
+      ? types.length === 1
+        ? TYPE_LABELS[types[0]]
+        : types.map((t) => TYPE_LABELS[t]).join(', ')
+      : 'movies, TV shows, anime, manga, games, or books (mix freely across types unless the theme itself implies just one)';
 
+  const typeConstraint =
+    types && types.length > 0
+      ? `\nEvery single suggested title must be ${types.length === 1 ? 'a' : 'one of the selected'} type${types.length === 1 ? '' : 's'}: ${mediaKinds}. Do not include any other kind of media even if it fits the theme.\n`
+      : '';
+
+  return `TASK:
+Suggest ${DISCOVERY_COLLECTION_COUNT} REAL, existing ${mediaKinds} - not from any particular person's library, just real published/released titles - that belong together as one themed collection. ${themeInstruction}
+${typeConstraint}
 Every title must be a real, actually-existing work. Never invent a title, a sequel, or a spin-off that doesn't exist - if you're not confident a title is real, leave it out rather than guess. Mix well-known titles with a few less obvious picks within the theme, rather than only the most predictable choices.
 
 Return JSON:

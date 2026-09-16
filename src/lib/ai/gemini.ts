@@ -9,6 +9,7 @@ import type {
   AIMediaAnalysis,
   AIFallbackClassification,
   Media,
+  MediaType,
   History,
   StreamingPlatform,
 } from '@/types';
@@ -263,8 +264,8 @@ Return JSON:
 
   // 4b. Discovery Collection Generator - real titles the user probably
   // doesn't own, not a reorganization of their existing library.
-  async generateDiscoveryCollection(themeHint?: string): Promise<AISmartCollection> {
-    const prompt = buildDiscoveryCollectionPrompt(themeHint);
+  async generateDiscoveryCollection(themeHint?: string, types?: MediaType[]): Promise<AISmartCollection> {
+    const prompt = buildDiscoveryCollectionPrompt(themeHint, types);
     const response = await this.generateContent(prompt, { temperature: SMART_COLLECTIONS_TEMPERATURE });
     return this.parseJSON<AISmartCollection>(response);
   }

@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Search,
   Globe,
+  ChevronDown,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
@@ -45,8 +46,25 @@ import type {
   SharedCollection,
   CollectionShareWithProfile,
   Media,
+  MediaType,
   SearchResult,
 } from '@/types';
+
+// The practical subset of MediaType worth exposing as a toggle for the
+// Discover (non-library) collection - matches the Search page's own type
+// tabs, skipping the rarer light_novel/visual_novel/web_series/misc ones
+// for the same reason it does. None selected = mixed/any type.
+const DISCOVERY_TYPE_OPTIONS: { value: MediaType; label: string }[] = [
+  { value: 'movie', label: 'Movies' },
+  { value: 'tv', label: 'TV' },
+  { value: 'anime', label: 'Anime' },
+  { value: 'manhwa', label: 'Manhwa' },
+  { value: 'manhua', label: 'Manhua' },
+  { value: 'donghua', label: 'Donghua' },
+  { value: 'manga', label: 'Manga' },
+  { value: 'game', label: 'Games' },
+  { value: 'book', label: 'Books' },
+];
 
 function UserCollectionCard({
   collection,
@@ -410,30 +428,35 @@ type DiscoveryLookup = {
 // every title gets run through the same multi-source search the Search
 // page uses (never trusting the model's own text as fact - see
 // buildDiscoveryCollectionPrompt's comment). Matched ones can be added to
-// the library individually; "Save as Collection" only ever includes
-// titles that were actually added, since an unadded suggestion has no
-// media_id to put in a collection.
+// the library individually, or all at once; "Save Collection" only ever
+// includes titles that were actually added, since an unadded suggestion
+// has no media_id to put in a collection.
 function DiscoveryCollectionDetail({
   collection,
+  preferredType,
   onSaved,
 }: {
   collection: AISmartCollection;
+  preferredType?: MediaType;
   onSaved: () => void;
 }) {
   const { addMedia, media } = useMediaStore();
   const { addCollection } = useCollectionStore();
   const [lookups, setLookups] = useState<Record<number, DiscoveryLookup>>({});
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [addingIndex, setAddingIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingAll, setIsSavingAll] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLookups({});
+    setExpanded({});
 
     collection.media_titles.forEach((title, i) => {
       setLookups((prev) => ({ ...prev, [i]: { status: 'loading' } }));
       getSearchOrchestrator()
-        .search(title, undefined)
+        .search(title, preferredType)
         .then((results) => {
           if (cancelled) return;
           const best = results[0];
@@ -454,8 +477,13 @@ function DiscoveryCollectionDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collection.title]);
 
-  const handleAdd = async (index: number, result: SearchResult) => {
-    setAddingIndex(index);
+  // Adds one result to the library and returns its media_id - the actual
+  // add logic, shared by the per-item button and the "add everything"
+  // bulk action below. Returns the id directly rather than making callers
+  // re-read `lookups` afterward, since that state update is async and a
+  // caller adding several items in a row can't rely on it having landed
+  // yet by the time it needs the ids.
+  const addOne = async (index: number, result: SearchResult): Promise<string | null> => {
     try {
       const externalIds = mapExternalIds(result);
       const newMedia = await addMedia({
@@ -490,6 +518,7 @@ function DiscoveryCollectionDetail({
         ...externalIds,
       });
       setLookups((prev) => ({ ...prev, [index]: { ...prev[index], addedId: newMedia.id } }));
+      return newMedia.id;
     } catch (e: any) {
       // 23505 = already have this title+type - not an error worth
       // surfacing, just resolve it to the existing row so Save can still
@@ -498,10 +527,21 @@ function DiscoveryCollectionDetail({
         const existing = media.find(
           (m) => m.type === result.type && m.title.trim().toLowerCase() === result.title.trim().toLowerCase()
         );
-        if (existing) setLookups((prev) => ({ ...prev, [index]: { ...prev[index], addedId: existing.id } }));
-      } else {
-        console.error('Failed to add discovery result:', e);
+        if (existing) {
+          setLookups((prev) => ({ ...prev, [index]: { ...prev[index], addedId: existing.id } }));
+          return existing.id;
+        }
+        return null;
       }
+      console.error('Failed to add discovery result:', e);
+      return null;
+    }
+  };
+
+  const handleAdd = async (index: number, result: SearchResult) => {
+    setAddingIndex(index);
+    try {
+      await addOne(index, result);
     } finally {
       setAddingIndex(null);
     }
@@ -511,22 +551,45 @@ function DiscoveryCollectionDetail({
     .map((l) => l.addedId)
     .filter((id): id is string => !!id);
 
+  const pendingFound = collection.media_titles
+    .map((_, i) => i)
+    .filter((i) => lookups[i]?.status === 'found' && !lookups[i]?.addedId);
+
+  const saveWithIds = async (ids: string[]) => {
+    await addCollection({
+      title: collection.title,
+      description: collection.description,
+      media_ids: Array.from(new Set(ids)),
+      filter_criteria: null,
+      is_auto_generated: true,
+      is_public: false,
+    });
+    onSaved();
+  };
+
   const handleSaveCollection = async () => {
     setIsSaving(true);
     try {
-      await addCollection({
-        title: collection.title,
-        description: collection.description,
-        media_ids: addedIds,
-        filter_criteria: null,
-        is_auto_generated: true,
-        is_public: false,
-      });
-      onSaved();
+      await saveWithIds(addedIds);
     } catch (e) {
       console.error('Failed to save discovery collection:', e);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Adds every verified-but-not-yet-added title, then saves in one go -
+  // the "I trust these, just give me the whole thing" path, as opposed to
+  // reviewing and adding each one individually first.
+  const handleAddAllAndSave = async () => {
+    setIsSavingAll(true);
+    try {
+      const newIds = await Promise.all(pendingFound.map((i) => addOne(i, lookups[i].result!)));
+      await saveWithIds([...addedIds, ...newIds.filter((id): id is string => !!id)]);
+    } catch (e) {
+      console.error('Failed to add & save discovery collection:', e);
+    } finally {
+      setIsSavingAll(false);
     }
   };
 
@@ -550,45 +613,81 @@ function DiscoveryCollectionDetail({
           </h4>
           {collection.media_titles.map((title, i) => {
             const lookup = lookups[i] ?? { status: 'loading' };
+            const isExpanded = !!expanded[i];
+            const canExpand = lookup.status === 'found' && !!lookup.result;
             return (
               <div
                 key={`${title}-${i}`}
-                className="flex items-start gap-3 p-3 rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)]"
+                className="rounded-xl bg-[var(--mm-hover-bg)] border border-[var(--mm-card-border)] overflow-hidden"
               >
-                {lookup.status === 'found' && lookup.result?.poster_url ? (
-                  <img
-                    src={lookup.result.poster_url}
-                    alt={lookup.result.title}
-                    className="w-10 h-14 object-cover rounded-lg shrink-0"
-                  />
-                ) : (
-                  <div className="w-10 h-14 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
-                    {title[0]}
+                <div
+                  onClick={() => canExpand && setExpanded((prev) => ({ ...prev, [i]: !prev[i] }))}
+                  className={cn('flex items-start gap-3 p-3', canExpand && 'cursor-pointer')}
+                >
+                  {lookup.status === 'found' && lookup.result?.poster_url ? (
+                    <img
+                      src={lookup.result.poster_url}
+                      alt={lookup.result.title}
+                      className="w-10 h-14 object-cover rounded-lg shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-14 bg-[var(--mm-hover-bg-strong)] rounded-lg flex items-center justify-center text-lg font-bold shrink-0">
+                      {title[0]}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[var(--mm-text)] font-medium text-sm truncate">
+                        {lookup.result?.title ?? title}
+                      </span>
+                      {lookup.status === 'loading' && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[var(--mm-text-40)]" />}
+                      {canExpand && (
+                        <ChevronDown className={cn('h-4 w-4 shrink-0 text-[var(--mm-text-40)] transition-transform', isExpanded && 'rotate-180')} />
+                      )}
+                    </div>
+                    {lookup.status === 'found' && lookup.result?.description && !isExpanded && (
+                      <p className="text-xs text-[var(--mm-text-50)] mt-1 line-clamp-2">{lookup.result.description}</p>
+                    )}
+                    {lookup.status === 'not_found' && (
+                      <p className="text-xs text-[var(--mm-text-40)] mt-1">Couldn&apos;t verify this one - skipping it.</p>
+                    )}
+                    {lookup.status === 'error' && (
+                      <p className="text-xs text-red-400 mt-1">Lookup failed.</p>
+                    )}
                   </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[var(--mm-text)] font-medium text-sm truncate">
-                      {lookup.result?.title ?? title}
-                    </span>
-                    {lookup.status === 'loading' && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[var(--mm-text-40)]" />}
-                  </div>
-                  {lookup.status === 'found' && lookup.result?.description && (
-                    <p className="text-xs text-[var(--mm-text-50)] mt-1 line-clamp-2">{lookup.result.description}</p>
-                  )}
-                  {lookup.status === 'not_found' && (
-                    <p className="text-xs text-[var(--mm-text-40)] mt-1">Couldn&apos;t verify this one - skipping it.</p>
-                  )}
-                  {lookup.status === 'error' && (
-                    <p className="text-xs text-red-400 mt-1">Lookup failed.</p>
-                  )}
-                  {lookup.status === 'found' && lookup.result && (
+                </div>
+
+                {isExpanded && lookup.result && (
+                  <div className="px-3 pb-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                    {lookup.result.description && (
+                      <p className="text-xs text-[var(--mm-text-60)] leading-relaxed">{lookup.result.description}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] border-[var(--mm-card-border)] text-[var(--mm-text-50)]">
+                        {getTypeLabel(lookup.result.type)}
+                      </Badge>
+                      {lookup.result.release_year != null && (
+                        <Badge variant="outline" className="text-[10px] border-[var(--mm-card-border)] text-[var(--mm-text-50)]">
+                          {lookup.result.release_year}
+                        </Badge>
+                      )}
+                      {lookup.result.api_rating != null && (
+                        <Badge variant="outline" className="text-[10px] border-[var(--mm-card-border)] text-[var(--mm-text-50)]">
+                          ★ {lookup.result.api_rating.toFixed(1)}
+                        </Badge>
+                      )}
+                      {lookup.result.genres.map((g) => (
+                        <Badge key={g} variant="secondary" className="text-[10px] bg-[var(--mm-hover-bg-strong)] border-[var(--mm-card-border)]">
+                          {g}
+                        </Badge>
+                      ))}
+                    </div>
                     <Button
                       size="sm"
                       variant="outline"
                       disabled={!!lookup.addedId || addingIndex === i}
                       onClick={() => handleAdd(i, lookup.result!)}
-                      className="h-7 text-xs mt-2 border-[var(--mm-card-border)] bg-[var(--mm-hover-bg-strong)]"
+                      className="h-7 text-xs border-[var(--mm-card-border)] bg-[var(--mm-hover-bg-strong)]"
                     >
                       {addingIndex === i ? (
                         <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -599,17 +698,36 @@ function DiscoveryCollectionDetail({
                       )}
                       {lookup.addedId ? 'Added' : 'Add to Library'}
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
 
+        {pendingFound.length > 0 && (
+          <Button
+            onClick={handleAddAllAndSave}
+            disabled={isSavingAll || isSaving}
+            className="w-full bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-700 hover:to-cyan-700 text-white rounded-xl h-12"
+          >
+            {isSavingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            {isSavingAll
+              ? 'Adding & saving...'
+              : `Add All ${pendingFound.length} & Save Whole Collection`}
+          </Button>
+        )}
+
         <Button
           onClick={handleSaveCollection}
-          disabled={addedIds.length === 0 || isSaving}
-          className="w-full bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-700 hover:to-cyan-700 text-white rounded-xl h-12"
+          disabled={addedIds.length === 0 || isSaving || isSavingAll}
+          variant={pendingFound.length > 0 ? 'outline' : 'default'}
+          className={cn(
+            'w-full rounded-xl h-12',
+            pendingFound.length > 0
+              ? 'border-[var(--mm-card-border)] bg-[var(--mm-hover-bg-strong)]'
+              : 'bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-700 hover:to-cyan-700 text-white'
+          )}
         >
           {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
           {addedIds.length === 0 ? 'Add at least one title first' : `Save Collection (${addedIds.length} added)`}
@@ -1334,6 +1452,11 @@ export default function CollectionsPage() {
   const [aiCollections, setAiCollections] = useState<AICollectionDraft[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [themeHint, setThemeHint] = useState('');
+  // Which type(s) the Discover (non-library) collection is constrained to -
+  // empty means mixed/any type, the AI's own call per title. Only affects
+  // generateDiscoveryCollection, not the library-reorganizing generation
+  // (that one's types are whatever's already in the library).
+  const [discoveryTypes, setDiscoveryTypes] = useState<MediaType[]>([]);
   // Not Dexie-persisted like aiCollections (a fresh one is generated every
   // "Generate" click alongside the library ones, and its titles need a
   // live re-search on open anyway, so there's nothing worth surviving a
@@ -1400,7 +1523,7 @@ export default function CollectionsPage() {
           avoidTitles,
           themeHint.trim() || undefined
         ),
-        ai.generateDiscoveryCollection(themeHint.trim() || undefined),
+        ai.generateDiscoveryCollection(themeHint.trim() || undefined, discoveryTypes.length > 0 ? discoveryTypes : undefined),
       ]);
 
       if (libraryResult.status === 'fulfilled' && libraryResult.value) {
@@ -1589,6 +1712,48 @@ export default function CollectionsPage() {
         placeholder="Optional theme or genre to build around (e.g. 'cozy mysteries', 'cyberpunk')"
         className="bg-[var(--mm-input-bg)] border-[var(--mm-card-border)] rounded-xl h-12"
       />
+
+      <div className="space-y-2">
+        <p className="text-xs text-[var(--mm-text-40)]">
+          Discover collection media type{discoveryTypes.length > 0 ? '' : ' (mixed)'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setDiscoveryTypes([])}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+              discoveryTypes.length === 0
+                ? 'bg-indigo-600 border-indigo-600 text-white'
+                : 'border-[var(--mm-card-border)] text-[var(--mm-text-50)] hover:text-[var(--mm-text)]'
+            )}
+          >
+            Mixed
+          </button>
+          {DISCOVERY_TYPE_OPTIONS.map((opt) => {
+            const active = discoveryTypes.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() =>
+                  setDiscoveryTypes((prev) =>
+                    active ? prev.filter((t) => t !== opt.value) : [...prev, opt.value]
+                  )
+                }
+                className={cn(
+                  'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                  active
+                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                    : 'border-[var(--mm-card-border)] text-[var(--mm-text-50)] hover:text-[var(--mm-text)]'
+                )}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <Button
         onClick={handleGenerate}
@@ -1792,6 +1957,7 @@ export default function CollectionsPage() {
           {discoveryDraft && (
             <DiscoveryCollectionDetail
               collection={discoveryDraft}
+              preferredType={discoveryTypes.length === 1 ? discoveryTypes[0] : undefined}
               onSaved={() => {
                 setIsDiscoveryOpen(false);
                 setDiscoveryDraft(null);
